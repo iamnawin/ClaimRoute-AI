@@ -42,18 +42,24 @@ def _luhn_check_digit(digits: str) -> int:
 
 
 def _parse_date(s: str) -> date | None:
-    s = re.sub(r"[^\d]", " ", str(s)).strip()
-    parts = s.split()
+    """Tolerant of OCR spacing noise: the digits carry the date, whitespace
+    does not ('01 28 26', '0128 26' and '012826' are the same date). Joining
+    the digit run is normalization, not guessing — the digit COUNT still has
+    to be exactly 6 or 8, so a dropped or hallucinated digit still FAILs."""
+    parts = re.sub(r"[^\d]", " ", str(s)).split()
+    digits = "".join(parts)
     fmts = []
-    if len(parts) == 3:
+    if len(parts) == 3 and [len(p) for p in parts] in ([2, 2, 2], [2, 2, 4],
+                                                       [1, 2, 4], [2, 1, 4],
+                                                       [1, 1, 4], [1, 2, 2],
+                                                       [2, 1, 2], [1, 1, 2]):
         m, d, y = parts
         y = ("20" + y if int(y) <= 26 else "19" + y) if len(y) == 2 else y
         fmts = [f"{m.zfill(2)} {d.zfill(2)} {y}"]
-    elif len(parts) == 1 and len(parts[0]) in (6, 8):
-        raw = parts[0]
-        y = raw[4:]
+    elif len(digits) in (6, 8):
+        y = digits[4:]
         y = ("20" + y if int(y) <= 26 else "19" + y) if len(y) == 2 else y
-        fmts = [f"{raw[:2]} {raw[2:4]} {y}"]
+        fmts = [f"{digits[:2]} {digits[2:4]} {y}"]
     for f in fmts:
         try:
             return datetime.strptime(f, "%m %d %Y").date()
@@ -158,6 +164,16 @@ def name_format(v, ctx):
     return (Verdict.PASS, "") if ok else (Verdict.FAIL, "bad Last, First shape")
 
 
+def org_name_format(v, ctx):
+    """Organisation names (billing provider, facility) are NOT 'Last, First' —
+    applying person-name rules to them produced false FAILs on correct values."""
+    s = str(v).strip()
+    if not (2 <= len(s) <= 60):
+        return Verdict.FAIL, "implausible length"
+    ok = re.fullmatch(r"[A-Za-z0-9 .,'&\-]+", s) and any(c.isalpha() for c in s)
+    return (Verdict.PASS, "") if ok else (Verdict.FAIL, "bad organisation name")
+
+
 def revenue_code_format(v, ctx):
     ok = str(v).strip() in _REV or re.fullmatch(r"0\d{3}", str(v).strip())
     return (Verdict.PASS, "") if ok else (Verdict.FAIL, "bad revenue code")
@@ -167,7 +183,7 @@ _VALIDATORS = {f.__name__: f for f in [
     npi_checksum, cpt_format, cpt_dictionary, icd10_format, icd10_dictionary,
     date_valid, dob_before_service, currency_format, claim_arithmetic,
     numeric_format, zip_format, tax_id_format, id_format, name_format,
-    revenue_code_format]}
+    org_name_format, revenue_code_format]}
 
 
 # ---------- policy wiring ----------
@@ -185,7 +201,8 @@ def _policy_for(field_name: str) -> dict:
 
 def validate_field(field_name: str, value, ctx: dict) -> list[ValidationStamp]:
     """Run the field's required validators from configs/field_policy.yaml."""
-    names = _policy_for(field_name).get("required_validators", [])
+    policy = _policy_for(field_name)
+    names = policy.get("required_validators", [])
     stamps = []
     for n in names:
         fn = _VALIDATORS.get(n)
@@ -193,7 +210,9 @@ def validate_field(field_name: str, value, ctx: dict) -> list[ValidationStamp]:
             stamps.append(ValidationStamp(n, Verdict.INAPPLICABLE, "unknown validator"))
             continue
         if value in (None, ""):
-            stamps.append(ValidationStamp(n, Verdict.FAIL, "empty value"))
+            # An absent OPTIONAL box is not an error — it is INAPPLICABLE.
+            v = Verdict.INAPPLICABLE if policy.get("optional") else Verdict.FAIL
+            stamps.append(ValidationStamp(n, v, "empty value"))
             continue
         verdict, detail = fn(value, ctx)
         stamps.append(ValidationStamp(n, verdict, detail))

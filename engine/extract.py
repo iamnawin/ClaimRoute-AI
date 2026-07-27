@@ -12,13 +12,15 @@ import yaml
 from PIL import Image
 
 from engine.fusion import fuse
+from engine.governor import apply
 from engine.ledger import CostLedger
 from engine.layout.mapper import map_fields
+from engine.retry_rung import retry_field
 from engine.validators import run_validators
 from engine.ocr import get_engine
 from engine.preprocess import preprocess_page
 from engine.router import route
-from engine.schemas import Attempt, FieldResult, PageResult
+from engine.schemas import Attempt, FieldResult, FieldState, PageResult
 
 _PRICES = yaml.safe_load(open("configs/prices.yaml"))
 VCPU_HOUR = _PRICES["compute"]["vcpu_hour_usd"]
@@ -29,7 +31,8 @@ def _cpu_cost(ms: float) -> float:
 
 
 def run_page(img: Image.Image, doc_id: str, ledger: CostLedger,
-             primary_engine: str = "paddle", prep: bool = True) -> PageResult:
+             primary_engine: str = "paddle", prep: bool = True,
+             run_retry: bool = True, preset_name: str | None = None) -> PageResult:
     # Tier 0
     t0 = time.perf_counter()
     if prep:
@@ -82,4 +85,21 @@ def run_page(img: Image.Image, doc_id: str, ledger: CostLedger,
     val_ms = (time.perf_counter() - t0) * 1000
     ledger.log(doc_id=doc_id, page_id="p1", operation="validate_fuse",
                cost_usd=_cpu_cost(val_ms), latency_ms=val_ms)
+
+    # ---- Cost Governor: decide, spend the cheapest rung, re-decide ----
+    page.decisions = {}
+    for name, fr in page.fields.items():
+        state, reason = apply(fr, preset_name)
+        page.decisions[name] = [(state.value, reason)]
+
+    if run_retry:
+        for name, fr in page.fields.items():
+            if fr.state != FieldState.RETRY:
+                continue
+            retry_field(fr, work, r["document_type"], r["variant"],
+                        values, page.quality_score, ledger)
+            # Every retried candidate re-enters the governor after revalidation.
+            state, reason = apply(fr, preset_name)
+            page.decisions[name].append((state.value, reason))
+
     return page

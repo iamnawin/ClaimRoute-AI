@@ -8,7 +8,7 @@ from PIL import Image
 from engine.extract import run_page
 from engine.ledger import CostLedger
 from engine.layout.mapper import load_template
-from engine.schemas import FieldState
+from engine.schemas import AUTOMATED_STATES
 
 
 def norm(s):
@@ -33,7 +33,10 @@ def test_spine_end_to_end_clean_page(tmp_path):
     # provenance + automated-state discipline
     fr = next(iter(page.fields.values()))
     assert fr.attempts and fr.attempts[0].rung == "primary_ocr"
-    assert fr.state == FieldState.RETRY          # nothing ACCEPTs before validation
+    # Since Day 7 the governor assigns the state; it must be an automated one,
+    # and every field must carry a recorded, human-readable decision trail.
+    assert fr.state in AUTOMATED_STATES
+    assert page.decisions[fr.field_name][0][1]
     # every stage logged to the ledger
     ops = {e["operation"] for e in led.entries()}
     assert {"preprocess", "route", "ocr_paddle"} <= ops

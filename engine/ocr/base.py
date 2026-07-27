@@ -3,19 +3,38 @@ doesn't play. Raw engine output is preserved on the adapter for debugging.
 """
 from __future__ import annotations
 
+import unicodedata
 from abc import ABC, abstractmethod
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from PIL import Image
+
+# OCR engines emit CJK/full-width punctuation for ASCII glyphs (PP-OCR's
+# multilingual head does this with commas and colons). Normalizing at the
+# shared-schema boundary keeps every downstream validator ASCII-only.
+_PUNCT_MAP = str.maketrans({
+    "，": ",", "。": ".", "：": ":", "；": ";", "（": "(", "）": ")",
+    "－": "-", "—": "-", "–": "-", "＄": "$", "／": "/", "＇": "'",
+    "‘": "'", "’": "'", "“": '"', "”": '"', "　": " ",
+})
+
+
+def normalize_text(s: str) -> str:
+    """NFKC + explicit punctuation folding. Applied to every engine's output."""
+    return unicodedata.normalize("NFKC", str(s)).translate(_PUNCT_MAP).strip()
 
 
 @dataclass
 class OcrWord:
     """One recognized text span. bbox = [x0, y0, x1, y1] in image coords.
-    conf normalized to 0..1 regardless of engine convention."""
+    conf normalized to 0..1 regardless of engine convention.
+    Text is Unicode-normalized on construction (shared schema guarantee)."""
     text: str
     bbox: list
     conf: float
+
+    def __post_init__(self):
+        self.text = normalize_text(self.text)
 
     @property
     def center(self) -> tuple[float, float]:

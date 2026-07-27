@@ -3,10 +3,15 @@
 # external_model_allowed: may this field's crop leave the trust boundary?
 # required_validators must PASS (or be human-overridden) before ACCEPT.
 
+# `optional: true` = the form permits this box to be blank (per the CMS-1500 /
+# UB-04 spec). An absent optional field is ACCEPTed as empty and NEVER
+# escalated — paying a model to look at a legitimately blank box is pure waste.
+# Hallucinating a value into one is penalised by the accuracy metric.
 defaults:
   criticality: med
   allow_accept_with_flag: false
   external_model_allowed: true
+  optional: false
   required_validators: []
 
 fields:
@@ -25,9 +30,9 @@ fields:
 
   # ---- Diagnosis (box 21) ----
   diagnosis_code_a:      { criticality: high, required_validators: [icd10_format, icd10_dictionary] }
-  diagnosis_code_b:      { criticality: high, required_validators: [icd10_format, icd10_dictionary] }
-  diagnosis_code_c:      { criticality: high, required_validators: [icd10_format, icd10_dictionary] }
-  diagnosis_code_d:      { criticality: high, required_validators: [icd10_format, icd10_dictionary] }
+  diagnosis_code_b:      { criticality: high, optional: true, required_validators: [icd10_format, icd10_dictionary] }
+  diagnosis_code_c:      { criticality: high, optional: true, required_validators: [icd10_format, icd10_dictionary] }
+  diagnosis_code_d:      { criticality: high, optional: true, required_validators: [icd10_format, icd10_dictionary] }
 
   # ---- Service lines (box 24, lines expanded 1..N) ----
   # Template applied to every service line via the `service_line_template` key.
@@ -36,10 +41,10 @@ fields:
   federal_tax_id:        { criticality: high, required_validators: [tax_id_format] }
   patient_account_no:    { criticality: med }
   total_charge:          { criticality: high, required_validators: [currency_format, claim_arithmetic] }
-  amount_paid:           { criticality: med,  required_validators: [currency_format] }
-  billing_provider_name: { criticality: med,  required_validators: [name_format] }
+  amount_paid:           { criticality: med,  optional: true, required_validators: [currency_format] }
+  billing_provider_name: { criticality: med,  required_validators: [org_name_format] }
   billing_provider_npi:  { criticality: high, required_validators: [npi_checksum] }
-  referring_provider_npi: { criticality: high, required_validators: [npi_checksum] }
+  referring_provider_npi: { criticality: high, optional: true, required_validators: [npi_checksum] }
 
 service_line_template:
   date_from:        { criticality: high, required_validators: [date_valid, dob_before_service] }
@@ -52,7 +57,7 @@ service_line_template:
   rendering_npi:    { criticality: high, required_validators: [npi_checksum] }
   # UB-04 revenue lines
   rev_code:         { criticality: high, required_validators: [revenue_code_format] }
-  hcpcs:            { criticality: med,  required_validators: [cpt_format] }
+  hcpcs:            { criticality: med,  optional: true, required_validators: [cpt_format] }
   service_date:     { criticality: high, required_validators: [date_valid, dob_before_service] }
 
 ub04_fields:  # merged into `fields` at load; kept separate for readability
@@ -64,7 +69,7 @@ ub04_fields:  # merged into `fields` at load; kept separate for readability
   statement_to:       { criticality: med,  required_validators: [date_valid] }
   admission_date:     { criticality: med,  required_validators: [date_valid] }
   federal_tax_no:     { criticality: high, required_validators: [tax_id_format] }
-  provider_name:      { criticality: med }
+  provider_name:      { criticality: med, required_validators: [org_name_format] }
   payer_name:         { criticality: med }
   patient_control_no: { criticality: med }
   medical_record_no:  { criticality: med }

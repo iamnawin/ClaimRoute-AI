@@ -28,6 +28,18 @@ def _overlap_1d(a0, a1, b0, b1) -> float:
     return max(0.0, min(a1, b1) - max(a0, b0))
 
 
+def template_region(img, form: str, variant: int, field: str) -> list | None:
+    """Absolute page bbox of a field's template region — the retry rung's
+    fallback when the primary pass produced no bbox (empty field)."""
+    ext = form_extent(img)
+    r = load_template(form, variant)["fields"].get(field)
+    if ext is None or r is None:
+        return None
+    x0e, y0e, x1e, y1e = ext
+    w, h = x1e - x0e, y1e - y0e
+    return [x0e + r[0] * w, y0e + r[1] * h, x0e + r[2] * w, y0e + r[3] * h]
+
+
 def map_fields(words: list[OcrWord], img, form: str, variant: int,
                pad: float = 8.0) -> dict:
     """-> {field: {value, conf, bbox, n_spans}} in page coordinates."""

@@ -1,0 +1,58 @@
+{
+  "funnel": {
+    "retry_on": {
+      "fields": 1432,
+      "accuracy": 0.9937,
+      "funnel_pct": {
+        "ACCEPT": 88.13,
+        "ACCEPT_WITH_FLAG": 6.91,
+        "ESCALATE": 4.96
+      },
+      "per_tier_accuracy": {
+        "clean": 0.9916,
+        "ugly": 0.9958
+      },
+      "retry_rung": {
+        "fields_retried": 105,
+        "retry_pct_of_fields": 7.33,
+        "resolved_after_retry": 34,
+        "still_wrong_after_retry": 5,
+        "total_retry_cost_usd": 0.00051125,
+        "mean_retry_cost_per_retried_field_usd": 4.869e-06
+      }
+    },
+    "retry_off": {
+      "fields": 1432,
+      "accuracy": 0.993,
+      "funnel_pct": {
+        "ACCEPT": 85.75,
+        "ACCEPT_WITH_FLAG": 6.91,
+        "RETRY": 7.33
+      },
+      "per_tier_accuracy": {
+        "clean": 0.9916,
+        "ugly": 0.9944
+      },
+      "retry_rung": {
+        "fields_retried": 0,
+        "retry_pct_of_fields": 0.0,
+        "resolved_after_retry": 0,
+        "still_wrong_after_retry": 0,
+        "total_retry_cost_usd": 0.0,
+        "mean_retry_cost_per_retried_field_usd": 0.0
+      }
+    },
+    "retry_rung_ablation": {
+      "fields_needing_more_evidence_pct": 7.33,
+      "fields_still_needing_a_paid_call_pct": 4.96,
+      "escalations_avoided_pct_of_all_fields": 2.37,
+      "share_of_would_be_paid_calls_resolved_locally": 0.3238,
+      "cost_of_avoided_escalation_usd_per_field": 4.869e-06,
+      "accuracy_off_vs_on": [
+        0.993,
+        0.9937
+      ]
+    }
+  },
+  "note": "calibration split only; local compute costed from configs/prices.yaml (near-zero incremental, not free); ESCALATE means 'would call a paid model' \u2014 Tier-2 not implemented until Day 8"
+}

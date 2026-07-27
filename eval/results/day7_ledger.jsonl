@@ -1,0 +1,447 @@
+{"ts": "2026-07-27T14:59:47.385962+00:00", "doc_id": "cms1500_42_0000", "page_id": "p1", "field": "", "operation": "preprocess", "cost_usd": 7.12e-06, "latency_ms": 512.79, "meta": {}}
+{"ts": "2026-07-27T14:59:47.899156+00:00", "doc_id": "cms1500_42_0000", "page_id": "p1", "field": "", "operation": "route", "cost_usd": 7.01e-06, "latency_ms": 504.44, "meta": {"type": "cms1500", "conf": 0.99}}
+{"ts": "2026-07-27T14:59:55.713626+00:00", "doc_id": "cms1500_42_0000", "page_id": "p1", "field": "", "operation": "ocr_paddle", "cost_usd": 0.00010526, "latency_ms": 7578.48, "meta": {}}
+{"ts": "2026-07-27T14:59:55.783697+00:00", "doc_id": "cms1500_42_0000", "page_id": "p1", "field": "", "operation": "validate_fuse", "cost_usd": 4e-08, "latency_ms": 2.8, "meta": {}}
+{"ts": "2026-07-27T14:59:56.313752+00:00", "doc_id": "cms1500_42_0005", "page_id": "p1", "field": "", "operation": "preprocess", "cost_usd": 6.5e-06, "latency_ms": 468.08, "meta": {}}
+{"ts": "2026-07-27T14:59:56.363934+00:00", "doc_id": "cms1500_42_0005", "page_id": "p1", "field": "", "operation": "route", "cost_usd": 6.1e-07, "latency_ms": 44.18, "meta": {"type": "cms1500", "conf": 0.99}}
+{"ts": "2026-07-27T15:00:03.990732+00:00", "doc_id": "cms1500_42_0005", "page_id": "p1", "field": "", "operation": "ocr_paddle", "cost_usd": 0.00010583, "latency_ms": 7619.91, "meta": {}}
+{"ts": "2026-07-27T15:00:04.041739+00:00", "doc_id": "cms1500_42_0005", "page_id": "p1", "field": "", "operation": "validate_fuse", "cost_usd": 5e-08, "latency_ms": 3.61, "meta": {}}
+{"ts": "2026-07-27T15:00:04.557988+00:00", "doc_id": "cms1500_42_0006", "page_id": "p1", "field": "", "operation": "preprocess", "cost_usd": 6.36e-06, "latency_ms": 458.02, "meta": {}}
+{"ts": "2026-07-27T15:00:04.611043+00:00", "doc_id": "cms1500_42_0006", "page_id": "p1", "field": "", "operation": "route", "cost_usd": 6.7e-07, "latency_ms": 48.16, "meta": {"type": "cms1500", "conf": 0.99}}
+{"ts": "2026-07-27T15:00:09.256493+00:00", "doc_id": "cms1500_42_0006", "page_id": "p1", "field": "", "operation": "ocr_paddle", "cost_usd": 6.446e-05, "latency_ms": 4641.28, "meta": {}}
+{"ts": "2026-07-27T15:00:09.317128+00:00", "doc_id": "cms1500_42_0006", "page_id": "p1", "field": "", "operation": "validate_fuse", "cost_usd": 1e-08, "latency_ms": 1.0, "meta": {}}
+{"ts": "2026-07-27T15:00:09.818648+00:00", "doc_id": "cms1500_42_0013", "page_id": "p1", "field": "", "operation": "preprocess", "cost_usd": 6.24e-06, "latency_ms": 448.97, "meta": {}}
+{"ts": "2026-07-27T15:00:09.863678+00:00", "doc_id": "cms1500_42_0013", "page_id": "p1", "field": "", "operation": "route", "cost_usd": 5.8e-07, "latency_ms": 41.43, "meta": {"type": "cms1500", "conf": 0.99}}
+{"ts": "2026-07-27T15:00:14.546628+00:00", "doc_id": "cms1500_42_0013", "page_id": "p1", "field": "", "operation": "ocr_paddle", "cost_usd": 6.496e-05, "latency_ms": 4676.9, "meta": {}}
+{"ts": "2026-07-27T15:00:14.604520+00:00", "doc_id": "cms1500_42_0013", "page_id": "p1", "field": "", "operation": "validate_fuse", "cost_usd": 1e-08, "latency_ms": 0.85, "meta": {}}
+{"ts": "2026-07-27T15:00:15.282418+00:00", "doc_id": "cms1500_42_0016", "page_id": "p1", "field": "", "operation": "preprocess", "cost_usd": 6.01e-06, "latency_ms": 432.85, "meta": {}}
+{"ts": "2026-07-27T15:00:15.332754+00:00", "doc_id": "cms1500_42_0016", "page_id": "p1", "field": "", "operation": "route", "cost_usd": 6.2e-07, "latency_ms": 44.96, "meta": {"type": "cms1500", "conf": 0.99}}
+{"ts": "2026-07-27T15:00:20.206188+00:00", "doc_id": "cms1500_42_0016", "page_id": "p1", "field": "", "operation": "ocr_paddle", "cost_usd": 6.761e-05, "latency_ms": 4867.91, "meta": {}}
+{"ts": "2026-07-27T15:00:20.248047+00:00", "doc_id": "cms1500_42_0016", "page_id": "p1", "field": "", "operation": "validate_fuse", "cost_usd": 1e-08, "latency_ms": 0.57, "meta": {}}
+{"ts": "2026-07-27T15:00:21.717154+00:00", "doc_id": "cms1500_42_0016", "page_id": "p1", "field": "line2_units", "operation": "retry_tesseract", "cost_usd": 1.992e-05, "latency_ms": 1434.02, "meta": {"rung": "retry_ocr"}}
+{"ts": "2026-07-27T15:00:22.201640+00:00", "doc_id": "cms1500_42_0017", "page_id": "p1", "field": "", "operation": "preprocess", "cost_usd": 5.98e-06, "latency_ms": 430.9, "meta": {}}
+{"ts": "2026-07-27T15:00:22.241498+00:00", "doc_id": "cms1500_42_0017", "page_id": "p1", "field": "", "operation": "route", "cost_usd": 5e-07, "latency_ms": 36.08, "meta": {"type": "cms1500", "conf": 0.99}}
+{"ts": "2026-07-27T15:00:27.034382+00:00", "doc_id": "cms1500_42_0017", "page_id": "p1", "field": "", "operation": "ocr_paddle", "cost_usd": 6.648e-05, "latency_ms": 4786.28, "meta": {}}
+{"ts": "2026-07-27T15:00:27.071380+00:00", "doc_id": "cms1500_42_0017", "page_id": "p1", "field": "", "operation": "validate_fuse", "cost_usd": 1e-08, "latency_ms": 0.82, "meta": {}}
+{"ts": "2026-07-27T15:00:27.319530+00:00", "doc_id": "cms1500_42_0017", "page_id": "p1", "field": "billing_provider_name", "operation": "retry_tesseract", "cost_usd": 3.38e-06, "latency_ms": 243.38, "meta": {"rung": "retry_ocr"}}
+{"ts": "2026-07-27T15:00:27.462486+00:00", "doc_id": "cms1500_42_0017", "page_id": "p1", "field": "line2_diagnosis_pointer", "operation": "retry_tesseract", "cost_usd": 1.91e-06, "latency_ms": 137.42, "meta": {"rung": "retry_ocr"}}
+{"ts": "2026-07-27T15:00:27.685567+00:00", "doc_id": "cms1500_42_0017", "page_id": "p1", "field": "line2_units", "operation": "retry_tesseract", "cost_usd": 2.56e-06, "latency_ms": 184.53, "meta": {"rung": "retry_ocr"}}
+{"ts": "2026-07-27T15:00:42.493340+00:00", "doc_id": "cms1500_42_0019", "page_id": "p1", "field": "", "operation": "preprocess", "cost_usd": 7.56e-06, "latency_ms": 544.19, "meta": {}}
+{"ts": "2026-07-27T15:00:43.149130+00:00", "doc_id": "cms1500_42_0019", "page_id": "p1", "field": "", "operation": "route", "cost_usd": 9.04e-06, "latency_ms": 650.56, "meta": {"type": "cms1500", "conf": 0.99}}
+{"ts": "2026-07-27T15:00:49.857582+00:00", "doc_id": "cms1500_42_0019", "page_id": "p1", "field": "", "operation": "ocr_paddle", "cost_usd": 8.749e-05, "latency_ms": 6298.96, "meta": {}}
+{"ts": "2026-07-27T15:00:49.923328+00:00", "doc_id": "cms1500_42_0019", "page_id": "p1", "field": "", "operation": "validate_fuse", "cost_usd": 3e-08, "latency_ms": 2.4, "meta": {}}
+{"ts": "2026-07-27T15:00:50.506177+00:00", "doc_id": "cms1500_42_0020", "page_id": "p1", "field": "", "operation": "preprocess", "cost_usd": 7.52e-06, "latency_ms": 541.24, "meta": {}}
+{"ts": "2026-07-27T15:00:50.551925+00:00", "doc_id": "cms1500_42_0020", "page_id": "p1", "field": "", "operation": "route", "cost_usd": 5.5e-07, "latency_ms": 39.47, "meta": {"type": "cms1500", "conf": 0.99}}
+{"ts": "2026-07-27T15:00:55.992172+00:00", "doc_id": "cms1500_42_0020", "page_id": "p1", "field": "", "operation": "ocr_paddle", "cost_usd": 7.549e-05, "latency_ms": 5435.42, "meta": {}}
+{"ts": "2026-07-27T15:00:56.063389+00:00", "doc_id": "cms1500_42_0020", "page_id": "p1", "field": "", "operation": "validate_fuse", "cost_usd": 1e-08, "latency_ms": 0.65, "meta": {}}
+{"ts": "2026-07-27T15:00:56.581879+00:00", "doc_id": "cms1500_42_0021", "page_id": "p1", "field": "", "operation": "preprocess", "cost_usd": 6.36e-06, "latency_ms": 458.06, "meta": {}}
+{"ts": "2026-07-27T15:00:56.630392+00:00", "doc_id": "cms1500_42_0021", "page_id": "p1", "field": "", "operation": "route", "cost_usd": 5.7e-07, "latency_ms": 41.2, "meta": {"type": "cms1500", "conf": 0.99}}
+{"ts": "2026-07-27T15:01:01.983353+00:00", "doc_id": "cms1500_42_0021", "page_id": "p1", "field": "", "operation": "ocr_paddle", "cost_usd": 7.424e-05, "latency_ms": 5345.64, "meta": {}}
+{"ts": "2026-07-27T15:01:02.034993+00:00", "doc_id": "cms1500_42_0021", "page_id": "p1", "field": "", "operation": "validate_fuse", "cost_usd": 5e-08, "latency_ms": 3.4, "meta": {}}
+{"ts": "2026-07-27T15:01:02.589098+00:00", "doc_id": "cms1500_42_0024", "page_id": "p1", "field": "", "operation": "preprocess", "cost_usd": 6.59e-06, "latency_ms": 474.48, "meta": {}}
+{"ts": "2026-07-27T15:01:02.629051+00:00", "doc_id": "cms1500_42_0024", "page_id": "p1", "field": "", "operation": "route", "cost_usd": 5e-07, "latency_ms": 36.27, "meta": {"type": "cms1500", "conf": 0.99}}
+{"ts": "2026-07-27T15:01:06.905252+00:00", "doc_id": "cms1500_42_0024", "page_id": "p1", "field": "", "operation": "ocr_paddle", "cost_usd": 5.932e-05, "latency_ms": 4271.01, "meta": {}}
+{"ts": "2026-07-27T15:01:06.966212+00:00", "doc_id": "cms1500_42_0024", "page_id": "p1", "field": "", "operation": "validate_fuse", "cost_usd": 1e-08, "latency_ms": 0.4, "meta": {}}
+{"ts": "2026-07-27T15:01:08.108014+00:00", "doc_id": "cms1500_42_0024", "page_id": "p1", "field": "line1_units", "operation": "retry_tesseract", "cost_usd": 1.534e-05, "latency_ms": 1104.82, "meta": {"rung": "retry_ocr"}}
+{"ts": "2026-07-27T15:01:08.644163+00:00", "doc_id": "ub04_42_0002", "page_id": "p1", "field": "", "operation": "preprocess", "cost_usd": 6.54e-06, "latency_ms": 470.63, "meta": {}}
+{"ts": "2026-07-27T15:01:08.691287+00:00", "doc_id": "ub04_42_0002", "page_id": "p1", "field": "", "operation": "route", "cost_usd": 6e-07, "latency_ms": 43.04, "meta": {"type": "ub04", "conf": 0.99}}
+{"ts": "2026-07-27T15:01:13.748853+00:00", "doc_id": "ub04_42_0002", "page_id": "p1", "field": "", "operation": "ocr_paddle", "cost_usd": 7.018e-05, "latency_ms": 5052.78, "meta": {}}
+{"ts": "2026-07-27T15:01:13.857745+00:00", "doc_id": "ub04_42_0002", "page_id": "p1", "field": "", "operation": "validate_fuse", "cost_usd": 1e-08, "latency_ms": 1.07, "meta": {}}
+{"ts": "2026-07-27T15:01:14.437461+00:00", "doc_id": "ub04_42_0005", "page_id": "p1", "field": "", "operation": "preprocess", "cost_usd": 7.15e-06, "latency_ms": 514.88, "meta": {}}
+{"ts": "2026-07-27T15:01:14.490572+00:00", "doc_id": "ub04_42_0005", "page_id": "p1", "field": "", "operation": "route", "cost_usd": 6.8e-07, "latency_ms": 49.14, "meta": {"type": "ub04", "conf": 0.99}}
+{"ts": "2026-07-27T15:01:19.037551+00:00", "doc_id": "ub04_42_0005", "page_id": "p1", "field": "", "operation": "ocr_paddle", "cost_usd": 6.308e-05, "latency_ms": 4542.02, "meta": {}}
+{"ts": "2026-07-27T15:01:19.072851+00:00", "doc_id": "ub04_42_0005", "page_id": "p1", "field": "", "operation": "validate_fuse", "cost_usd": 1e-08, "latency_ms": 0.41, "meta": {}}
+{"ts": "2026-07-27T15:01:19.593051+00:00", "doc_id": "ub04_42_0007", "page_id": "p1", "field": "", "operation": "preprocess", "cost_usd": 6.41e-06, "latency_ms": 461.6, "meta": {}}
+{"ts": "2026-07-27T15:01:19.645809+00:00", "doc_id": "ub04_42_0007", "page_id": "p1", "field": "", "operation": "route", "cost_usd": 6.7e-07, "latency_ms": 48.2, "meta": {"type": "ub04", "conf": 0.99}}
+{"ts": "2026-07-27T15:01:31.662061+00:00", "doc_id": "ub04_42_0007", "page_id": "p1", "field": "", "operation": "preprocess", "cost_usd": 8.06e-06, "latency_ms": 580.46, "meta": {}}
+{"ts": "2026-07-27T15:01:32.299311+00:00", "doc_id": "ub04_42_0007", "page_id": "p1", "field": "", "operation": "route", "cost_usd": 8.74e-06, "latency_ms": 629.51, "meta": {"type": "ub04", "conf": 0.99}}
+{"ts": "2026-07-27T15:01:41.631628+00:00", "doc_id": "ub04_42_0007", "page_id": "p1", "field": "", "operation": "ocr_paddle", "cost_usd": 0.00012284, "latency_ms": 8844.55, "meta": {}}
+{"ts": "2026-07-27T15:01:41.698734+00:00", "doc_id": "ub04_42_0007", "page_id": "p1", "field": "", "operation": "validate_fuse", "cost_usd": 4e-08, "latency_ms": 2.89, "meta": {}}
+{"ts": "2026-07-27T15:01:42.190685+00:00", "doc_id": "ub04_42_0011", "page_id": "p1", "field": "", "operation": "preprocess", "cost_usd": 5.93e-06, "latency_ms": 427.18, "meta": {}}
+{"ts": "2026-07-27T15:01:42.236259+00:00", "doc_id": "ub04_42_0011", "page_id": "p1", "field": "", "operation": "route", "cost_usd": 5.9e-07, "latency_ms": 42.41, "meta": {"type": "ub04", "conf": 0.99}}
+{"ts": "2026-07-27T15:01:46.057876+00:00", "doc_id": "ub04_42_0011", "page_id": "p1", "field": "", "operation": "ocr_paddle", "cost_usd": 5.301e-05, "latency_ms": 3816.82, "meta": {}}
+{"ts": "2026-07-27T15:01:46.089998+00:00", "doc_id": "ub04_42_0011", "page_id": "p1", "field": "", "operation": "validate_fuse", "cost_usd": 1e-08, "latency_ms": 0.52, "meta": {}}
+{"ts": "2026-07-27T15:01:46.531741+00:00", "doc_id": "ub04_42_0014", "page_id": "p1", "field": "", "operation": "preprocess", "cost_usd": 5.48e-06, "latency_ms": 394.66, "meta": {}}
+{"ts": "2026-07-27T15:01:46.570092+00:00", "doc_id": "ub04_42_0014", "page_id": "p1", "field": "", "operation": "route", "cost_usd": 4.6e-07, "latency_ms": 32.9, "meta": {"type": "ub04", "conf": 0.99}}
+{"ts": "2026-07-27T15:01:50.421513+00:00", "doc_id": "ub04_42_0014", "page_id": "p1", "field": "", "operation": "ocr_paddle", "cost_usd": 5.345e-05, "latency_ms": 3848.34, "meta": {}}
+{"ts": "2026-07-27T15:01:50.451510+00:00", "doc_id": "ub04_42_0014", "page_id": "p1", "field": "", "operation": "validate_fuse", "cost_usd": 1e-08, "latency_ms": 0.48, "meta": {}}
+{"ts": "2026-07-27T15:01:50.898447+00:00", "doc_id": "ub04_42_0017", "page_id": "p1", "field": "", "operation": "preprocess", "cost_usd": 5.57e-06, "latency_ms": 401.37, "meta": {}}
+{"ts": "2026-07-27T15:01:50.937252+00:00", "doc_id": "ub04_42_0017", "page_id": "p1", "field": "", "operation": "route", "cost_usd": 4.7e-07, "latency_ms": 33.55, "meta": {"type": "ub04", "conf": 0.99}}
+{"ts": "2026-07-27T15:01:55.397083+00:00", "doc_id": "ub04_42_0017", "page_id": "p1", "field": "", "operation": "ocr_paddle", "cost_usd": 6.185e-05, "latency_ms": 4453.07, "meta": {}}
+{"ts": "2026-07-27T15:01:55.454719+00:00", "doc_id": "ub04_42_0017", "page_id": "p1", "field": "", "operation": "validate_fuse", "cost_usd": 1e-08, "latency_ms": 0.39, "meta": {}}
+{"ts": "2026-07-27T15:01:55.892363+00:00", "doc_id": "ub04_42_0018", "page_id": "p1", "field": "", "operation": "preprocess", "cost_usd": 5.34e-06, "latency_ms": 384.34, "meta": {}}
+{"ts": "2026-07-27T15:01:55.929336+00:00", "doc_id": "ub04_42_0018", "page_id": "p1", "field": "", "operation": "route", "cost_usd": 4.6e-07, "latency_ms": 33.48, "meta": {"type": "ub04", "conf": 0.99}}
+{"ts": "2026-07-27T15:02:00.043003+00:00", "doc_id": "ub04_42_0018", "page_id": "p1", "field": "", "operation": "ocr_paddle", "cost_usd": 5.709e-05, "latency_ms": 4110.41, "meta": {}}
+{"ts": "2026-07-27T15:02:00.083857+00:00", "doc_id": "ub04_42_0018", "page_id": "p1", "field": "", "operation": "validate_fuse", "cost_usd": 1e-08, "latency_ms": 0.78, "meta": {}}
+{"ts": "2026-07-27T15:02:01.360355+00:00", "doc_id": "ub04_42_0018", "page_id": "p1", "field": "line2_units", "operation": "retry_tesseract", "cost_usd": 1.729e-05, "latency_ms": 1244.54, "meta": {"rung": "retry_ocr"}}
+{"ts": "2026-07-27T15:02:01.943068+00:00", "doc_id": "ub04_42_0019", "page_id": "p1", "field": "", "operation": "preprocess", "cost_usd": 7.44e-06, "latency_ms": 535.5, "meta": {}}
+{"ts": "2026-07-27T15:02:01.996430+00:00", "doc_id": "ub04_42_0019", "page_id": "p1", "field": "", "operation": "route", "cost_usd": 6.8e-07, "latency_ms": 48.62, "meta": {"type": "ub04", "conf": 0.99}}
+{"ts": "2026-07-27T15:02:06.486280+00:00", "doc_id": "ub04_42_0019", "page_id": "p1", "field": "", "operation": "ocr_paddle", "cost_usd": 6.228e-05, "latency_ms": 4484.45, "meta": {}}
+{"ts": "2026-07-27T15:02:06.519889+00:00", "doc_id": "ub04_42_0019", "page_id": "p1", "field": "", "operation": "validate_fuse", "cost_usd": 1e-08, "latency_ms": 0.6, "meta": {}}
+{"ts": "2026-07-27T15:02:07.007518+00:00", "doc_id": "ub04_42_0020", "page_id": "p1", "field": "", "operation": "preprocess", "cost_usd": 5.95e-06, "latency_ms": 428.38, "meta": {}}
+{"ts": "2026-07-27T15:02:07.051792+00:00", "doc_id": "ub04_42_0020", "page_id": "p1", "field": "", "operation": "route", "cost_usd": 5.6e-07, "latency_ms": 39.96, "meta": {"type": "ub04", "conf": 0.99}}
+{"ts": "2026-07-27T15:02:11.263555+00:00", "doc_id": "ub04_42_0020", "page_id": "p1", "field": "", "operation": "ocr_paddle", "cost_usd": 5.844e-05, "latency_ms": 4207.56, "meta": {}}
+{"ts": "2026-07-27T15:02:11.300135+00:00", "doc_id": "ub04_42_0020", "page_id": "p1", "field": "", "operation": "validate_fuse", "cost_usd": 1e-08, "latency_ms": 0.53, "meta": {}}
+{"ts": "2026-07-27T15:02:11.790411+00:00", "doc_id": "ub04_42_0024", "page_id": "p1", "field": "", "operation": "preprocess", "cost_usd": 6.15e-06, "latency_ms": 442.62, "meta": {}}
+{"ts": "2026-07-27T15:02:11.836833+00:00", "doc_id": "ub04_42_0024", "page_id": "p1", "field": "", "operation": "route", "cost_usd": 5.8e-07, "latency_ms": 42.07, "meta": {"type": "ub04", "conf": 0.99}}
+{"ts": "2026-07-27T15:02:20.924198+00:00", "doc_id": "ub04_42_0024", "page_id": "p1", "field": "", "operation": "preprocess", "cost_usd": 8.24e-06, "latency_ms": 592.96, "meta": {}}
+{"ts": "2026-07-27T15:02:21.486287+00:00", "doc_id": "ub04_42_0024", "page_id": "p1", "field": "", "operation": "route", "cost_usd": 7.66e-06, "latency_ms": 551.8, "meta": {"type": "ub04", "conf": 0.99}}
+{"ts": "2026-07-27T15:02:27.374928+00:00", "doc_id": "ub04_42_0024", "page_id": "p1", "field": "", "operation": "ocr_paddle", "cost_usd": 7.805e-05, "latency_ms": 5619.38, "meta": {}}
+{"ts": "2026-07-27T15:02:27.453590+00:00", "doc_id": "ub04_42_0024", "page_id": "p1", "field": "", "operation": "validate_fuse", "cost_usd": 5e-08, "latency_ms": 3.92, "meta": {}}
+{"ts": "2026-07-27T15:02:35.319159+00:00", "doc_id": "cms1500_42_0000", "page_id": "p1", "field": "", "operation": "preprocess", "cost_usd": 3.226e-05, "latency_ms": 2322.62, "meta": {}}
+{"ts": "2026-07-27T15:02:35.802143+00:00", "doc_id": "cms1500_42_0000", "page_id": "p1", "field": "", "operation": "route", "cost_usd": 6.64e-06, "latency_ms": 478.14, "meta": {"type": "cms1500", "conf": 0.983}}
+{"ts": "2026-07-27T15:02:42.281125+00:00", "doc_id": "cms1500_42_0000", "page_id": "p1", "field": "", "operation": "ocr_paddle", "cost_usd": 8.67e-05, "latency_ms": 6242.45, "meta": {}}
+{"ts": "2026-07-27T15:02:42.351681+00:00", "doc_id": "cms1500_42_0000", "page_id": "p1", "field": "", "operation": "validate_fuse", "cost_usd": 4e-08, "latency_ms": 3.08, "meta": {}}
+{"ts": "2026-07-27T15:02:43.482344+00:00", "doc_id": "cms1500_42_0000", "page_id": "p1", "field": "insurance_plan_name", "operation": "retry_tesseract", "cost_usd": 1.563e-05, "latency_ms": 1125.13, "meta": {"rung": "retry_ocr"}}
+{"ts": "2026-07-27T15:02:43.697510+00:00", "doc_id": "cms1500_42_0000", "page_id": "p1", "field": "patient_account_no", "operation": "retry_tesseract", "cost_usd": 2.9e-06, "latency_ms": 208.55, "meta": {"rung": "retry_ocr"}}
+{"ts": "2026-07-27T15:02:43.916166+00:00", "doc_id": "cms1500_42_0000", "page_id": "p1", "field": "billing_provider_name", "operation": "retry_tesseract", "cost_usd": 2.96e-06, "latency_ms": 213.07, "meta": {"rung": "retry_ocr"}}
+{"ts": "2026-07-27T15:02:44.169668+00:00", "doc_id": "cms1500_42_0000", "page_id": "p1", "field": "line1_diagnosis_pointer", "operation": "retry_tesseract", "cost_usd": 3.45e-06, "latency_ms": 248.65, "meta": {"rung": "retry_ocr"}}
+{"ts": "2026-07-27T15:02:44.345129+00:00", "doc_id": "cms1500_42_0000", "page_id": "p1", "field": "line2_diagnosis_pointer", "operation": "retry_tesseract", "cost_usd": 2.37e-06, "latency_ms": 170.55, "meta": {"rung": "retry_ocr"}}
+{"ts": "2026-07-27T15:02:44.524538+00:00", "doc_id": "cms1500_42_0000", "page_id": "p1", "field": "line3_diagnosis_pointer", "operation": "retry_tesseract", "cost_usd": 2.43e-06, "latency_ms": 174.63, "meta": {"rung": "retry_ocr"}}
+{"ts": "2026-07-27T15:02:47.088990+00:00", "doc_id": "cms1500_42_0005", "page_id": "p1", "field": "", "operation": "preprocess", "cost_usd": 3.492e-05, "latency_ms": 2514.5, "meta": {}}
+{"ts": "2026-07-27T15:02:47.162690+00:00", "doc_id": "cms1500_42_0005", "page_id": "p1", "field": "", "operation": "route", "cost_usd": 9.4e-07, "latency_ms": 67.72, "meta": {"type": "cms1500", "conf": 0.983}}
+{"ts": "2026-07-27T15:02:52.893165+00:00", "doc_id": "cms1500_42_0005", "page_id": "p1", "field": "", "operation": "ocr_paddle", "cost_usd": 7.955e-05, "latency_ms": 5727.24, "meta": {}}
+{"ts": "2026-07-27T15:02:52.963367+00:00", "doc_id": "cms1500_42_0005", "page_id": "p1", "field": "", "operation": "validate_fuse", "cost_usd": 1e-08, "latency_ms": 0.55, "meta": {}}
+{"ts": "2026-07-27T15:02:53.210490+00:00", "doc_id": "cms1500_42_0005", "page_id": "p1", "field": "insurance_plan_name", "operation": "retry_tesseract", "cost_usd": 3.35e-06, "latency_ms": 241.55, "meta": {"rung": "retry_ocr"}}
+{"ts": "2026-07-27T15:02:53.415575+00:00", "doc_id": "cms1500_42_0005", "page_id": "p1", "field": "patient_account_no", "operation": "retry_tesseract", "cost_usd": 2.79e-06, "latency_ms": 200.58, "meta": {"rung": "retry_ocr"}}
+{"ts": "2026-07-27T15:02:53.664385+00:00", "doc_id": "cms1500_42_0005", "page_id": "p1", "field": "billing_provider_name", "operation": "retry_tesseract", "cost_usd": 3.31e-06, "latency_ms": 238.58, "meta": {"rung": "retry_ocr"}}
+{"ts": "2026-07-27T15:02:53.846316+00:00", "doc_id": "cms1500_42_0005", "page_id": "p1", "field": "line1_diagnosis_pointer", "operation": "retry_tesseract", "cost_usd": 2.43e-06, "latency_ms": 174.72, "meta": {"rung": "retry_ocr"}}
+{"ts": "2026-07-27T15:02:54.045615+00:00", "doc_id": "cms1500_42_0005", "page_id": "p1", "field": "line2_diagnosis_pointer", "operation": "retry_tesseract", "cost_usd": 2.71e-06, "latency_ms": 195.39, "meta": {"rung": "retry_ocr"}}
+{"ts": "2026-07-27T15:02:54.259676+00:00", "doc_id": "cms1500_42_0005", "page_id": "p1", "field": "line3_diagnosis_pointer", "operation": "retry_tesseract", "cost_usd": 2.88e-06, "latency_ms": 207.51, "meta": {"rung": "retry_ocr"}}
+{"ts": "2026-07-27T15:02:54.500317+00:00", "doc_id": "cms1500_42_0005", "page_id": "p1", "field": "diagnosis_code_b", "operation": "retry_tesseract", "cost_usd": 3.27e-06, "latency_ms": 235.16, "meta": {"rung": "retry_ocr"}}
+{"ts": "2026-07-27T15:02:56.339015+00:00", "doc_id": "cms1500_42_0006", "page_id": "p1", "field": "", "operation": "preprocess", "cost_usd": 2.487e-05, "latency_ms": 1790.45, "meta": {}}
+{"ts": "2026-07-27T15:02:56.412938+00:00", "doc_id": "cms1500_42_0006", "page_id": "p1", "field": "", "operation": "route", "cost_usd": 8.9e-07, "latency_ms": 64.4, "meta": {"type": "cms1500", "conf": 0.977}}
+{"ts": "2026-07-27T15:03:01.224600+00:00", "doc_id": "cms1500_42_0006", "page_id": "p1", "field": "", "operation": "ocr_paddle", "cost_usd": 6.674e-05, "latency_ms": 4805.24, "meta": {}}
+{"ts": "2026-07-27T15:03:01.297128+00:00", "doc_id": "cms1500_42_0006", "page_id": "p1", "field": "", "operation": "validate_fuse", "cost_usd": 1e-08, "latency_ms": 0.55, "meta": {}}
+{"ts": "2026-07-27T15:03:01.548236+00:00", "doc_id": "cms1500_42_0006", "page_id": "p1", "field": "insurance_plan_name", "operation": "retry_tesseract", "cost_usd": 3.4e-06, "latency_ms": 244.94, "meta": {"rung": "retry_ocr"}}
+{"ts": "2026-07-27T15:03:01.758893+00:00", "doc_id": "cms1500_42_0006", "page_id": "p1", "field": "patient_account_no", "operation": "retry_tesseract", "cost_usd": 2.84e-06, "latency_ms": 204.63, "meta": {"rung": "retry_ocr"}}
+{"ts": "2026-07-27T15:03:02.079524+00:00", "doc_id": "cms1500_42_0006", "page_id": "p1", "field": "billing_provider_name", "operation": "retry_tesseract", "cost_usd": 4.35e-06, "latency_ms": 313.53, "meta": {"rung": "retry_ocr"}}
+{"ts": "2026-07-27T15:03:02.356804+00:00", "doc_id": "cms1500_42_0006", "page_id": "p1", "field": "line1_diagnosis_pointer", "operation": "retry_tesseract", "cost_usd": 3.6e-06, "latency_ms": 259.47, "meta": {"rung": "retry_ocr"}}
+{"ts": "2026-07-27T15:03:02.531676+00:00", "doc_id": "cms1500_42_0006", "page_id": "p1", "field": "line2_diagnosis_pointer", "operation": "retry_tesseract", "cost_usd": 2.33e-06, "latency_ms": 168.02, "meta": {"rung": "retry_ocr"}}
+{"ts": "2026-07-27T15:03:02.737647+00:00", "doc_id": "cms1500_42_0006", "page_id": "p1", "field": "diagnosis_code_d", "operation": "retry_tesseract", "cost_usd": 2.78e-06, "latency_ms": 199.94, "meta": {"rung": "retry_ocr"}}
+{"ts": "2026-07-27T15:03:04.306955+00:00", "doc_id": "cms1500_42_0013", "page_id": "p1", "field": "", "operation": "preprocess", "cost_usd": 2.116e-05, "latency_ms": 1523.32, "meta": {}}
+{"ts": "2026-07-27T15:03:04.376540+00:00", "doc_id": "cms1500_42_0013", "page_id": "p1", "field": "", "operation": "route", "cost_usd": 8.5e-07, "latency_ms": 60.84, "meta": {"type": "cms1500", "conf": 0.98}}
+{"ts": "2026-07-27T15:03:08.696795+00:00", "doc_id": "cms1500_42_0013", "page_id": "p1", "field": "", "operation": "ocr_paddle", "cost_usd": 5.992e-05, "latency_ms": 4314.19, "meta": {}}
+{"ts": "2026-07-27T15:03:08.766906+00:00", "doc_id": "cms1500_42_0013", "page_id": "p1", "field": "", "operation": "validate_fuse", "cost_usd": 1e-08, "latency_ms": 0.53, "meta": {}}
+{"ts": "2026-07-27T15:03:08.983318+00:00", "doc_id": "cms1500_42_0013", "page_id": "p1", "field": "insurance_plan_name", "operation": "retry_tesseract", "cost_usd": 2.91e-06, "latency_ms": 209.7, "meta": {"rung": "retry_ocr"}}
+{"ts": "2026-07-27T15:03:09.213552+00:00", "doc_id": "cms1500_42_0013", "page_id": "p1", "field": "patient_account_no", "operation": "retry_tesseract", "cost_usd": 3.1e-06, "latency_ms": 223.38, "meta": {"rung": "retry_ocr"}}
+{"ts": "2026-07-27T15:03:09.458568+00:00", "doc_id": "cms1500_42_0013", "page_id": "p1", "field": "billing_provider_name", "operation": "retry_tesseract", "cost_usd": 3.31e-06, "latency_ms": 238.19, "meta": {"rung": "retry_ocr"}}
+{"ts": "2026-07-27T15:03:09.713393+00:00", "doc_id": "cms1500_42_0013", "page_id": "p1", "field": "line1_cpt_code", "operation": "retry_tesseract", "cost_usd": 2.81e-06, "latency_ms": 202.61, "meta": {"rung": "retry_ocr"}}
+{"ts": "2026-07-27T15:03:09.971296+00:00", "doc_id": "cms1500_42_0013", "page_id": "p1", "field": "line1_diagnosis_pointer", "operation": "retry_tesseract", "cost_usd": 3.4e-06, "latency_ms": 244.44, "meta": {"rung": "retry_ocr"}}
+{"ts": "2026-07-27T15:03:11.794622+00:00", "doc_id": "cms1500_42_0016", "page_id": "p1", "field": "", "operation": "preprocess", "cost_usd": 2.46e-05, "latency_ms": 1771.07, "meta": {}}
+{"ts": "2026-07-27T15:03:11.864484+00:00", "doc_id": "cms1500_42_0016", "page_id": "p1", "field": "", "operation": "route", "cost_usd": 8.2e-07, "latency_ms": 59.07, "meta": {"type": "cms1500", "conf": 0.985}}
+{"ts": "2026-07-27T15:03:23.549745+00:00", "doc_id": "cms1500_42_0016", "page_id": "p1", "field": "", "operation": "preprocess", "cost_usd": 2.555e-05, "latency_ms": 1839.41, "meta": {}}
+{"ts": "2026-07-27T15:03:24.049592+00:00", "doc_id": "cms1500_42_0016", "page_id": "p1", "field": "", "operation": "route", "cost_usd": 6.81e-06, "latency_ms": 490.47, "meta": {"type": "cms1500", "conf": 0.985}}
+{"ts": "2026-07-27T15:03:30.567634+00:00", "doc_id": "cms1500_42_0016", "page_id": "p1", "field": "", "operation": "ocr_paddle", "cost_usd": 8.772e-05, "latency_ms": 6316.11, "meta": {}}
+{"ts": "2026-07-27T15:03:30.653403+00:00", "doc_id": "cms1500_42_0016", "page_id": "p1", "field": "", "operation": "validate_fuse", "cost_usd": 7e-08, "latency_ms": 5.28, "meta": {}}
+{"ts": "2026-07-27T15:03:31.798548+00:00", "doc_id": "cms1500_42_0016", "page_id": "p1", "field": "insurance_plan_name", "operation": "retry_tesseract", "cost_usd": 1.582e-05, "latency_ms": 1139.07, "meta": {"rung": "retry_ocr"}}
+{"ts": "2026-07-27T15:03:32.038793+00:00", "doc_id": "cms1500_42_0016", "page_id": "p1", "field": "patient_account_no", "operation": "retry_tesseract", "cost_usd": 3.19e-06, "latency_ms": 229.68, "meta": {"rung": "retry_ocr"}}
+{"ts": "2026-07-27T15:03:32.254487+00:00", "doc_id": "cms1500_42_0016", "page_id": "p1", "field": "billing_provider_name", "operation": "retry_tesseract", "cost_usd": 2.94e-06, "latency_ms": 211.96, "meta": {"rung": "retry_ocr"}}
+{"ts": "2026-07-27T15:03:32.432422+00:00", "doc_id": "cms1500_42_0016", "page_id": "p1", "field": "line1_diagnosis_pointer", "operation": "retry_tesseract", "cost_usd": 2.38e-06, "latency_ms": 171.28, "meta": {"rung": "retry_ocr"}}
+{"ts": "2026-07-27T15:03:32.600803+00:00", "doc_id": "cms1500_42_0016", "page_id": "p1", "field": "line2_diagnosis_pointer", "operation": "retry_tesseract", "cost_usd": 2.26e-06, "latency_ms": 162.97, "meta": {"rung": "retry_ocr"}}
+{"ts": "2026-07-27T15:03:34.424084+00:00", "doc_id": "cms1500_42_0017", "page_id": "p1", "field": "", "operation": "preprocess", "cost_usd": 2.47e-05, "latency_ms": 1778.46, "meta": {}}
+{"ts": "2026-07-27T15:03:34.485285+00:00", "doc_id": "cms1500_42_0017", "page_id": "p1", "field": "", "operation": "route", "cost_usd": 7.7e-07, "latency_ms": 55.61, "meta": {"type": "cms1500", "conf": 0.986}}
+{"ts": "2026-07-27T15:03:40.632727+00:00", "doc_id": "cms1500_42_0017", "page_id": "p1", "field": "", "operation": "ocr_paddle", "cost_usd": 8.532e-05, "latency_ms": 6143.27, "meta": {}}
+{"ts": "2026-07-27T15:03:40.686985+00:00", "doc_id": "cms1500_42_0017", "page_id": "p1", "field": "", "operation": "validate_fuse", "cost_usd": 1e-08, "latency_ms": 0.79, "meta": {}}
+{"ts": "2026-07-27T15:03:40.940261+00:00", "doc_id": "cms1500_42_0017", "page_id": "p1", "field": "insurance_plan_name", "operation": "retry_tesseract", "cost_usd": 3.45e-06, "latency_ms": 248.31, "meta": {"rung": "retry_ocr"}}
+{"ts": "2026-07-27T15:03:41.161345+00:00", "doc_id": "cms1500_42_0017", "page_id": "p1", "field": "patient_account_no", "operation": "retry_tesseract", "cost_usd": 3.01e-06, "latency_ms": 216.49, "meta": {"rung": "retry_ocr"}}
+{"ts": "2026-07-27T15:03:41.444114+00:00", "doc_id": "cms1500_42_0017", "page_id": "p1", "field": "billing_provider_name", "operation": "retry_tesseract", "cost_usd": 3.86e-06, "latency_ms": 278.04, "meta": {"rung": "retry_ocr"}}
+{"ts": "2026-07-27T15:03:41.613016+00:00", "doc_id": "cms1500_42_0017", "page_id": "p1", "field": "line1_diagnosis_pointer", "operation": "retry_tesseract", "cost_usd": 2.29e-06, "latency_ms": 164.73, "meta": {"rung": "retry_ocr"}}
+{"ts": "2026-07-27T15:03:41.875571+00:00", "doc_id": "cms1500_42_0017", "page_id": "p1", "field": "line2_diagnosis_pointer", "operation": "retry_tesseract", "cost_usd": 3.56e-06, "latency_ms": 256.64, "meta": {"rung": "retry_ocr"}}
+{"ts": "2026-07-27T15:03:43.750604+00:00", "doc_id": "cms1500_42_0019", "page_id": "p1", "field": "", "operation": "preprocess", "cost_usd": 2.537e-05, "latency_ms": 1826.49, "meta": {}}
+{"ts": "2026-07-27T15:03:43.823348+00:00", "doc_id": "cms1500_42_0019", "page_id": "p1", "field": "", "operation": "route", "cost_usd": 8.4e-07, "latency_ms": 60.17, "meta": {"type": "cms1500", "conf": 0.983}}
+{"ts": "2026-07-27T15:03:49.030650+00:00", "doc_id": "cms1500_42_0019", "page_id": "p1", "field": "", "operation": "ocr_paddle", "cost_usd": 7.223e-05, "latency_ms": 5200.89, "meta": {}}
+{"ts": "2026-07-27T15:03:49.107273+00:00", "doc_id": "cms1500_42_0019", "page_id": "p1", "field": "", "operation": "validate_fuse", "cost_usd": 1e-08, "latency_ms": 0.73, "meta": {}}
+{"ts": "2026-07-27T15:03:49.326816+00:00", "doc_id": "cms1500_42_0019", "page_id": "p1", "field": "insurance_plan_name", "operation": "retry_tesseract", "cost_usd": 2.96e-06, "latency_ms": 213.05, "meta": {"rung": "retry_ocr"}}
+{"ts": "2026-07-27T15:03:49.567536+00:00", "doc_id": "cms1500_42_0019", "page_id": "p1", "field": "patient_account_no", "operation": "retry_tesseract", "cost_usd": 3.28e-06, "latency_ms": 236.21, "meta": {"rung": "retry_ocr"}}
+{"ts": "2026-07-27T15:03:49.885149+00:00", "doc_id": "cms1500_42_0019", "page_id": "p1", "field": "billing_provider_name", "operation": "retry_tesseract", "cost_usd": 4.26e-06, "latency_ms": 306.81, "meta": {"rung": "retry_ocr"}}
+{"ts": "2026-07-27T15:03:50.081082+00:00", "doc_id": "cms1500_42_0019", "page_id": "p1", "field": "line1_diagnosis_pointer", "operation": "retry_tesseract", "cost_usd": 2.65e-06, "latency_ms": 190.52, "meta": {"rung": "retry_ocr"}}
+{"ts": "2026-07-27T15:03:50.257801+00:00", "doc_id": "cms1500_42_0019", "page_id": "p1", "field": "line1_units", "operation": "retry_tesseract", "cost_usd": 2.32e-06, "latency_ms": 166.88, "meta": {"rung": "retry_ocr"}}
+{"ts": "2026-07-27T15:03:50.429258+00:00", "doc_id": "cms1500_42_0019", "page_id": "p1", "field": "line2_diagnosis_pointer", "operation": "retry_tesseract", "cost_usd": 2.33e-06, "latency_ms": 167.56, "meta": {"rung": "retry_ocr"}}
+{"ts": "2026-07-27T15:03:50.626826+00:00", "doc_id": "cms1500_42_0019", "page_id": "p1", "field": "line3_diagnosis_pointer", "operation": "retry_tesseract", "cost_usd": 2.68e-06, "latency_ms": 193.31, "meta": {"rung": "retry_ocr"}}
+{"ts": "2026-07-27T15:03:53.054508+00:00", "doc_id": "cms1500_42_0020", "page_id": "p1", "field": "", "operation": "preprocess", "cost_usd": 3.286e-05, "latency_ms": 2365.79, "meta": {}}
+{"ts": "2026-07-27T15:03:53.124388+00:00", "doc_id": "cms1500_42_0020", "page_id": "p1", "field": "", "operation": "route", "cost_usd": 8.5e-07, "latency_ms": 61.37, "meta": {"type": "cms1500", "conf": 0.986}}
+{"ts": "2026-07-27T15:03:57.726844+00:00", "doc_id": "cms1500_42_0020", "page_id": "p1", "field": "", "operation": "ocr_paddle", "cost_usd": 6.386e-05, "latency_ms": 4597.61, "meta": {}}
+{"ts": "2026-07-27T15:03:57.796255+00:00", "doc_id": "cms1500_42_0020", "page_id": "p1", "field": "", "operation": "validate_fuse", "cost_usd": 1e-08, "latency_ms": 0.52, "meta": {}}
+{"ts": "2026-07-27T15:03:58.123312+00:00", "doc_id": "cms1500_42_0020", "page_id": "p1", "field": "insurance_plan_name", "operation": "retry_tesseract", "cost_usd": 4.44e-06, "latency_ms": 319.64, "meta": {"rung": "retry_ocr"}}
+{"ts": "2026-07-27T15:03:58.428651+00:00", "doc_id": "cms1500_42_0020", "page_id": "p1", "field": "patient_account_no", "operation": "retry_tesseract", "cost_usd": 4.16e-06, "latency_ms": 299.28, "meta": {"rung": "retry_ocr"}}
+{"ts": "2026-07-27T15:03:58.767935+00:00", "doc_id": "cms1500_42_0020", "page_id": "p1", "field": "billing_provider_name", "operation": "retry_tesseract", "cost_usd": 4.61e-06, "latency_ms": 332.17, "meta": {"rung": "retry_ocr"}}
+{"ts": "2026-07-27T15:03:58.961848+00:00", "doc_id": "cms1500_42_0020", "page_id": "p1", "field": "line1_diagnosis_pointer", "operation": "retry_tesseract", "cost_usd": 2.57e-06, "latency_ms": 185.14, "meta": {"rung": "retry_ocr"}}
+{"ts": "2026-07-27T15:03:59.135685+00:00", "doc_id": "cms1500_42_0020", "page_id": "p1", "field": "line2_diagnosis_pointer", "operation": "retry_tesseract", "cost_usd": 2.35e-06, "latency_ms": 169.43, "meta": {"rung": "retry_ocr"}}
+{"ts": "2026-07-27T15:04:01.632224+00:00", "doc_id": "cms1500_42_0021", "page_id": "p1", "field": "", "operation": "preprocess", "cost_usd": 3.406e-05, "latency_ms": 2452.18, "meta": {}}
+{"ts": "2026-07-27T15:04:01.762474+00:00", "doc_id": "cms1500_42_0021", "page_id": "p1", "field": "", "operation": "route", "cost_usd": 1.66e-06, "latency_ms": 119.32, "meta": {"type": "cms1500", "conf": 0.98}}
+{"ts": "2026-07-27T15:04:11.856557+00:00", "doc_id": "cms1500_42_0021", "page_id": "p1", "field": "", "operation": "preprocess", "cost_usd": 3.72e-05, "latency_ms": 2678.06, "meta": {}}
+{"ts": "2026-07-27T15:04:12.492910+00:00", "doc_id": "cms1500_42_0021", "page_id": "p1", "field": "", "operation": "route", "cost_usd": 8.67e-06, "latency_ms": 624.44, "meta": {"type": "cms1500", "conf": 0.98}}
+{"ts": "2026-07-27T15:04:20.682169+00:00", "doc_id": "cms1500_42_0021", "page_id": "p1", "field": "", "operation": "ocr_paddle", "cost_usd": 0.00010778, "latency_ms": 7760.02, "meta": {}}
+{"ts": "2026-07-27T15:04:20.758248+00:00", "doc_id": "cms1500_42_0021", "page_id": "p1", "field": "", "operation": "validate_fuse", "cost_usd": 4e-08, "latency_ms": 2.56, "meta": {}}
+{"ts": "2026-07-27T15:04:22.117697+00:00", "doc_id": "cms1500_42_0021", "page_id": "p1", "field": "insurance_plan_name", "operation": "retry_tesseract", "cost_usd": 1.88e-05, "latency_ms": 1353.46, "meta": {"rung": "retry_ocr"}}
+{"ts": "2026-07-27T15:04:22.331466+00:00", "doc_id": "cms1500_42_0021", "page_id": "p1", "field": "patient_account_no", "operation": "retry_tesseract", "cost_usd": 2.89e-06, "latency_ms": 208.37, "meta": {"rung": "retry_ocr"}}
+{"ts": "2026-07-27T15:04:22.597525+00:00", "doc_id": "cms1500_42_0021", "page_id": "p1", "field": "billing_provider_name", "operation": "retry_tesseract", "cost_usd": 3.6e-06, "latency_ms": 259.29, "meta": {"rung": "retry_ocr"}}
+{"ts": "2026-07-27T15:04:22.768752+00:00", "doc_id": "cms1500_42_0021", "page_id": "p1", "field": "line1_diagnosis_pointer", "operation": "retry_tesseract", "cost_usd": 2.33e-06, "latency_ms": 167.6, "meta": {"rung": "retry_ocr"}}
+{"ts": "2026-07-27T15:04:22.940523+00:00", "doc_id": "cms1500_42_0021", "page_id": "p1", "field": "line1_units", "operation": "retry_tesseract", "cost_usd": 2.33e-06, "latency_ms": 167.62, "meta": {"rung": "retry_ocr"}}
+{"ts": "2026-07-27T15:04:23.130220+00:00", "doc_id": "cms1500_42_0021", "page_id": "p1", "field": "line2_diagnosis_pointer", "operation": "retry_tesseract", "cost_usd": 2.54e-06, "latency_ms": 182.79, "meta": {"rung": "retry_ocr"}}
+{"ts": "2026-07-27T15:04:23.309248+00:00", "doc_id": "cms1500_42_0021", "page_id": "p1", "field": "line3_diagnosis_pointer", "operation": "retry_tesseract", "cost_usd": 2.35e-06, "latency_ms": 168.99, "meta": {"rung": "retry_ocr"}}
+{"ts": "2026-07-27T15:04:25.440232+00:00", "doc_id": "cms1500_42_0024", "page_id": "p1", "field": "", "operation": "preprocess", "cost_usd": 2.88e-05, "latency_ms": 2073.9, "meta": {}}
+{"ts": "2026-07-27T15:04:25.518693+00:00", "doc_id": "cms1500_42_0024", "page_id": "p1", "field": "", "operation": "route", "cost_usd": 1e-06, "latency_ms": 72.23, "meta": {"type": "cms1500", "conf": 0.98}}
+{"ts": "2026-07-27T15:04:31.628704+00:00", "doc_id": "cms1500_42_0024", "page_id": "p1", "field": "", "operation": "ocr_paddle", "cost_usd": 8.48e-05, "latency_ms": 6105.79, "meta": {}}
+{"ts": "2026-07-27T15:04:31.712782+00:00", "doc_id": "cms1500_42_0024", "page_id": "p1", "field": "", "operation": "validate_fuse", "cost_usd": 1e-08, "latency_ms": 0.43, "meta": {}}
+{"ts": "2026-07-27T15:04:31.981020+00:00", "doc_id": "cms1500_42_0024", "page_id": "p1", "field": "insurance_plan_name", "operation": "retry_tesseract", "cost_usd": 3.63e-06, "latency_ms": 261.21, "meta": {"rung": "retry_ocr"}}
+{"ts": "2026-07-27T15:04:32.214297+00:00", "doc_id": "cms1500_42_0024", "page_id": "p1", "field": "patient_account_no", "operation": "retry_tesseract", "cost_usd": 3.15e-06, "latency_ms": 227.15, "meta": {"rung": "retry_ocr"}}
+{"ts": "2026-07-27T15:04:32.482774+00:00", "doc_id": "cms1500_42_0024", "page_id": "p1", "field": "billing_provider_name", "operation": "retry_tesseract", "cost_usd": 3.65e-06, "latency_ms": 262.74, "meta": {"rung": "retry_ocr"}}
+{"ts": "2026-07-27T15:04:32.677708+00:00", "doc_id": "cms1500_42_0024", "page_id": "p1", "field": "diagnosis_code_a", "operation": "retry_tesseract", "cost_usd": 2.65e-06, "latency_ms": 190.49, "meta": {"rung": "retry_ocr"}}
+{"ts": "2026-07-27T15:04:32.855658+00:00", "doc_id": "cms1500_42_0024", "page_id": "p1", "field": "line1_diagnosis_pointer", "operation": "retry_tesseract", "cost_usd": 2.38e-06, "latency_ms": 171.15, "meta": {"rung": "retry_ocr"}}
+{"ts": "2026-07-27T15:04:35.110829+00:00", "doc_id": "ub04_42_0002", "page_id": "p1", "field": "", "operation": "preprocess", "cost_usd": 3.041e-05, "latency_ms": 2189.53, "meta": {}}
+{"ts": "2026-07-27T15:04:35.193264+00:00", "doc_id": "ub04_42_0002", "page_id": "p1", "field": "", "operation": "route", "cost_usd": 1.04e-06, "latency_ms": 74.82, "meta": {"type": "ub04", "conf": 0.984}}
+{"ts": "2026-07-27T15:04:40.819600+00:00", "doc_id": "ub04_42_0002", "page_id": "p1", "field": "", "operation": "ocr_paddle", "cost_usd": 7.809e-05, "latency_ms": 5622.32, "meta": {}}
+{"ts": "2026-07-27T15:04:40.902444+00:00", "doc_id": "ub04_42_0002", "page_id": "p1", "field": "", "operation": "validate_fuse", "cost_usd": 1e-08, "latency_ms": 0.64, "meta": {}}
+{"ts": "2026-07-27T15:04:41.223675+00:00", "doc_id": "ub04_42_0002", "page_id": "p1", "field": "provider_name", "operation": "retry_tesseract", "cost_usd": 4.39e-06, "latency_ms": 316.04, "meta": {"rung": "retry_ocr"}}
+{"ts": "2026-07-27T15:04:41.465430+00:00", "doc_id": "ub04_42_0002", "page_id": "p1", "field": "patient_control_no", "operation": "retry_tesseract", "cost_usd": 3.24e-06, "latency_ms": 233.63, "meta": {"rung": "retry_ocr"}}
+{"ts": "2026-07-27T15:04:41.666665+00:00", "doc_id": "ub04_42_0002", "page_id": "p1", "field": "medical_record_no", "operation": "retry_tesseract", "cost_usd": 2.74e-06, "latency_ms": 197.19, "meta": {"rung": "retry_ocr"}}
+{"ts": "2026-07-27T15:04:41.987579+00:00", "doc_id": "ub04_42_0002", "page_id": "p1", "field": "payer_name", "operation": "retry_tesseract", "cost_usd": 4.39e-06, "latency_ms": 316.39, "meta": {"rung": "retry_ocr"}}
+{"ts": "2026-07-27T15:04:44.060089+00:00", "doc_id": "ub04_42_0005", "page_id": "p1", "field": "", "operation": "preprocess", "cost_usd": 2.768e-05, "latency_ms": 1992.84, "meta": {}}
+{"ts": "2026-07-27T15:04:44.124830+00:00", "doc_id": "ub04_42_0005", "page_id": "p1", "field": "", "operation": "route", "cost_usd": 8.2e-07, "latency_ms": 58.86, "meta": {"type": "ub04", "conf": 0.985}}
+{"ts": "2026-07-27T15:04:58.343764+00:00", "doc_id": "ub04_42_0005", "page_id": "p1", "field": "", "operation": "preprocess", "cost_usd": 2.86e-05, "latency_ms": 2059.03, "meta": {}}
+{"ts": "2026-07-27T15:04:58.816531+00:00", "doc_id": "ub04_42_0005", "page_id": "p1", "field": "", "operation": "route", "cost_usd": 6.47e-06, "latency_ms": 466.14, "meta": {"type": "ub04", "conf": 0.985}}
+{"ts": "2026-07-27T15:05:04.576362+00:00", "doc_id": "ub04_42_0005", "page_id": "p1", "field": "", "operation": "ocr_paddle", "cost_usd": 7.671e-05, "latency_ms": 5523.1, "meta": {}}
+{"ts": "2026-07-27T15:05:04.645921+00:00", "doc_id": "ub04_42_0005", "page_id": "p1", "field": "", "operation": "validate_fuse", "cost_usd": 3e-08, "latency_ms": 2.17, "meta": {}}
+{"ts": "2026-07-27T15:05:05.969174+00:00", "doc_id": "ub04_42_0005", "page_id": "p1", "field": "provider_name", "operation": "retry_tesseract", "cost_usd": 1.832e-05, "latency_ms": 1319.2, "meta": {"rung": "retry_ocr"}}
+{"ts": "2026-07-27T15:05:06.194041+00:00", "doc_id": "ub04_42_0005", "page_id": "p1", "field": "patient_control_no", "operation": "retry_tesseract", "cost_usd": 3.05e-06, "latency_ms": 219.45, "meta": {"rung": "retry_ocr"}}
+{"ts": "2026-07-27T15:05:06.398619+00:00", "doc_id": "ub04_42_0005", "page_id": "p1", "field": "medical_record_no", "operation": "retry_tesseract", "cost_usd": 2.79e-06, "latency_ms": 200.66, "meta": {"rung": "retry_ocr"}}
+{"ts": "2026-07-27T15:05:06.700499+00:00", "doc_id": "ub04_42_0005", "page_id": "p1", "field": "payer_name", "operation": "retry_tesseract", "cost_usd": 4.13e-06, "latency_ms": 297.02, "meta": {"rung": "retry_ocr"}}
+{"ts": "2026-07-27T15:05:08.334389+00:00", "doc_id": "ub04_42_0007", "page_id": "p1", "field": "", "operation": "preprocess", "cost_usd": 2.195e-05, "latency_ms": 1580.3, "meta": {}}
+{"ts": "2026-07-27T15:05:08.386520+00:00", "doc_id": "ub04_42_0007", "page_id": "p1", "field": "", "operation": "route", "cost_usd": 6.5e-07, "latency_ms": 47.12, "meta": {"type": "ub04", "conf": 0.982}}
+{"ts": "2026-07-27T15:05:13.725771+00:00", "doc_id": "ub04_42_0007", "page_id": "p1", "field": "", "operation": "ocr_paddle", "cost_usd": 7.408e-05, "latency_ms": 5333.69, "meta": {}}
+{"ts": "2026-07-27T15:05:13.790031+00:00", "doc_id": "ub04_42_0007", "page_id": "p1", "field": "", "operation": "validate_fuse", "cost_usd": 1e-08, "latency_ms": 0.5, "meta": {}}
+{"ts": "2026-07-27T15:05:14.105929+00:00", "doc_id": "ub04_42_0007", "page_id": "p1", "field": "provider_name", "operation": "retry_tesseract", "cost_usd": 4.31e-06, "latency_ms": 310.2, "meta": {"rung": "retry_ocr"}}
+{"ts": "2026-07-27T15:05:14.317485+00:00", "doc_id": "ub04_42_0007", "page_id": "p1", "field": "patient_control_no", "operation": "retry_tesseract", "cost_usd": 2.87e-06, "latency_ms": 206.94, "meta": {"rung": "retry_ocr"}}
+{"ts": "2026-07-27T15:05:14.541567+00:00", "doc_id": "ub04_42_0007", "page_id": "p1", "field": "medical_record_no", "operation": "retry_tesseract", "cost_usd": 3.04e-06, "latency_ms": 218.99, "meta": {"rung": "retry_ocr"}}
+{"ts": "2026-07-27T15:05:14.822533+00:00", "doc_id": "ub04_42_0007", "page_id": "p1", "field": "payer_name", "operation": "retry_tesseract", "cost_usd": 3.84e-06, "latency_ms": 276.15, "meta": {"rung": "retry_ocr"}}
+{"ts": "2026-07-27T15:05:15.018778+00:00", "doc_id": "ub04_42_0007", "page_id": "p1", "field": "line2_units", "operation": "retry_tesseract", "cost_usd": 2.64e-06, "latency_ms": 189.95, "meta": {"rung": "retry_ocr"}}
+{"ts": "2026-07-27T15:05:16.575997+00:00", "doc_id": "ub04_42_0011", "page_id": "p1", "field": "", "operation": "preprocess", "cost_usd": 2.073e-05, "latency_ms": 1492.25, "meta": {}}
+{"ts": "2026-07-27T15:05:16.633170+00:00", "doc_id": "ub04_42_0011", "page_id": "p1", "field": "", "operation": "route", "cost_usd": 6.4e-07, "latency_ms": 46.31, "meta": {"type": "ub04", "conf": 0.981}}
+{"ts": "2026-07-27T15:05:21.664836+00:00", "doc_id": "ub04_42_0011", "page_id": "p1", "field": "", "operation": "ocr_paddle", "cost_usd": 6.983e-05, "latency_ms": 5027.69, "meta": {}}
+{"ts": "2026-07-27T15:05:21.870709+00:00", "doc_id": "ub04_42_0011", "page_id": "p1", "field": "", "operation": "validate_fuse", "cost_usd": 1e-08, "latency_ms": 0.99, "meta": {}}
+{"ts": "2026-07-27T15:05:22.245698+00:00", "doc_id": "ub04_42_0011", "page_id": "p1", "field": "provider_name", "operation": "retry_tesseract", "cost_usd": 5.08e-06, "latency_ms": 365.49, "meta": {"rung": "retry_ocr"}}
+{"ts": "2026-07-27T15:05:22.494530+00:00", "doc_id": "ub04_42_0011", "page_id": "p1", "field": "patient_control_no", "operation": "retry_tesseract", "cost_usd": 3.38e-06, "latency_ms": 243.17, "meta": {"rung": "retry_ocr"}}
+{"ts": "2026-07-27T15:05:22.727423+00:00", "doc_id": "ub04_42_0011", "page_id": "p1", "field": "medical_record_no", "operation": "retry_tesseract", "cost_usd": 3.16e-06, "latency_ms": 227.4, "meta": {"rung": "retry_ocr"}}
+{"ts": "2026-07-27T15:05:23.005775+00:00", "doc_id": "ub04_42_0011", "page_id": "p1", "field": "payer_name", "operation": "retry_tesseract", "cost_usd": 3.79e-06, "latency_ms": 272.62, "meta": {"rung": "retry_ocr"}}
+{"ts": "2026-07-27T15:05:25.076456+00:00", "doc_id": "ub04_42_0014", "page_id": "p1", "field": "", "operation": "preprocess", "cost_usd": 2.76e-05, "latency_ms": 1987.37, "meta": {}}
+{"ts": "2026-07-27T15:05:25.150096+00:00", "doc_id": "ub04_42_0014", "page_id": "p1", "field": "", "operation": "route", "cost_usd": 8.8e-07, "latency_ms": 63.7, "meta": {"type": "ub04", "conf": 0.987}}
+{"ts": "2026-07-27T15:05:31.664878+00:00", "doc_id": "ub04_42_0014", "page_id": "p1", "field": "", "operation": "ocr_paddle", "cost_usd": 9.042e-05, "latency_ms": 6510.28, "meta": {}}
+{"ts": "2026-07-27T15:05:31.739417+00:00", "doc_id": "ub04_42_0014", "page_id": "p1", "field": "", "operation": "validate_fuse", "cost_usd": 1e-08, "latency_ms": 0.72, "meta": {}}
+{"ts": "2026-07-27T15:05:32.143769+00:00", "doc_id": "ub04_42_0014", "page_id": "p1", "field": "provider_name", "operation": "retry_tesseract", "cost_usd": 5.47e-06, "latency_ms": 393.73, "meta": {"rung": "retry_ocr"}}
+{"ts": "2026-07-27T15:05:32.470418+00:00", "doc_id": "ub04_42_0014", "page_id": "p1", "field": "patient_control_no", "operation": "retry_tesseract", "cost_usd": 4.46e-06, "latency_ms": 320.97, "meta": {"rung": "retry_ocr"}}
+{"ts": "2026-07-27T15:05:32.875884+00:00", "doc_id": "ub04_42_0014", "page_id": "p1", "field": "medical_record_no", "operation": "retry_tesseract", "cost_usd": 5.53e-06, "latency_ms": 397.84, "meta": {"rung": "retry_ocr"}}
+{"ts": "2026-07-27T15:05:33.174409+00:00", "doc_id": "ub04_42_0014", "page_id": "p1", "field": "payer_name", "operation": "retry_tesseract", "cost_usd": 4.03e-06, "latency_ms": 289.96, "meta": {"rung": "retry_ocr"}}
+{"ts": "2026-07-27T15:05:35.332214+00:00", "doc_id": "ub04_42_0017", "page_id": "p1", "field": "", "operation": "preprocess", "cost_usd": 2.885e-05, "latency_ms": 2077.03, "meta": {}}
+{"ts": "2026-07-27T15:05:35.399372+00:00", "doc_id": "ub04_42_0017", "page_id": "p1", "field": "", "operation": "route", "cost_usd": 8.5e-07, "latency_ms": 60.89, "meta": {"type": "ub04", "conf": 0.985}}
+{"ts": "2026-07-27T15:05:46.935026+00:00", "doc_id": "ub04_42_0017", "page_id": "p1", "field": "", "operation": "preprocess", "cost_usd": 2.885e-05, "latency_ms": 2077.21, "meta": {}}
+{"ts": "2026-07-27T15:05:47.634644+00:00", "doc_id": "ub04_42_0017", "page_id": "p1", "field": "", "operation": "route", "cost_usd": 9.55e-06, "latency_ms": 687.34, "meta": {"type": "ub04", "conf": 0.985}}
+{"ts": "2026-07-27T15:05:55.614515+00:00", "doc_id": "ub04_42_0017", "page_id": "p1", "field": "", "operation": "ocr_paddle", "cost_usd": 0.00010131, "latency_ms": 7294.33, "meta": {}}
+{"ts": "2026-07-27T15:05:55.730648+00:00", "doc_id": "ub04_42_0017", "page_id": "p1", "field": "", "operation": "validate_fuse", "cost_usd": 8e-08, "latency_ms": 5.66, "meta": {}}
+{"ts": "2026-07-27T15:05:58.733983+00:00", "doc_id": "ub04_42_0017", "page_id": "p1", "field": "provider_name", "operation": "retry_tesseract", "cost_usd": 4.162e-05, "latency_ms": 2996.65, "meta": {"rung": "retry_ocr"}}
+{"ts": "2026-07-27T15:05:59.038658+00:00", "doc_id": "ub04_42_0017", "page_id": "p1", "field": "patient_control_no", "operation": "retry_tesseract", "cost_usd": 4.13e-06, "latency_ms": 297.01, "meta": {"rung": "retry_ocr"}}
+{"ts": "2026-07-27T15:05:59.349111+00:00", "doc_id": "ub04_42_0017", "page_id": "p1", "field": "medical_record_no", "operation": "retry_tesseract", "cost_usd": 4.22e-06, "latency_ms": 304.01, "meta": {"rung": "retry_ocr"}}
+{"ts": "2026-07-27T15:05:59.628080+00:00", "doc_id": "ub04_42_0017", "page_id": "p1", "field": "payer_name", "operation": "retry_tesseract", "cost_usd": 3.79e-06, "latency_ms": 272.57, "meta": {"rung": "retry_ocr"}}
+{"ts": "2026-07-27T15:06:02.447053+00:00", "doc_id": "ub04_42_0018", "page_id": "p1", "field": "", "operation": "preprocess", "cost_usd": 3.818e-05, "latency_ms": 2749.26, "meta": {}}
+{"ts": "2026-07-27T15:06:02.529659+00:00", "doc_id": "ub04_42_0018", "page_id": "p1", "field": "", "operation": "route", "cost_usd": 1.03e-06, "latency_ms": 74.24, "meta": {"type": "ub04", "conf": 0.984}}
+{"ts": "2026-07-27T15:06:09.278236+00:00", "doc_id": "ub04_42_0018", "page_id": "p1", "field": "", "operation": "ocr_paddle", "cost_usd": 9.367e-05, "latency_ms": 6743.89, "meta": {}}
+{"ts": "2026-07-27T15:06:09.339529+00:00", "doc_id": "ub04_42_0018", "page_id": "p1", "field": "", "operation": "validate_fuse", "cost_usd": 3e-08, "latency_ms": 1.86, "meta": {}}
+{"ts": "2026-07-27T15:06:09.750826+00:00", "doc_id": "ub04_42_0018", "page_id": "p1", "field": "provider_name", "operation": "retry_tesseract", "cost_usd": 5.6e-06, "latency_ms": 403.49, "meta": {"rung": "retry_ocr"}}
+{"ts": "2026-07-27T15:06:10.031221+00:00", "doc_id": "ub04_42_0018", "page_id": "p1", "field": "patient_control_no", "operation": "retry_tesseract", "cost_usd": 3.76e-06, "latency_ms": 270.6, "meta": {"rung": "retry_ocr"}}
+{"ts": "2026-07-27T15:06:10.309765+00:00", "doc_id": "ub04_42_0018", "page_id": "p1", "field": "medical_record_no", "operation": "retry_tesseract", "cost_usd": 3.75e-06, "latency_ms": 270.14, "meta": {"rung": "retry_ocr"}}
+{"ts": "2026-07-27T15:06:10.600117+00:00", "doc_id": "ub04_42_0018", "page_id": "p1", "field": "payer_name", "operation": "retry_tesseract", "cost_usd": 3.91e-06, "latency_ms": 281.49, "meta": {"rung": "retry_ocr"}}
+{"ts": "2026-07-27T15:06:14.367160+00:00", "doc_id": "ub04_42_0019", "page_id": "p1", "field": "", "operation": "preprocess", "cost_usd": 5.133e-05, "latency_ms": 3695.9, "meta": {}}
+{"ts": "2026-07-27T15:06:14.462658+00:00", "doc_id": "ub04_42_0019", "page_id": "p1", "field": "", "operation": "route", "cost_usd": 1.2e-06, "latency_ms": 86.72, "meta": {"type": "ub04", "conf": 0.987}}
+{"ts": "2026-07-27T15:06:22.188858+00:00", "doc_id": "ub04_42_0019", "page_id": "p1", "field": "", "operation": "ocr_paddle", "cost_usd": 0.0001063, "latency_ms": 7653.35, "meta": {}}
+{"ts": "2026-07-27T15:06:22.301398+00:00", "doc_id": "ub04_42_0019", "page_id": "p1", "field": "", "operation": "validate_fuse", "cost_usd": 2e-08, "latency_ms": 1.15, "meta": {}}
+{"ts": "2026-07-27T15:06:22.744314+00:00", "doc_id": "ub04_42_0019", "page_id": "p1", "field": "provider_name", "operation": "retry_tesseract", "cost_usd": 5.95e-06, "latency_ms": 428.32, "meta": {"rung": "retry_ocr"}}
+{"ts": "2026-07-27T15:06:23.112758+00:00", "doc_id": "ub04_42_0019", "page_id": "p1", "field": "patient_control_no", "operation": "retry_tesseract", "cost_usd": 5e-06, "latency_ms": 359.88, "meta": {"rung": "retry_ocr"}}
+{"ts": "2026-07-27T15:06:23.416264+00:00", "doc_id": "ub04_42_0019", "page_id": "p1", "field": "medical_record_no", "operation": "retry_tesseract", "cost_usd": 4.14e-06, "latency_ms": 297.82, "meta": {"rung": "retry_ocr"}}
+{"ts": "2026-07-27T15:06:23.828377+00:00", "doc_id": "ub04_42_0019", "page_id": "p1", "field": "payer_name", "operation": "retry_tesseract", "cost_usd": 5.54e-06, "latency_ms": 399.17, "meta": {"rung": "retry_ocr"}}
+{"ts": "2026-07-27T15:06:37.740471+00:00", "doc_id": "ub04_42_0020", "page_id": "p1", "field": "", "operation": "preprocess", "cost_usd": 3.961e-05, "latency_ms": 2852.25, "meta": {}}
+{"ts": "2026-07-27T15:06:38.394048+00:00", "doc_id": "ub04_42_0020", "page_id": "p1", "field": "", "operation": "route", "cost_usd": 8.96e-06, "latency_ms": 645.46, "meta": {"type": "ub04", "conf": 0.987}}
+{"ts": "2026-07-27T15:06:45.539691+00:00", "doc_id": "ub04_42_0020", "page_id": "p1", "field": "", "operation": "ocr_paddle", "cost_usd": 8.941e-05, "latency_ms": 6437.87, "meta": {}}
+{"ts": "2026-07-27T15:06:45.620854+00:00", "doc_id": "ub04_42_0020", "page_id": "p1", "field": "", "operation": "validate_fuse", "cost_usd": 4e-08, "latency_ms": 2.73, "meta": {}}
+{"ts": "2026-07-27T15:06:47.032368+00:00", "doc_id": "ub04_42_0020", "page_id": "p1", "field": "provider_name", "operation": "retry_tesseract", "cost_usd": 1.954e-05, "latency_ms": 1407.01, "meta": {"rung": "retry_ocr"}}
+{"ts": "2026-07-27T15:06:47.274265+00:00", "doc_id": "ub04_42_0020", "page_id": "p1", "field": "patient_control_no", "operation": "retry_tesseract", "cost_usd": 3.14e-06, "latency_ms": 226.15, "meta": {"rung": "retry_ocr"}}
+{"ts": "2026-07-27T15:06:47.538212+00:00", "doc_id": "ub04_42_0020", "page_id": "p1", "field": "medical_record_no", "operation": "retry_tesseract", "cost_usd": 3.59e-06, "latency_ms": 258.69, "meta": {"rung": "retry_ocr"}}
+{"ts": "2026-07-27T15:06:47.754775+00:00", "doc_id": "ub04_42_0020", "page_id": "p1", "field": "payer_name", "operation": "retry_tesseract", "cost_usd": 2.96e-06, "latency_ms": 212.94, "meta": {"rung": "retry_ocr"}}
+{"ts": "2026-07-27T15:06:50.340685+00:00", "doc_id": "ub04_42_0024", "page_id": "p1", "field": "", "operation": "preprocess", "cost_usd": 3.514e-05, "latency_ms": 2530.19, "meta": {}}
+{"ts": "2026-07-27T15:06:50.431774+00:00", "doc_id": "ub04_42_0024", "page_id": "p1", "field": "", "operation": "route", "cost_usd": 1.17e-06, "latency_ms": 84.44, "meta": {"type": "ub04", "conf": 0.986}}
+{"ts": "2026-07-27T15:06:57.756136+00:00", "doc_id": "ub04_42_0024", "page_id": "p1", "field": "", "operation": "ocr_paddle", "cost_usd": 0.00010158, "latency_ms": 7313.8, "meta": {}}
+{"ts": "2026-07-27T15:06:57.855295+00:00", "doc_id": "ub04_42_0024", "page_id": "p1", "field": "", "operation": "validate_fuse", "cost_usd": 1e-08, "latency_ms": 0.85, "meta": {}}
+{"ts": "2026-07-27T15:06:58.291008+00:00", "doc_id": "ub04_42_0024", "page_id": "p1", "field": "provider_name", "operation": "retry_tesseract", "cost_usd": 5.91e-06, "latency_ms": 425.41, "meta": {"rung": "retry_ocr"}}
+{"ts": "2026-07-27T15:06:58.623906+00:00", "doc_id": "ub04_42_0024", "page_id": "p1", "field": "patient_control_no", "operation": "retry_tesseract", "cost_usd": 4.52e-06, "latency_ms": 325.75, "meta": {"rung": "retry_ocr"}}
+{"ts": "2026-07-27T15:06:58.965436+00:00", "doc_id": "ub04_42_0024", "page_id": "p1", "field": "medical_record_no", "operation": "retry_tesseract", "cost_usd": 4.6e-06, "latency_ms": 331.45, "meta": {"rung": "retry_ocr"}}
+{"ts": "2026-07-27T15:06:59.230313+00:00", "doc_id": "ub04_42_0024", "page_id": "p1", "field": "payer_name", "operation": "retry_tesseract", "cost_usd": 3.56e-06, "latency_ms": 256.51, "meta": {"rung": "retry_ocr"}}
+{"ts": "2026-07-27T15:07:16.678098+00:00", "doc_id": "cms1500_42_0000", "page_id": "p1", "field": "", "operation": "preprocess", "cost_usd": 7.1e-06, "latency_ms": 511.11, "meta": {}}
+{"ts": "2026-07-27T15:07:17.267690+00:00", "doc_id": "cms1500_42_0000", "page_id": "p1", "field": "", "operation": "route", "cost_usd": 8.05e-06, "latency_ms": 579.94, "meta": {"type": "cms1500", "conf": 0.99}}
+{"ts": "2026-07-27T15:07:24.281762+00:00", "doc_id": "cms1500_42_0000", "page_id": "p1", "field": "", "operation": "ocr_paddle", "cost_usd": 9.368e-05, "latency_ms": 6745.28, "meta": {}}
+{"ts": "2026-07-27T15:07:24.364092+00:00", "doc_id": "cms1500_42_0000", "page_id": "p1", "field": "", "operation": "validate_fuse", "cost_usd": 8e-08, "latency_ms": 6.0, "meta": {}}
+{"ts": "2026-07-27T15:07:24.879611+00:00", "doc_id": "cms1500_42_0005", "page_id": "p1", "field": "", "operation": "preprocess", "cost_usd": 6.36e-06, "latency_ms": 458.15, "meta": {}}
+{"ts": "2026-07-27T15:07:24.923001+00:00", "doc_id": "cms1500_42_0005", "page_id": "p1", "field": "", "operation": "route", "cost_usd": 5.5e-07, "latency_ms": 39.29, "meta": {"type": "cms1500", "conf": 0.99}}
+{"ts": "2026-07-27T15:07:32.158004+00:00", "doc_id": "cms1500_42_0005", "page_id": "p1", "field": "", "operation": "ocr_paddle", "cost_usd": 0.0001004, "latency_ms": 7229.05, "meta": {}}
+{"ts": "2026-07-27T15:07:32.202616+00:00", "doc_id": "cms1500_42_0005", "page_id": "p1", "field": "", "operation": "validate_fuse", "cost_usd": 3e-08, "latency_ms": 1.93, "meta": {}}
+{"ts": "2026-07-27T15:07:32.704529+00:00", "doc_id": "cms1500_42_0006", "page_id": "p1", "field": "", "operation": "preprocess", "cost_usd": 6.12e-06, "latency_ms": 440.34, "meta": {}}
+{"ts": "2026-07-27T15:07:32.760139+00:00", "doc_id": "cms1500_42_0006", "page_id": "p1", "field": "", "operation": "route", "cost_usd": 6.8e-07, "latency_ms": 49.07, "meta": {"type": "cms1500", "conf": 0.99}}
+{"ts": "2026-07-27T15:07:37.922751+00:00", "doc_id": "cms1500_42_0006", "page_id": "p1", "field": "", "operation": "ocr_paddle", "cost_usd": 7.162e-05, "latency_ms": 5156.31, "meta": {}}
+{"ts": "2026-07-27T15:07:37.986554+00:00", "doc_id": "cms1500_42_0006", "page_id": "p1", "field": "", "operation": "validate_fuse", "cost_usd": 1e-08, "latency_ms": 0.75, "meta": {}}
+{"ts": "2026-07-27T15:07:38.522091+00:00", "doc_id": "cms1500_42_0013", "page_id": "p1", "field": "", "operation": "preprocess", "cost_usd": 6.56e-06, "latency_ms": 472.2, "meta": {}}
+{"ts": "2026-07-27T15:07:38.573762+00:00", "doc_id": "cms1500_42_0013", "page_id": "p1", "field": "", "operation": "route", "cost_usd": 6e-07, "latency_ms": 43.02, "meta": {"type": "cms1500", "conf": 0.99}}
+{"ts": "2026-07-27T15:07:43.887131+00:00", "doc_id": "cms1500_42_0013", "page_id": "p1", "field": "", "operation": "ocr_paddle", "cost_usd": 7.373e-05, "latency_ms": 5308.8, "meta": {}}
+{"ts": "2026-07-27T15:07:43.965796+00:00", "doc_id": "cms1500_42_0013", "page_id": "p1", "field": "", "operation": "validate_fuse", "cost_usd": 1e-08, "latency_ms": 0.48, "meta": {}}
+{"ts": "2026-07-27T15:07:44.535024+00:00", "doc_id": "cms1500_42_0016", "page_id": "p1", "field": "", "operation": "preprocess", "cost_usd": 6.91e-06, "latency_ms": 497.22, "meta": {}}
+{"ts": "2026-07-27T15:07:44.584420+00:00", "doc_id": "cms1500_42_0016", "page_id": "p1", "field": "", "operation": "route", "cost_usd": 6.3e-07, "latency_ms": 45.23, "meta": {"type": "cms1500", "conf": 0.99}}
+{"ts": "2026-07-27T15:07:49.568221+00:00", "doc_id": "cms1500_42_0016", "page_id": "p1", "field": "", "operation": "ocr_paddle", "cost_usd": 6.915e-05, "latency_ms": 4978.72, "meta": {}}
+{"ts": "2026-07-27T15:07:49.605258+00:00", "doc_id": "cms1500_42_0016", "page_id": "p1", "field": "", "operation": "validate_fuse", "cost_usd": 1e-08, "latency_ms": 0.47, "meta": {}}
+{"ts": "2026-07-27T15:07:50.086640+00:00", "doc_id": "cms1500_42_0017", "page_id": "p1", "field": "", "operation": "preprocess", "cost_usd": 5.98e-06, "latency_ms": 430.3, "meta": {}}
+{"ts": "2026-07-27T15:07:50.132053+00:00", "doc_id": "cms1500_42_0017", "page_id": "p1", "field": "", "operation": "route", "cost_usd": 5.8e-07, "latency_ms": 42.01, "meta": {"type": "cms1500", "conf": 0.99}}
+{"ts": "2026-07-27T15:07:55.417588+00:00", "doc_id": "cms1500_42_0017", "page_id": "p1", "field": "", "operation": "ocr_paddle", "cost_usd": 7.329e-05, "latency_ms": 5276.62, "meta": {}}
+{"ts": "2026-07-27T15:07:55.458306+00:00", "doc_id": "cms1500_42_0017", "page_id": "p1", "field": "", "operation": "validate_fuse", "cost_usd": 1e-08, "latency_ms": 0.86, "meta": {}}
+{"ts": "2026-07-27T15:07:55.958390+00:00", "doc_id": "cms1500_42_0019", "page_id": "p1", "field": "", "operation": "preprocess", "cost_usd": 6.36e-06, "latency_ms": 457.82, "meta": {}}
+{"ts": "2026-07-27T15:07:56.004549+00:00", "doc_id": "cms1500_42_0019", "page_id": "p1", "field": "", "operation": "route", "cost_usd": 5.9e-07, "latency_ms": 42.39, "meta": {"type": "cms1500", "conf": 0.99}}
+{"ts": "2026-07-27T15:08:04.891200+00:00", "doc_id": "cms1500_42_0019", "page_id": "p1", "field": "", "operation": "preprocess", "cost_usd": 7.19e-06, "latency_ms": 517.91, "meta": {}}
+{"ts": "2026-07-27T15:08:05.397937+00:00", "doc_id": "cms1500_42_0019", "page_id": "p1", "field": "", "operation": "route", "cost_usd": 6.86e-06, "latency_ms": 493.72, "meta": {"type": "cms1500", "conf": 0.99}}
+{"ts": "2026-07-27T15:08:12.389989+00:00", "doc_id": "cms1500_42_0019", "page_id": "p1", "field": "", "operation": "ocr_paddle", "cost_usd": 9.354e-05, "latency_ms": 6734.9, "meta": {}}
+{"ts": "2026-07-27T15:08:12.448135+00:00", "doc_id": "cms1500_42_0019", "page_id": "p1", "field": "", "operation": "validate_fuse", "cost_usd": 4e-08, "latency_ms": 2.88, "meta": {}}
+{"ts": "2026-07-27T15:08:12.981498+00:00", "doc_id": "cms1500_42_0020", "page_id": "p1", "field": "", "operation": "preprocess", "cost_usd": 6.57e-06, "latency_ms": 472.71, "meta": {}}
+{"ts": "2026-07-27T15:08:13.027403+00:00", "doc_id": "cms1500_42_0020", "page_id": "p1", "field": "", "operation": "route", "cost_usd": 5.7e-07, "latency_ms": 40.95, "meta": {"type": "cms1500", "conf": 0.99}}
+{"ts": "2026-07-27T15:08:18.368742+00:00", "doc_id": "cms1500_42_0020", "page_id": "p1", "field": "", "operation": "ocr_paddle", "cost_usd": 7.412e-05, "latency_ms": 5336.58, "meta": {}}
+{"ts": "2026-07-27T15:08:18.430398+00:00", "doc_id": "cms1500_42_0020", "page_id": "p1", "field": "", "operation": "validate_fuse", "cost_usd": 1e-08, "latency_ms": 0.64, "meta": {}}
+{"ts": "2026-07-27T15:08:18.987276+00:00", "doc_id": "cms1500_42_0021", "page_id": "p1", "field": "", "operation": "preprocess", "cost_usd": 6.92e-06, "latency_ms": 497.96, "meta": {}}
+{"ts": "2026-07-27T15:08:19.037641+00:00", "doc_id": "cms1500_42_0021", "page_id": "p1", "field": "", "operation": "route", "cost_usd": 6.4e-07, "latency_ms": 45.85, "meta": {"type": "cms1500", "conf": 0.99}}
+{"ts": "2026-07-27T15:08:24.646600+00:00", "doc_id": "cms1500_42_0021", "page_id": "p1", "field": "", "operation": "ocr_paddle", "cost_usd": 7.784e-05, "latency_ms": 5604.33, "meta": {}}
+{"ts": "2026-07-27T15:08:24.685132+00:00", "doc_id": "cms1500_42_0021", "page_id": "p1", "field": "", "operation": "validate_fuse", "cost_usd": 3e-08, "latency_ms": 2.4, "meta": {}}
+{"ts": "2026-07-27T15:08:25.194200+00:00", "doc_id": "cms1500_42_0024", "page_id": "p1", "field": "", "operation": "preprocess", "cost_usd": 6.24e-06, "latency_ms": 449.44, "meta": {}}
+{"ts": "2026-07-27T15:08:25.236994+00:00", "doc_id": "cms1500_42_0024", "page_id": "p1", "field": "", "operation": "route", "cost_usd": 5.1e-07, "latency_ms": 36.76, "meta": {"type": "cms1500", "conf": 0.99}}
+{"ts": "2026-07-27T15:08:29.724226+00:00", "doc_id": "cms1500_42_0024", "page_id": "p1", "field": "", "operation": "ocr_paddle", "cost_usd": 6.227e-05, "latency_ms": 4483.39, "meta": {}}
+{"ts": "2026-07-27T15:08:29.773448+00:00", "doc_id": "cms1500_42_0024", "page_id": "p1", "field": "", "operation": "validate_fuse", "cost_usd": 1e-08, "latency_ms": 0.39, "meta": {}}
+{"ts": "2026-07-27T15:08:30.302912+00:00", "doc_id": "ub04_42_0002", "page_id": "p1", "field": "", "operation": "preprocess", "cost_usd": 6.18e-06, "latency_ms": 444.68, "meta": {}}
+{"ts": "2026-07-27T15:08:30.349794+00:00", "doc_id": "ub04_42_0002", "page_id": "p1", "field": "", "operation": "route", "cost_usd": 5.9e-07, "latency_ms": 42.15, "meta": {"type": "ub04", "conf": 0.99}}
+{"ts": "2026-07-27T15:08:35.014998+00:00", "doc_id": "ub04_42_0002", "page_id": "p1", "field": "", "operation": "ocr_paddle", "cost_usd": 6.474e-05, "latency_ms": 4661.23, "meta": {}}
+{"ts": "2026-07-27T15:08:35.083486+00:00", "doc_id": "ub04_42_0002", "page_id": "p1", "field": "", "operation": "validate_fuse", "cost_usd": 1e-08, "latency_ms": 0.9, "meta": {}}
+{"ts": "2026-07-27T15:08:35.708274+00:00", "doc_id": "ub04_42_0005", "page_id": "p1", "field": "", "operation": "preprocess", "cost_usd": 7.19e-06, "latency_ms": 517.47, "meta": {}}
+{"ts": "2026-07-27T15:08:35.762367+00:00", "doc_id": "ub04_42_0005", "page_id": "p1", "field": "", "operation": "route", "cost_usd": 6.8e-07, "latency_ms": 48.95, "meta": {"type": "ub04", "conf": 0.99}}
+{"ts": "2026-07-27T15:08:39.953442+00:00", "doc_id": "ub04_42_0005", "page_id": "p1", "field": "", "operation": "ocr_paddle", "cost_usd": 5.812e-05, "latency_ms": 4184.87, "meta": {}}
+{"ts": "2026-07-27T15:08:39.993231+00:00", "doc_id": "ub04_42_0005", "page_id": "p1", "field": "", "operation": "validate_fuse", "cost_usd": 1e-08, "latency_ms": 0.55, "meta": {}}
+{"ts": "2026-07-27T15:08:40.453543+00:00", "doc_id": "ub04_42_0007", "page_id": "p1", "field": "", "operation": "preprocess", "cost_usd": 5.64e-06, "latency_ms": 405.92, "meta": {}}
+{"ts": "2026-07-27T15:08:40.494659+00:00", "doc_id": "ub04_42_0007", "page_id": "p1", "field": "", "operation": "route", "cost_usd": 5e-07, "latency_ms": 35.8, "meta": {"type": "ub04", "conf": 0.99}}
+{"ts": "2026-07-27T15:08:44.607210+00:00", "doc_id": "ub04_42_0007", "page_id": "p1", "field": "", "operation": "ocr_paddle", "cost_usd": 5.706e-05, "latency_ms": 4108.03, "meta": {}}
+{"ts": "2026-07-27T15:08:44.673811+00:00", "doc_id": "ub04_42_0007", "page_id": "p1", "field": "", "operation": "validate_fuse", "cost_usd": 1e-08, "latency_ms": 0.49, "meta": {}}
+{"ts": "2026-07-27T15:08:45.218780+00:00", "doc_id": "ub04_42_0011", "page_id": "p1", "field": "", "operation": "preprocess", "cost_usd": 6.64e-06, "latency_ms": 477.76, "meta": {}}
+{"ts": "2026-07-27T15:08:45.265371+00:00", "doc_id": "ub04_42_0011", "page_id": "p1", "field": "", "operation": "route", "cost_usd": 5.9e-07, "latency_ms": 42.66, "meta": {"type": "ub04", "conf": 0.99}}
+{"ts": "2026-07-27T15:08:51.870458+00:00", "doc_id": "ub04_42_0011", "page_id": "p1", "field": "", "operation": "preprocess", "cost_usd": 6.66e-06, "latency_ms": 479.34, "meta": {}}
+{"ts": "2026-07-27T15:08:52.405531+00:00", "doc_id": "ub04_42_0011", "page_id": "p1", "field": "", "operation": "route", "cost_usd": 7.31e-06, "latency_ms": 526.41, "meta": {"type": "ub04", "conf": 0.99}}
+{"ts": "2026-07-27T15:08:58.448596+00:00", "doc_id": "ub04_42_0011", "page_id": "p1", "field": "", "operation": "ocr_paddle", "cost_usd": 8.031e-05, "latency_ms": 5782.25, "meta": {}}
+{"ts": "2026-07-27T15:08:58.507544+00:00", "doc_id": "ub04_42_0011", "page_id": "p1", "field": "", "operation": "validate_fuse", "cost_usd": 3e-08, "latency_ms": 2.37, "meta": {}}
+{"ts": "2026-07-27T15:08:59.020397+00:00", "doc_id": "ub04_42_0014", "page_id": "p1", "field": "", "operation": "preprocess", "cost_usd": 6.29e-06, "latency_ms": 453.21, "meta": {}}
+{"ts": "2026-07-27T15:08:59.070489+00:00", "doc_id": "ub04_42_0014", "page_id": "p1", "field": "", "operation": "route", "cost_usd": 6.3e-07, "latency_ms": 45.43, "meta": {"type": "ub04", "conf": 0.99}}
+{"ts": "2026-07-27T15:09:03.086380+00:00", "doc_id": "ub04_42_0014", "page_id": "p1", "field": "", "operation": "ocr_paddle", "cost_usd": 5.57e-05, "latency_ms": 4010.48, "meta": {}}
+{"ts": "2026-07-27T15:09:03.125072+00:00", "doc_id": "ub04_42_0014", "page_id": "p1", "field": "", "operation": "validate_fuse", "cost_usd": 1e-08, "latency_ms": 0.51, "meta": {}}
+{"ts": "2026-07-27T15:09:03.606231+00:00", "doc_id": "ub04_42_0017", "page_id": "p1", "field": "", "operation": "preprocess", "cost_usd": 5.77e-06, "latency_ms": 415.08, "meta": {}}
+{"ts": "2026-07-27T15:09:03.645727+00:00", "doc_id": "ub04_42_0017", "page_id": "p1", "field": "", "operation": "route", "cost_usd": 4.9e-07, "latency_ms": 35.52, "meta": {"type": "ub04", "conf": 0.99}}
+{"ts": "2026-07-27T15:09:08.040618+00:00", "doc_id": "ub04_42_0017", "page_id": "p1", "field": "", "operation": "ocr_paddle", "cost_usd": 6.099e-05, "latency_ms": 4390.93, "meta": {}}
+{"ts": "2026-07-27T15:09:08.101493+00:00", "doc_id": "ub04_42_0017", "page_id": "p1", "field": "", "operation": "validate_fuse", "cost_usd": 1e-08, "latency_ms": 0.52, "meta": {}}
+{"ts": "2026-07-27T15:09:08.595570+00:00", "doc_id": "ub04_42_0018", "page_id": "p1", "field": "", "operation": "preprocess", "cost_usd": 5.98e-06, "latency_ms": 430.53, "meta": {}}
+{"ts": "2026-07-27T15:09:08.649744+00:00", "doc_id": "ub04_42_0018", "page_id": "p1", "field": "", "operation": "route", "cost_usd": 6.3e-07, "latency_ms": 45.24, "meta": {"type": "ub04", "conf": 0.99}}
+{"ts": "2026-07-27T15:09:12.245439+00:00", "doc_id": "ub04_42_0018", "page_id": "p1", "field": "", "operation": "ocr_paddle", "cost_usd": 4.978e-05, "latency_ms": 3584.5, "meta": {}}
+{"ts": "2026-07-27T15:09:12.285268+00:00", "doc_id": "ub04_42_0018", "page_id": "p1", "field": "", "operation": "validate_fuse", "cost_usd": 1e-08, "latency_ms": 0.98, "meta": {}}
+{"ts": "2026-07-27T15:09:12.906370+00:00", "doc_id": "ub04_42_0019", "page_id": "p1", "field": "", "operation": "preprocess", "cost_usd": 7.86e-06, "latency_ms": 566.16, "meta": {}}
+{"ts": "2026-07-27T15:09:12.952878+00:00", "doc_id": "ub04_42_0019", "page_id": "p1", "field": "", "operation": "route", "cost_usd": 5.9e-07, "latency_ms": 42.18, "meta": {"type": "ub04", "conf": 0.99}}
+{"ts": "2026-07-27T15:09:17.401591+00:00", "doc_id": "ub04_42_0019", "page_id": "p1", "field": "", "operation": "ocr_paddle", "cost_usd": 6.172e-05, "latency_ms": 4443.9, "meta": {}}
+{"ts": "2026-07-27T15:09:17.442699+00:00", "doc_id": "ub04_42_0019", "page_id": "p1", "field": "", "operation": "validate_fuse", "cost_usd": 1e-08, "latency_ms": 0.55, "meta": {}}
+{"ts": "2026-07-27T15:09:17.997547+00:00", "doc_id": "ub04_42_0020", "page_id": "p1", "field": "", "operation": "preprocess", "cost_usd": 6.71e-06, "latency_ms": 483.3, "meta": {}}
+{"ts": "2026-07-27T15:09:18.043563+00:00", "doc_id": "ub04_42_0020", "page_id": "p1", "field": "", "operation": "route", "cost_usd": 5.4e-07, "latency_ms": 38.76, "meta": {"type": "ub04", "conf": 0.99}}
+{"ts": "2026-07-27T15:09:22.502502+00:00", "doc_id": "ub04_42_0020", "page_id": "p1", "field": "", "operation": "ocr_paddle", "cost_usd": 6.187e-05, "latency_ms": 4454.56, "meta": {}}
+{"ts": "2026-07-27T15:09:22.556236+00:00", "doc_id": "ub04_42_0020", "page_id": "p1", "field": "", "operation": "validate_fuse", "cost_usd": 1e-08, "latency_ms": 0.82, "meta": {}}
+{"ts": "2026-07-27T15:09:23.167985+00:00", "doc_id": "ub04_42_0024", "page_id": "p1", "field": "", "operation": "preprocess", "cost_usd": 7.36e-06, "latency_ms": 529.76, "meta": {}}
+{"ts": "2026-07-27T15:09:23.245943+00:00", "doc_id": "ub04_42_0024", "page_id": "p1", "field": "", "operation": "route", "cost_usd": 8.8e-07, "latency_ms": 63.62, "meta": {"type": "ub04", "conf": 0.99}}
+{"ts": "2026-07-27T15:09:27.752612+00:00", "doc_id": "ub04_42_0024", "page_id": "p1", "field": "", "operation": "ocr_paddle", "cost_usd": 6.251e-05, "latency_ms": 4500.65, "meta": {}}
+{"ts": "2026-07-27T15:09:27.790696+00:00", "doc_id": "ub04_42_0024", "page_id": "p1", "field": "", "operation": "validate_fuse", "cost_usd": 1e-08, "latency_ms": 0.51, "meta": {}}
+{"ts": "2026-07-27T15:09:35.476911+00:00", "doc_id": "cms1500_42_0000", "page_id": "p1", "field": "", "operation": "preprocess", "cost_usd": 2.88e-05, "latency_ms": 2073.76, "meta": {}}
+{"ts": "2026-07-27T15:09:35.937761+00:00", "doc_id": "cms1500_42_0000", "page_id": "p1", "field": "", "operation": "route", "cost_usd": 6.32e-06, "latency_ms": 454.93, "meta": {"type": "cms1500", "conf": 0.983}}
+{"ts": "2026-07-27T15:09:43.044938+00:00", "doc_id": "cms1500_42_0000", "page_id": "p1", "field": "", "operation": "ocr_paddle", "cost_usd": 9.552e-05, "latency_ms": 6877.44, "meta": {}}
+{"ts": "2026-07-27T15:09:43.129955+00:00", "doc_id": "cms1500_42_0000", "page_id": "p1", "field": "", "operation": "validate_fuse", "cost_usd": 5e-08, "latency_ms": 3.27, "meta": {}}
+{"ts": "2026-07-27T15:09:46.103806+00:00", "doc_id": "cms1500_42_0005", "page_id": "p1", "field": "", "operation": "preprocess", "cost_usd": 4.052e-05, "latency_ms": 2917.68, "meta": {}}
+{"ts": "2026-07-27T15:09:46.180228+00:00", "doc_id": "cms1500_42_0005", "page_id": "p1", "field": "", "operation": "route", "cost_usd": 9.4e-07, "latency_ms": 67.69, "meta": {"type": "cms1500", "conf": 0.983}}
+{"ts": "2026-07-27T15:09:54.054853+00:00", "doc_id": "cms1500_42_0005", "page_id": "p1", "field": "", "operation": "ocr_paddle", "cost_usd": 0.00010931, "latency_ms": 7870.59, "meta": {}}
+{"ts": "2026-07-27T15:09:54.134888+00:00", "doc_id": "cms1500_42_0005", "page_id": "p1", "field": "", "operation": "validate_fuse", "cost_usd": 1e-08, "latency_ms": 0.66, "meta": {}}
+{"ts": "2026-07-27T15:09:56.546919+00:00", "doc_id": "cms1500_42_0006", "page_id": "p1", "field": "", "operation": "preprocess", "cost_usd": 3.256e-05, "latency_ms": 2344.39, "meta": {}}
+{"ts": "2026-07-27T15:09:56.630972+00:00", "doc_id": "cms1500_42_0006", "page_id": "p1", "field": "", "operation": "route", "cost_usd": 1e-06, "latency_ms": 72.28, "meta": {"type": "cms1500", "conf": 0.977}}
+{"ts": "2026-07-27T15:10:04.541206+00:00", "doc_id": "cms1500_42_0006", "page_id": "p1", "field": "", "operation": "ocr_paddle", "cost_usd": 0.00010977, "latency_ms": 7903.5, "meta": {}}
+{"ts": "2026-07-27T15:10:04.640644+00:00", "doc_id": "cms1500_42_0006", "page_id": "p1", "field": "", "operation": "validate_fuse", "cost_usd": 3e-08, "latency_ms": 1.91, "meta": {}}
+{"ts": "2026-07-27T15:10:06.490492+00:00", "doc_id": "cms1500_42_0013", "page_id": "p1", "field": "", "operation": "preprocess", "cost_usd": 2.461e-05, "latency_ms": 1772.28, "meta": {}}
+{"ts": "2026-07-27T15:10:06.562677+00:00", "doc_id": "cms1500_42_0013", "page_id": "p1", "field": "", "operation": "route", "cost_usd": 8.8e-07, "latency_ms": 63.18, "meta": {"type": "cms1500", "conf": 0.98}}
+{"ts": "2026-07-27T15:10:11.490253+00:00", "doc_id": "cms1500_42_0013", "page_id": "p1", "field": "", "operation": "ocr_paddle", "cost_usd": 6.839e-05, "latency_ms": 4923.88, "meta": {}}
+{"ts": "2026-07-27T15:10:11.568960+00:00", "doc_id": "cms1500_42_0013", "page_id": "p1", "field": "", "operation": "validate_fuse", "cost_usd": 1e-08, "latency_ms": 0.38, "meta": {}}
+{"ts": "2026-07-27T15:10:13.553794+00:00", "doc_id": "cms1500_42_0016", "page_id": "p1", "field": "", "operation": "preprocess", "cost_usd": 2.651e-05, "latency_ms": 1908.72, "meta": {}}
+{"ts": "2026-07-27T15:10:13.644468+00:00", "doc_id": "cms1500_42_0016", "page_id": "p1", "field": "", "operation": "route", "cost_usd": 1.14e-06, "latency_ms": 82.23, "meta": {"type": "cms1500", "conf": 0.985}}
+{"ts": "2026-07-27T15:10:22.277169+00:00", "doc_id": "cms1500_42_0016", "page_id": "p1", "field": "", "operation": "preprocess", "cost_usd": 2.665e-05, "latency_ms": 1918.59, "meta": {}}
+{"ts": "2026-07-27T15:10:23.047479+00:00", "doc_id": "cms1500_42_0016", "page_id": "p1", "field": "", "operation": "route", "cost_usd": 1.055e-05, "latency_ms": 759.95, "meta": {"type": "cms1500", "conf": 0.985}}
+{"ts": "2026-07-27T15:10:30.304322+00:00", "doc_id": "cms1500_42_0016", "page_id": "p1", "field": "", "operation": "ocr_paddle", "cost_usd": 9.531e-05, "latency_ms": 6862.5, "meta": {}}
+{"ts": "2026-07-27T15:10:30.394194+00:00", "doc_id": "cms1500_42_0016", "page_id": "p1", "field": "", "operation": "validate_fuse", "cost_usd": 4e-08, "latency_ms": 2.79, "meta": {}}
+{"ts": "2026-07-27T15:10:32.589137+00:00", "doc_id": "cms1500_42_0017", "page_id": "p1", "field": "", "operation": "preprocess", "cost_usd": 2.964e-05, "latency_ms": 2133.89, "meta": {}}
+{"ts": "2026-07-27T15:10:32.660993+00:00", "doc_id": "cms1500_42_0017", "page_id": "p1", "field": "", "operation": "route", "cost_usd": 9e-07, "latency_ms": 64.82, "meta": {"type": "cms1500", "conf": 0.986}}
+{"ts": "2026-07-27T15:10:39.483357+00:00", "doc_id": "cms1500_42_0017", "page_id": "p1", "field": "", "operation": "ocr_paddle", "cost_usd": 9.47e-05, "latency_ms": 6818.67, "meta": {}}
+{"ts": "2026-07-27T15:10:39.535468+00:00", "doc_id": "cms1500_42_0017", "page_id": "p1", "field": "", "operation": "validate_fuse", "cost_usd": 1e-08, "latency_ms": 0.64, "meta": {}}
+{"ts": "2026-07-27T15:10:41.781046+00:00", "doc_id": "cms1500_42_0019", "page_id": "p1", "field": "", "operation": "preprocess", "cost_usd": 3.024e-05, "latency_ms": 2176.95, "meta": {}}
+{"ts": "2026-07-27T15:10:41.881392+00:00", "doc_id": "cms1500_42_0019", "page_id": "p1", "field": "", "operation": "route", "cost_usd": 1.31e-06, "latency_ms": 94.16, "meta": {"type": "cms1500", "conf": 0.983}}
+{"ts": "2026-07-27T15:10:47.513774+00:00", "doc_id": "cms1500_42_0019", "page_id": "p1", "field": "", "operation": "ocr_paddle", "cost_usd": 7.813e-05, "latency_ms": 5625.41, "meta": {}}
+{"ts": "2026-07-27T15:10:47.623675+00:00", "doc_id": "cms1500_42_0019", "page_id": "p1", "field": "", "operation": "validate_fuse", "cost_usd": 3e-08, "latency_ms": 2.18, "meta": {}}
+{"ts": "2026-07-27T15:10:50.102476+00:00", "doc_id": "cms1500_42_0020", "page_id": "p1", "field": "", "operation": "preprocess", "cost_usd": 3.327e-05, "latency_ms": 2395.25, "meta": {}}
+{"ts": "2026-07-27T15:10:50.183178+00:00", "doc_id": "cms1500_42_0020", "page_id": "p1", "field": "", "operation": "route", "cost_usd": 9.9e-07, "latency_ms": 71.63, "meta": {"type": "cms1500", "conf": 0.986}}
+{"ts": "2026-07-27T15:10:55.042820+00:00", "doc_id": "cms1500_42_0020", "page_id": "p1", "field": "", "operation": "ocr_paddle", "cost_usd": 6.741e-05, "latency_ms": 4853.49, "meta": {}}
+{"ts": "2026-07-27T15:10:55.101428+00:00", "doc_id": "cms1500_42_0020", "page_id": "p1", "field": "", "operation": "validate_fuse", "cost_usd": 1e-08, "latency_ms": 0.63, "meta": {}}
+{"ts": "2026-07-27T15:10:56.989333+00:00", "doc_id": "cms1500_42_0021", "page_id": "p1", "field": "", "operation": "preprocess", "cost_usd": 2.547e-05, "latency_ms": 1834.05, "meta": {}}
+{"ts": "2026-07-27T15:10:57.056023+00:00", "doc_id": "cms1500_42_0021", "page_id": "p1", "field": "", "operation": "route", "cost_usd": 8.2e-07, "latency_ms": 58.87, "meta": {"type": "cms1500", "conf": 0.98}}
+{"ts": "2026-07-27T15:11:10.314793+00:00", "doc_id": "cms1500_42_0021", "page_id": "p1", "field": "", "operation": "preprocess", "cost_usd": 3.128e-05, "latency_ms": 2251.83, "meta": {}}
+{"ts": "2026-07-27T15:11:10.933811+00:00", "doc_id": "cms1500_42_0021", "page_id": "p1", "field": "", "operation": "route", "cost_usd": 8.48e-06, "latency_ms": 610.66, "meta": {"type": "cms1500", "conf": 0.98}}
+{"ts": "2026-07-27T15:11:19.114355+00:00", "doc_id": "cms1500_42_0021", "page_id": "p1", "field": "", "operation": "ocr_paddle", "cost_usd": 0.00010491, "latency_ms": 7553.86, "meta": {}}
+{"ts": "2026-07-27T15:11:19.466104+00:00", "doc_id": "cms1500_42_0021", "page_id": "p1", "field": "", "operation": "validate_fuse", "cost_usd": 5e-08, "latency_ms": 3.72, "meta": {}}
+{"ts": "2026-07-27T15:11:22.890172+00:00", "doc_id": "cms1500_42_0024", "page_id": "p1", "field": "", "operation": "preprocess", "cost_usd": 4.585e-05, "latency_ms": 3301.31, "meta": {}}
+{"ts": "2026-07-27T15:11:22.979790+00:00", "doc_id": "cms1500_42_0024", "page_id": "p1", "field": "", "operation": "route", "cost_usd": 1.15e-06, "latency_ms": 82.71, "meta": {"type": "cms1500", "conf": 0.98}}
+{"ts": "2026-07-27T15:11:30.476994+00:00", "doc_id": "cms1500_42_0024", "page_id": "p1", "field": "", "operation": "ocr_paddle", "cost_usd": 0.00010401, "latency_ms": 7488.97, "meta": {}}
+{"ts": "2026-07-27T15:11:30.605888+00:00", "doc_id": "cms1500_42_0024", "page_id": "p1", "field": "", "operation": "validate_fuse", "cost_usd": 1e-08, "latency_ms": 0.61, "meta": {}}
+{"ts": "2026-07-27T15:11:33.678819+00:00", "doc_id": "ub04_42_0002", "page_id": "p1", "field": "", "operation": "preprocess", "cost_usd": 4.156e-05, "latency_ms": 2992.37, "meta": {}}
+{"ts": "2026-07-27T15:11:33.790893+00:00", "doc_id": "ub04_42_0002", "page_id": "p1", "field": "", "operation": "route", "cost_usd": 1.41e-06, "latency_ms": 101.86, "meta": {"type": "ub04", "conf": 0.984}}
+{"ts": "2026-07-27T15:11:39.842502+00:00", "doc_id": "ub04_42_0002", "page_id": "p1", "field": "", "operation": "ocr_paddle", "cost_usd": 8.397e-05, "latency_ms": 6045.65, "meta": {}}
+{"ts": "2026-07-27T15:11:39.927535+00:00", "doc_id": "ub04_42_0002", "page_id": "p1", "field": "", "operation": "validate_fuse", "cost_usd": 1e-08, "latency_ms": 0.75, "meta": {}}
+{"ts": "2026-07-27T15:11:42.065844+00:00", "doc_id": "ub04_42_0005", "page_id": "p1", "field": "", "operation": "preprocess", "cost_usd": 2.891e-05, "latency_ms": 2081.48, "meta": {}}
+{"ts": "2026-07-27T15:11:42.148729+00:00", "doc_id": "ub04_42_0005", "page_id": "p1", "field": "", "operation": "route", "cost_usd": 1.03e-06, "latency_ms": 74.22, "meta": {"type": "ub04", "conf": 0.985}}
+{"ts": "2026-07-27T15:11:48.489417+00:00", "doc_id": "ub04_42_0005", "page_id": "p1", "field": "", "operation": "ocr_paddle", "cost_usd": 8.8e-05, "latency_ms": 6336.28, "meta": {}}
+{"ts": "2026-07-27T15:11:48.552025+00:00", "doc_id": "ub04_42_0005", "page_id": "p1", "field": "", "operation": "validate_fuse", "cost_usd": 1e-08, "latency_ms": 0.45, "meta": {}}
+{"ts": "2026-07-27T15:12:01.452841+00:00", "doc_id": "ub04_42_0007", "page_id": "p1", "field": "", "operation": "preprocess", "cost_usd": 2.545e-05, "latency_ms": 1832.14, "meta": {}}
+{"ts": "2026-07-27T15:12:02.197431+00:00", "doc_id": "ub04_42_0007", "page_id": "p1", "field": "", "operation": "route", "cost_usd": 1.022e-05, "latency_ms": 735.71, "meta": {"type": "ub04", "conf": 0.982}}
+{"ts": "2026-07-27T15:12:08.591329+00:00", "doc_id": "ub04_42_0007", "page_id": "p1", "field": "", "operation": "ocr_paddle", "cost_usd": 8.222e-05, "latency_ms": 5919.99, "meta": {}}
+{"ts": "2026-07-27T15:12:08.666858+00:00", "doc_id": "ub04_42_0007", "page_id": "p1", "field": "", "operation": "validate_fuse", "cost_usd": 4e-08, "latency_ms": 2.59, "meta": {}}
+{"ts": "2026-07-27T15:12:10.285196+00:00", "doc_id": "ub04_42_0011", "page_id": "p1", "field": "", "operation": "preprocess", "cost_usd": 2.172e-05, "latency_ms": 1563.97, "meta": {}}
+{"ts": "2026-07-27T15:12:10.339967+00:00", "doc_id": "ub04_42_0011", "page_id": "p1", "field": "", "operation": "route", "cost_usd": 6.6e-07, "latency_ms": 47.31, "meta": {"type": "ub04", "conf": 0.981}}
+{"ts": "2026-07-27T15:12:15.553811+00:00", "doc_id": "ub04_42_0011", "page_id": "p1", "field": "", "operation": "ocr_paddle", "cost_usd": 7.235e-05, "latency_ms": 5209.48, "meta": {}}
+{"ts": "2026-07-27T15:12:15.610380+00:00", "doc_id": "ub04_42_0011", "page_id": "p1", "field": "", "operation": "validate_fuse", "cost_usd": 1e-08, "latency_ms": 0.59, "meta": {}}
+{"ts": "2026-07-27T15:12:17.861407+00:00", "doc_id": "ub04_42_0014", "page_id": "p1", "field": "", "operation": "preprocess", "cost_usd": 3.032e-05, "latency_ms": 2182.73, "meta": {}}
+{"ts": "2026-07-27T15:12:17.931139+00:00", "doc_id": "ub04_42_0014", "page_id": "p1", "field": "", "operation": "route", "cost_usd": 8.6e-07, "latency_ms": 62.28, "meta": {"type": "ub04", "conf": 0.987}}
+{"ts": "2026-07-27T15:12:24.561137+00:00", "doc_id": "ub04_42_0014", "page_id": "p1", "field": "", "operation": "ocr_paddle", "cost_usd": 9.199e-05, "latency_ms": 6623.45, "meta": {}}
+{"ts": "2026-07-27T15:12:24.617105+00:00", "doc_id": "ub04_42_0014", "page_id": "p1", "field": "", "operation": "validate_fuse", "cost_usd": 1e-08, "latency_ms": 0.5, "meta": {}}
+{"ts": "2026-07-27T15:12:26.740941+00:00", "doc_id": "ub04_42_0017", "page_id": "p1", "field": "", "operation": "preprocess", "cost_usd": 2.851e-05, "latency_ms": 2052.48, "meta": {}}
+{"ts": "2026-07-27T15:12:26.820618+00:00", "doc_id": "ub04_42_0017", "page_id": "p1", "field": "", "operation": "route", "cost_usd": 1.03e-06, "latency_ms": 74.02, "meta": {"type": "ub04", "conf": 0.985}}
+{"ts": "2026-07-27T15:12:33.186547+00:00", "doc_id": "ub04_42_0017", "page_id": "p1", "field": "", "operation": "ocr_paddle", "cost_usd": 8.835e-05, "latency_ms": 6361.4, "meta": {}}
+{"ts": "2026-07-27T15:12:33.277966+00:00", "doc_id": "ub04_42_0017", "page_id": "p1", "field": "", "operation": "validate_fuse", "cost_usd": 1e-08, "latency_ms": 0.56, "meta": {}}
+{"ts": "2026-07-27T15:12:35.852830+00:00", "doc_id": "ub04_42_0018", "page_id": "p1", "field": "", "operation": "preprocess", "cost_usd": 3.434e-05, "latency_ms": 2472.75, "meta": {}}
+{"ts": "2026-07-27T15:12:35.936195+00:00", "doc_id": "ub04_42_0018", "page_id": "p1", "field": "", "operation": "route", "cost_usd": 1.02e-06, "latency_ms": 73.67, "meta": {"type": "ub04", "conf": 0.984}}
+{"ts": "2026-07-27T15:12:49.138752+00:00", "doc_id": "ub04_42_0018", "page_id": "p1", "field": "", "operation": "preprocess", "cost_usd": 3.274e-05, "latency_ms": 2357.14, "meta": {}}
+{"ts": "2026-07-27T15:12:49.633143+00:00", "doc_id": "ub04_42_0018", "page_id": "p1", "field": "", "operation": "route", "cost_usd": 6.68e-06, "latency_ms": 480.78, "meta": {"type": "ub04", "conf": 0.984}}
+{"ts": "2026-07-27T15:12:56.200202+00:00", "doc_id": "ub04_42_0018", "page_id": "p1", "field": "", "operation": "ocr_paddle", "cost_usd": 8.766e-05, "latency_ms": 6311.54, "meta": {}}
+{"ts": "2026-07-27T15:12:56.289062+00:00", "doc_id": "ub04_42_0018", "page_id": "p1", "field": "", "operation": "validate_fuse", "cost_usd": 6e-08, "latency_ms": 3.99, "meta": {}}
+{"ts": "2026-07-27T15:12:58.909791+00:00", "doc_id": "ub04_42_0019", "page_id": "p1", "field": "", "operation": "preprocess", "cost_usd": 3.557e-05, "latency_ms": 2560.73, "meta": {}}
+{"ts": "2026-07-27T15:12:59.011309+00:00", "doc_id": "ub04_42_0019", "page_id": "p1", "field": "", "operation": "route", "cost_usd": 1.29e-06, "latency_ms": 92.94, "meta": {"type": "ub04", "conf": 0.987}}
+{"ts": "2026-07-27T15:13:05.521666+00:00", "doc_id": "ub04_42_0019", "page_id": "p1", "field": "", "operation": "ocr_paddle", "cost_usd": 9.036e-05, "latency_ms": 6506.12, "meta": {}}
+{"ts": "2026-07-27T15:13:05.623719+00:00", "doc_id": "ub04_42_0019", "page_id": "p1", "field": "", "operation": "validate_fuse", "cost_usd": 1e-08, "latency_ms": 0.61, "meta": {}}
+{"ts": "2026-07-27T15:13:08.284080+00:00", "doc_id": "ub04_42_0020", "page_id": "p1", "field": "", "operation": "preprocess", "cost_usd": 3.591e-05, "latency_ms": 2585.37, "meta": {}}
+{"ts": "2026-07-27T15:13:08.397879+00:00", "doc_id": "ub04_42_0020", "page_id": "p1", "field": "", "operation": "route", "cost_usd": 1.4e-06, "latency_ms": 100.6, "meta": {"type": "ub04", "conf": 0.987}}
+{"ts": "2026-07-27T15:13:14.668706+00:00", "doc_id": "ub04_42_0020", "page_id": "p1", "field": "", "operation": "ocr_paddle", "cost_usd": 8.703e-05, "latency_ms": 6266.05, "meta": {}}
+{"ts": "2026-07-27T15:13:14.755241+00:00", "doc_id": "ub04_42_0020", "page_id": "p1", "field": "", "operation": "validate_fuse", "cost_usd": 1e-08, "latency_ms": 0.67, "meta": {}}
+{"ts": "2026-07-27T15:13:17.313675+00:00", "doc_id": "ub04_42_0024", "page_id": "p1", "field": "", "operation": "preprocess", "cost_usd": 3.472e-05, "latency_ms": 2499.57, "meta": {}}
+{"ts": "2026-07-27T15:13:17.402102+00:00", "doc_id": "ub04_42_0024", "page_id": "p1", "field": "", "operation": "route", "cost_usd": 1.08e-06, "latency_ms": 77.67, "meta": {"type": "ub04", "conf": 0.986}}
+{"ts": "2026-07-27T15:13:22.928114+00:00", "doc_id": "ub04_42_0024", "page_id": "p1", "field": "", "operation": "ocr_paddle", "cost_usd": 7.669e-05, "latency_ms": 5521.65, "meta": {}}
+{"ts": "2026-07-27T15:13:23.003920+00:00", "doc_id": "ub04_42_0024", "page_id": "p1", "field": "", "operation": "validate_fuse", "cost_usd": 1e-08, "latency_ms": 0.53, "meta": {}}
