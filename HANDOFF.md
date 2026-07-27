@@ -46,7 +46,15 @@ plan is compressed to ~6). Days 1–6 COMPLETE, 36 tests green, HEAD `62c35c9`, 
 - Known failure class (clean tier, ~97%): on *sharp* pages PP-OCR merges adjacent name boxes
   into one line span → `patient_name`/`insured_name` get concatenated text. `name_format`
   already FAILs these (comma count). **Day 7's crop-level Tesseract retry should resolve them
-  nearly free — that's the retry rung's first proof.**
+  at near-zero incremental cost — that's the retry rung's first proof.**
+
+## SUBMISSION WORDING RULES (a judge will test these)
+1. Tier-0 result is **pipeline recovery**, never "OCR uplift": 0% → 99.4% on ugly because
+   rotation correction makes routing and layout mapping viable, not because OCR improved.
+2. The retry rung is **"local compute only" / "near-zero incremental cost"** — never "$0" or
+   "free". It burns CPU, that CPU is priced in `configs/prices.yaml`, and every retry is logged
+   to the ledger. Same rule for preprocessing, routing, and validation: they are cheap
+   deterministic stages, not costless ones.
 
 ## What exists (don't rebuild)
 `data_factory/` (CMS-1500 + UB-04, 3 tiers, exact bboxes, ink guardrail) · `engine/schemas.py`
