@@ -1,0 +1,32 @@
+{
+  "spine_field_acc": {
+    "raw|ugly": {
+      "field_acc": 0.0,
+      "pages": 20
+    },
+    "prep|clean": {
+      "field_acc": 0.9713,
+      "pages": 20
+    },
+    "prep|noisy": {
+      "field_acc": 0.992,
+      "pages": 20
+    },
+    "prep|ugly": {
+      "field_acc": 0.994,
+      "pages": 20
+    }
+  },
+  "top_missed_fields_prep": {
+    "insured_name": 8,
+    "patient_name": 7,
+    "patient_address": 4,
+    "line2_units": 4,
+    "line3_units": 3,
+    "line2_diagnosis_pointer": 1,
+    "line1_cpt_code": 1,
+    "line1_units": 1,
+    "patient_state": 1
+  },
+  "note": "calibration split; primary=paddle; mapper=overlap-based"
+}

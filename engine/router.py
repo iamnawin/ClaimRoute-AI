@@ -35,23 +35,33 @@ def red_mask(img: Image.Image) -> np.ndarray:
     return m & (n >= 2)
 
 
+def _mass_extent(mass: np.ndarray) -> tuple[int, int]:
+    c = np.cumsum(mass, dtype=np.float64)
+    total = c[-1]
+    lo = int(np.searchsorted(c, 0.005 * total))
+    hi = int(np.searchsorted(c, 0.995 * total))
+    return lo, max(hi, lo + 1)
+
+
+def form_extent(img: Image.Image) -> list | None:
+    """[x0, y0, x1, y1] of the red form grid via mass quantiles (speckle-proof).
+    The shared coordinate frame for router profiles AND layout templates."""
+    m = red_mask(img)
+    if m.sum() <= 100:
+        return None
+    r0, r1 = _mass_extent(m.sum(axis=1))
+    c0, c1 = _mass_extent(m.sum(axis=0))
+    return [c0, r0, c1, r1]
+
+
 def _profiles(img: Image.Image) -> tuple[np.ndarray, np.ndarray, float]:
     m = red_mask(img)
     frac = float(m.mean())
-    # Crop to the form's ink extent: preprocessing's expand-rotate adds paper
-    # margins that would otherwise dilute/shift the profiles.
-    # Mass-based extent (0.5%..99.5% of red mass), NOT any-pixel extent: a single
-    # noise speckle in a margin must not stretch the crop to the page edge.
-    def mass_extent(mass: np.ndarray) -> tuple[int, int]:
-        c = np.cumsum(mass, dtype=np.float64)
-        total = c[-1]
-        lo = int(np.searchsorted(c, 0.005 * total))
-        hi = int(np.searchsorted(c, 0.995 * total))
-        return lo, max(hi, lo + 1)
-
+    # Crop to the form's ink extent (mass quantiles, speckle-proof): preprocessing's
+    # expand-rotate adds paper margins that would otherwise dilute the profiles.
     if m.sum() > 100:
-        r0, r1 = mass_extent(m.sum(axis=1))
-        c0, c1 = mass_extent(m.sum(axis=0))
+        r0, r1 = _mass_extent(m.sum(axis=1))
+        c0, c1 = _mass_extent(m.sum(axis=0))
         m = m[r0:r1 + 1, c0:c1 + 1]
     # Area-averaged binning (BOX resize), NOT point sampling: thin grid lines
     # alias out of point-sampled profiles and kill correlation.
@@ -93,7 +103,7 @@ def _references() -> dict:
             if n not in out:
                 out[n] = _profiles(render(claim)[0])[:2]
             seed += 1
-        return list(out.values())
+        return [(n, rows, cols) for n, (rows, cols) in sorted(out.items())]
 
     return {
         "cms1500": collect(generate_claim, r1500, "service_lines", {1, 2, 3}),
@@ -110,19 +120,21 @@ def route(img: Image.Image) -> dict:
         return {"document_type": "unstructured", "confidence": 0.85,
                 "evidence": evidence}
 
-    scores = {}
+    scores, best_variant = {}, {}
     for form, variants in _references().items():
-        corr = max(W_ROWS * _shift_corr(rows, rrows) + W_COLS * _shift_corr(cols, rcols)
-                   for rrows, rcols in variants)
-        scores[form] = corr
-        evidence.append(f"layout-profile corr {form} (best variant): {corr:.3f}")
+        per = [(W_ROWS * _shift_corr(rows, rrows) + W_COLS * _shift_corr(cols, rcols), n)
+               for n, rrows, rcols in variants]
+        corr, n = max(per)
+        scores[form], best_variant[form] = corr, n
+        evidence.append(f"layout-profile corr {form} (variant n={n}): {corr:.3f}")
 
     ranked = sorted(scores.items(), key=lambda kv: -kv[1])
     (win, wscore), (_, second) = ranked[0], ranked[1]
     if wscore >= ACCEPT_CORR and wscore - second >= MARGIN:
         conf = round(min(0.99, 0.5 + wscore / 2), 3)
         evidence.append(f"winner margin: {wscore - second:.3f}")
-        return {"document_type": win, "confidence": conf, "evidence": evidence}
+        return {"document_type": win, "confidence": conf, "evidence": evidence,
+                "variant": best_variant[win]}
 
     evidence.append("no profile above threshold/margin")
     return {"document_type": "unknown", "confidence": round(max(0.0, wscore), 3),
