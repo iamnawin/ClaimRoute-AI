@@ -1,0 +1,22 @@
+{
+  "pages": 150,
+  "router_accuracy": 1.0,
+  "router_errors": [],
+  "bbox_ink_failures": 0,
+  "clean_pages_modified": 0,
+  "quality_mean": {
+    "clean": {
+      "before": 0.837,
+      "after": 0.837
+    },
+    "noisy": {
+      "before": 0.663,
+      "after": 0.663
+    },
+    "ugly": {
+      "before": 0.463,
+      "after": 0.425
+    }
+  },
+  "mean_ms_per_page": 1101.2
+}
