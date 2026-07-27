@@ -1,0 +1,51 @@
+"""Shared OCR schema — every engine speaks (text, confidence, bbox) or it
+doesn't play. Raw engine output is preserved on the adapter for debugging.
+"""
+from __future__ import annotations
+
+from abc import ABC, abstractmethod
+from dataclasses import dataclass
+
+from PIL import Image
+
+
+@dataclass
+class OcrWord:
+    """One recognized text span. bbox = [x0, y0, x1, y1] in image coords.
+    conf normalized to 0..1 regardless of engine convention."""
+    text: str
+    bbox: list
+    conf: float
+
+    @property
+    def center(self) -> tuple[float, float]:
+        x0, y0, x1, y1 = self.bbox
+        return ((x0 + x1) / 2, (y0 + y1) / 2)
+
+
+class OcrEngine(ABC):
+    name: str = "base"
+
+    def __init__(self):
+        self.last_raw = None      # raw engine output of the most recent extract()
+
+    @abstractmethod
+    def extract(self, img: Image.Image) -> list[OcrWord]:
+        ...
+
+
+_REGISTRY: dict = {}
+
+
+def get_engine(name: str) -> OcrEngine:
+    """Lazy singleton per engine (model loads are expensive)."""
+    if name not in _REGISTRY:
+        if name == "tesseract":
+            from engine.ocr.tesseract_engine import TesseractEngine
+            _REGISTRY[name] = TesseractEngine()
+        elif name == "paddle":
+            from engine.ocr.paddle_engine import PaddleOnnxEngine
+            _REGISTRY[name] = PaddleOnnxEngine()
+        else:
+            raise ValueError(f"unknown OCR engine: {name}")
+    return _REGISTRY[name]

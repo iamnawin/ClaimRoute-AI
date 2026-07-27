@@ -1,0 +1,17 @@
+# OCR engine selection — decided by the Day-4 calibration bake-off
+# (eval/results/day4_bakeoff.json). Do not change without re-running it.
+
+primary: paddle        # PP-OCR via ONNX Runtime: field_acc 0.98/0.99/0.83
+                       # (clean/noisy/ugly raw), word_recall ~0.99 everywhere,
+                       # best accuracy-to-cost, zero failures
+retry: tesseract       # word-level granularity (crop-friendly), disjoint error
+                       # profile, rescues 4.1% of primary misses; REQUIRES
+                       # preprocessed input (raw ugly failure rate was 80%)
+
+adapters:
+  paddle:
+    module: engine.ocr.paddle_engine
+    licenses: [RapidOCR Apache-2.0, ONNX Runtime MIT, PP-OCR models Apache-2.0]
+  tesseract:
+    module: engine.ocr.tesseract_engine
+    licenses: [Tesseract Apache-2.0, pytesseract Apache-2.0]

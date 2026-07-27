@@ -1,0 +1,131 @@
+{
+  "pages_per_condition": 60,
+  "matrix": {
+    "paddle|raw|clean": {
+      "field_acc": 0.9792,
+      "word_recall": 0.984,
+      "ocr_ms": 4417.1167,
+      "cost_usd_page": 0.0001,
+      "failure_rate": 0.0,
+      "pages": 12
+    },
+    "paddle|raw|noisy": {
+      "field_acc": 0.9929,
+      "word_recall": 0.9954,
+      "ocr_ms": 4363.1083,
+      "cost_usd_page": 0.0001,
+      "failure_rate": 0.0,
+      "pages": 12
+    },
+    "paddle|raw|ugly": {
+      "field_acc": 0.8325,
+      "word_recall": 0.9881,
+      "ocr_ms": 4997.1583,
+      "cost_usd_page": 0.0001,
+      "failure_rate": 0.0,
+      "pages": 12
+    },
+    "paddle|prep|clean": {
+      "field_acc": 0.9792,
+      "word_recall": 0.984,
+      "ocr_ms": 4045.65,
+      "cost_usd_page": 0.0001,
+      "failure_rate": 0.0,
+      "pages": 12
+    },
+    "paddle|prep|noisy": {
+      "field_acc": 0.9929,
+      "word_recall": 0.9954,
+      "ocr_ms": 4038.4583,
+      "cost_usd_page": 0.0001,
+      "failure_rate": 0.0,
+      "pages": 12
+    },
+    "paddle|prep|ugly": {
+      "field_acc": 0.6067,
+      "word_recall": 0.9948,
+      "ocr_ms": 5374.1167,
+      "cost_usd_page": 0.0001,
+      "failure_rate": 0.0,
+      "pages": 12
+    },
+    "tesseract|raw|clean": {
+      "field_acc": 0.7352,
+      "word_recall": 0.6046,
+      "ocr_ms": 2239.375,
+      "cost_usd_page": 0.0,
+      "failure_rate": 0.0,
+      "pages": 20
+    },
+    "tesseract|raw|noisy": {
+      "field_acc": 0.6926,
+      "word_recall": 0.5589,
+      "ocr_ms": 2671.9,
+      "cost_usd_page": 0.0,
+      "failure_rate": 0.0,
+      "pages": 20
+    },
+    "tesseract|raw|ugly": {
+      "field_acc": 0.0116,
+      "word_recall": 0.0202,
+      "ocr_ms": 1671.02,
+      "cost_usd_page": 0.0,
+      "failure_rate": 0.8,
+      "pages": 20
+    },
+    "tesseract|prep|clean": {
+      "field_acc": 0.7352,
+      "word_recall": 0.6046,
+      "ocr_ms": 2185.435,
+      "cost_usd_page": 0.0,
+      "failure_rate": 0.0,
+      "pages": 20
+    },
+    "tesseract|prep|noisy": {
+      "field_acc": 0.6926,
+      "word_recall": 0.5589,
+      "ocr_ms": 2606.965,
+      "cost_usd_page": 0.0,
+      "failure_rate": 0.0,
+      "pages": 20
+    },
+    "tesseract|prep|ugly": {
+      "field_acc": 0.049,
+      "word_recall": 0.2914,
+      "ocr_ms": 3658.41,
+      "cost_usd_page": 0.0001,
+      "failure_rate": 0.0,
+      "pages": 20
+    }
+  },
+  "preprocessing_uplift_field_acc": {
+    "tesseract|clean": 0.0,
+    "tesseract|noisy": 0.0,
+    "tesseract|ugly": 0.0374,
+    "paddle|clean": 0.0,
+    "paddle|noisy": 0.0,
+    "paddle|ugly": -0.2258
+  },
+  "overall_prep": {
+    "tesseract": {
+      "acc": 0.4923,
+      "cost": 0.0001,
+      "acc_per_dollar": 4923
+    },
+    "paddle": {
+      "acc": 0.8596,
+      "cost": 0.0001,
+      "acc_per_dollar": 8596
+    }
+  },
+  "selection": {
+    "primary": "paddle",
+    "retry": "tesseract",
+    "retry_rescues_of_primary_misses": 0.0409
+  },
+  "note": "calibration split only; frozen test untouched",
+  "measurement_caveats": [
+    "field_acc uses naive center-in-bbox region matching; for the line-granularity paddle engine this is a LOWER BOUND \u2014 after deskew, merged line spans drift outside transformed field bboxes while word_recall stays ~0.99 (values read correctly). The paddle prep|ugly drop vs raw|ugly is this geometry artifact, not OCR degradation; Day-5 layout mapping assigns regions properly and re-measures preprocessing uplift there.",
+    "tesseract raw|ugly failure_rate 0.80 -> 0.00 with preprocessing: Tier-0 is what makes the retry engine usable on degraded pages at all."
+  ]
+}
