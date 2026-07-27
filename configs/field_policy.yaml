@@ -1,0 +1,52 @@
+# Field policy — drives the Cost Governor (Architecture v1.2).
+# criticality: high=3, med=2, low=1 (weights used in weighted accuracy too)
+# external_model_allowed: may this field's crop leave the trust boundary?
+# required_validators must PASS (or be human-overridden) before ACCEPT.
+
+defaults:
+  criticality: med
+  allow_accept_with_flag: false
+  external_model_allowed: true
+  required_validators: []
+
+fields:
+  # ---- Patient / insured (CMS-1500 boxes 1–13) ----
+  insured_id:            { criticality: high, required_validators: [id_format] }
+  patient_name:          { criticality: high, required_validators: [name_format] }
+  patient_dob:           { criticality: high, required_validators: [date_valid, dob_before_service] }
+  patient_sex:           { criticality: low,  allow_accept_with_flag: true }
+  insured_name:          { criticality: med,  required_validators: [name_format] }
+  patient_address:       { criticality: low,  allow_accept_with_flag: true }
+  patient_city:          { criticality: low,  allow_accept_with_flag: true }
+  patient_state:         { criticality: low,  allow_accept_with_flag: true }
+  patient_zip:           { criticality: med,  required_validators: [zip_format] }
+  patient_relationship:  { criticality: low,  allow_accept_with_flag: true }
+  insurance_plan_name:   { criticality: med }
+
+  # ---- Diagnosis (box 21) ----
+  diagnosis_code_a:      { criticality: high, required_validators: [icd10_format, icd10_dictionary] }
+  diagnosis_code_b:      { criticality: high, required_validators: [icd10_format, icd10_dictionary] }
+  diagnosis_code_c:      { criticality: high, required_validators: [icd10_format, icd10_dictionary] }
+  diagnosis_code_d:      { criticality: high, required_validators: [icd10_format, icd10_dictionary] }
+
+  # ---- Service lines (box 24, lines expanded 1..N) ----
+  # Template applied to every service line via the `service_line_template` key.
+
+  # ---- Provider / totals (boxes 25–33) ----
+  federal_tax_id:        { criticality: high, required_validators: [tax_id_format] }
+  patient_account_no:    { criticality: med }
+  total_charge:          { criticality: high, required_validators: [currency_format, claim_arithmetic] }
+  amount_paid:           { criticality: med,  required_validators: [currency_format] }
+  billing_provider_name: { criticality: med,  required_validators: [name_format] }
+  billing_provider_npi:  { criticality: high, required_validators: [npi_checksum] }
+  referring_provider_npi: { criticality: high, required_validators: [npi_checksum] }
+
+service_line_template:
+  date_from:        { criticality: high, required_validators: [date_valid, dob_before_service] }
+  date_to:          { criticality: med,  required_validators: [date_valid] }
+  place_of_service: { criticality: low,  allow_accept_with_flag: true }
+  cpt_code:         { criticality: high, required_validators: [cpt_format, cpt_dictionary] }
+  diagnosis_pointer: { criticality: med, allow_accept_with_flag: true }
+  charges:          { criticality: high, required_validators: [currency_format, claim_arithmetic] }
+  units:            { criticality: med,  required_validators: [numeric_format] }
+  rendering_npi:    { criticality: high, required_validators: [npi_checksum] }

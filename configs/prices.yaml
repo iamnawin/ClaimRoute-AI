@@ -1,0 +1,14 @@
+# Verified 2026-07-27 — RE-VERIFY on Day 11 before final numbers.
+# Per 1M tokens (input / output), USD.
+vision_models:
+  gpt-5-nano:        { input: 0.05, output: 0.40 }
+  gemini-2.5-flash-lite: { input: 0.10, output: 0.40, note: "retires Oct 2026; successor 3.1 flash-lite 0.25/1.50 — use successor in forward projections" }
+  gemini-3.1-flash-lite: { input: 0.25, output: 1.50 }
+  gpt-5-mini:        { input: 0.25, output: 2.00 }
+  claude-haiku-4.5:  { input: 1.00, output: 5.00, note: "batch API -50%" }
+
+compute:
+  vcpu_hour_usd: 0.05          # amortised cloud vCPU for local stages (Tier 0/1, validators)
+
+human_review:
+  cost_per_field_touch_usd: 0.03   # assumed; reported as a separate line, never hidden
