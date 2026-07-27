@@ -11,8 +11,10 @@ import time
 import yaml
 from PIL import Image
 
+from engine.fusion import fuse
 from engine.ledger import CostLedger
 from engine.layout.mapper import map_fields
+from engine.validators import run_validators
 from engine.ocr import get_engine
 from engine.preprocess import preprocess_page
 from engine.router import route
@@ -61,12 +63,23 @@ def run_page(img: Image.Image, doc_id: str, ledger: CostLedger,
                cost_usd=_cpu_cost(ocr_ms), latency_ms=ocr_ms)
 
     fields = map_fields(words, work, r["document_type"], r["variant"])
+
+    # Validation layer (free, deterministic) + confidence fusion
+    t0 = time.perf_counter()
+    values = {k: c["value"] for k, c in fields.items()}
+    stamps = run_validators(values)
     for name, c in fields.items():
+        vnames = [s.validator for s in stamps.get(name, [])]
+        fused = fuse(c["conf"], page.quality_score, c["n_spans"], c["value"], vnames)
         fr = FieldResult(doc_id=doc_id, page_id="p1", field_name=name,
-                         value=c["value"] or None, confidence=c["conf"],
+                         value=c["value"] or None, confidence=fused,
                          bbox=tuple(c["bbox"]) if c["bbox"] else None)
+        fr.stamps = stamps.get(name, [])
         fr.attempts.append(Attempt(rung="primary_ocr", engine=primary_engine,
-                                   value=c["value"] or None, confidence=c["conf"],
+                                   value=c["value"] or None, confidence=fused,
                                    cost_usd=0.0, latency_ms=0.0))
         page.fields[name] = fr
+    val_ms = (time.perf_counter() - t0) * 1000
+    ledger.log(doc_id=doc_id, page_id="p1", operation="validate_fuse",
+               cost_usd=_cpu_cost(val_ms), latency_ms=val_ms)
     return page

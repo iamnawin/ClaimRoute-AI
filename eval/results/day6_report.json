@@ -1,0 +1,21 @@
+{
+  "validator_coverage": {
+    "clean": {
+      "errors": 18,
+      "validator_catch_rate": 1.0,
+      "false_alarm_rate": 0.0436,
+      "mean_conf_correct": 0.971,
+      "mean_conf_errors": 0.675,
+      "validated_fields": 523
+    },
+    "ugly": {
+      "errors": 1,
+      "validator_catch_rate": 1.0,
+      "false_alarm_rate": 0.0192,
+      "mean_conf_correct": 0.914,
+      "mean_conf_errors": 0.145,
+      "validated_fields": 523
+    }
+  },
+  "note": "catch = spine error with >=1 FAIL stamp; false alarm = correct field with a FAIL stamp; calibration split"
+}

@@ -50,3 +50,22 @@ service_line_template:
   charges:          { criticality: high, required_validators: [currency_format, claim_arithmetic] }
   units:            { criticality: med,  required_validators: [numeric_format] }
   rendering_npi:    { criticality: high, required_validators: [npi_checksum] }
+  # UB-04 revenue lines
+  rev_code:         { criticality: high, required_validators: [revenue_code_format] }
+  hcpcs:            { criticality: med,  required_validators: [cpt_format] }
+  service_date:     { criticality: high, required_validators: [date_valid, dob_before_service] }
+
+ub04_fields:  # merged into `fields` at load; kept separate for readability
+  provider_npi:       { criticality: high, required_validators: [npi_checksum] }
+  attending_npi:      { criticality: high, required_validators: [npi_checksum] }
+  principal_dx:       { criticality: high, required_validators: [icd10_format, icd10_dictionary] }
+  total_charges:      { criticality: high, required_validators: [currency_format, claim_arithmetic] }
+  statement_from:     { criticality: med,  required_validators: [date_valid] }
+  statement_to:       { criticality: med,  required_validators: [date_valid] }
+  admission_date:     { criticality: med,  required_validators: [date_valid] }
+  federal_tax_no:     { criticality: high, required_validators: [tax_id_format] }
+  provider_name:      { criticality: med }
+  payer_name:         { criticality: med }
+  patient_control_no: { criticality: med }
+  medical_record_no:  { criticality: med }
+  type_of_bill:       { criticality: med,  required_validators: [numeric_format] }

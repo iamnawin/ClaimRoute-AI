@@ -1,0 +1,170 @@
+{"ts": "2026-07-27T14:25:30.692235+00:00", "doc_id": "cms1500_42_0000", "page_id": "p1", "field": "", "operation": "preprocess", "cost_usd": 6.41e-06, "latency_ms": 461.47, "meta": {}}
+{"ts": "2026-07-27T14:25:31.186219+00:00", "doc_id": "cms1500_42_0000", "page_id": "p1", "field": "", "operation": "route", "cost_usd": 6.77e-06, "latency_ms": 487.13, "meta": {"type": "cms1500", "conf": 0.99}}
+{"ts": "2026-07-27T14:25:37.151105+00:00", "doc_id": "cms1500_42_0000", "page_id": "p1", "field": "", "operation": "ocr_paddle", "cost_usd": 8.009e-05, "latency_ms": 5766.41, "meta": {}}
+{"ts": "2026-07-27T14:25:37.199821+00:00", "doc_id": "cms1500_42_0000", "page_id": "p1", "field": "", "operation": "validate_fuse", "cost_usd": 3e-08, "latency_ms": 2.33, "meta": {}}
+{"ts": "2026-07-27T14:25:39.230680+00:00", "doc_id": "cms1500_42_0000", "page_id": "p1", "field": "", "operation": "preprocess", "cost_usd": 2.738e-05, "latency_ms": 1971.23, "meta": {}}
+{"ts": "2026-07-27T14:25:39.297411+00:00", "doc_id": "cms1500_42_0000", "page_id": "p1", "field": "", "operation": "route", "cost_usd": 8.5e-07, "latency_ms": 60.87, "meta": {"type": "cms1500", "conf": 0.983}}
+{"ts": "2026-07-27T14:25:45.455115+00:00", "doc_id": "cms1500_42_0000", "page_id": "p1", "field": "", "operation": "ocr_paddle", "cost_usd": 8.545e-05, "latency_ms": 6152.66, "meta": {}}
+{"ts": "2026-07-27T14:25:45.507051+00:00", "doc_id": "cms1500_42_0000", "page_id": "p1", "field": "", "operation": "validate_fuse", "cost_usd": 1e-08, "latency_ms": 0.96, "meta": {}}
+{"ts": "2026-07-27T14:25:45.984458+00:00", "doc_id": "cms1500_42_0005", "page_id": "p1", "field": "", "operation": "preprocess", "cost_usd": 5.94e-06, "latency_ms": 427.96, "meta": {}}
+{"ts": "2026-07-27T14:25:46.026712+00:00", "doc_id": "cms1500_42_0005", "page_id": "p1", "field": "", "operation": "route", "cost_usd": 5e-07, "latency_ms": 35.92, "meta": {"type": "cms1500", "conf": 0.99}}
+{"ts": "2026-07-27T14:25:51.266644+00:00", "doc_id": "cms1500_42_0005", "page_id": "p1", "field": "", "operation": "ocr_paddle", "cost_usd": 7.271e-05, "latency_ms": 5235.2, "meta": {}}
+{"ts": "2026-07-27T14:25:51.310513+00:00", "doc_id": "cms1500_42_0005", "page_id": "p1", "field": "", "operation": "validate_fuse", "cost_usd": 4e-08, "latency_ms": 2.97, "meta": {}}
+{"ts": "2026-07-27T14:25:53.742499+00:00", "doc_id": "cms1500_42_0005", "page_id": "p1", "field": "", "operation": "preprocess", "cost_usd": 3.29e-05, "latency_ms": 2368.65, "meta": {}}
+{"ts": "2026-07-27T14:25:53.819103+00:00", "doc_id": "cms1500_42_0005", "page_id": "p1", "field": "", "operation": "route", "cost_usd": 1e-06, "latency_ms": 72.08, "meta": {"type": "cms1500", "conf": 0.983}}
+{"ts": "2026-07-27T14:25:59.360520+00:00", "doc_id": "cms1500_42_0005", "page_id": "p1", "field": "", "operation": "ocr_paddle", "cost_usd": 7.69e-05, "latency_ms": 5537.06, "meta": {}}
+{"ts": "2026-07-27T14:25:59.462478+00:00", "doc_id": "cms1500_42_0005", "page_id": "p1", "field": "", "operation": "validate_fuse", "cost_usd": 1.5e-07, "latency_ms": 11.13, "meta": {}}
+{"ts": "2026-07-27T14:25:59.930477+00:00", "doc_id": "cms1500_42_0006", "page_id": "p1", "field": "", "operation": "preprocess", "cost_usd": 5.46e-06, "latency_ms": 393.34, "meta": {}}
+{"ts": "2026-07-27T14:25:59.968899+00:00", "doc_id": "cms1500_42_0006", "page_id": "p1", "field": "", "operation": "route", "cost_usd": 4.9e-07, "latency_ms": 35.2, "meta": {"type": "cms1500", "conf": 0.99}}
+{"ts": "2026-07-27T14:26:04.503937+00:00", "doc_id": "cms1500_42_0006", "page_id": "p1", "field": "", "operation": "ocr_paddle", "cost_usd": 6.294e-05, "latency_ms": 4531.65, "meta": {}}
+{"ts": "2026-07-27T14:26:04.566472+00:00", "doc_id": "cms1500_42_0006", "page_id": "p1", "field": "", "operation": "validate_fuse", "cost_usd": 1e-08, "latency_ms": 0.69, "meta": {}}
+{"ts": "2026-07-27T14:26:06.250376+00:00", "doc_id": "cms1500_42_0006", "page_id": "p1", "field": "", "operation": "preprocess", "cost_usd": 2.28e-05, "latency_ms": 1641.43, "meta": {}}
+{"ts": "2026-07-27T14:26:06.313558+00:00", "doc_id": "cms1500_42_0006", "page_id": "p1", "field": "", "operation": "route", "cost_usd": 7.8e-07, "latency_ms": 56.37, "meta": {"type": "cms1500", "conf": 0.977}}
+{"ts": "2026-07-27T14:26:10.714059+00:00", "doc_id": "cms1500_42_0006", "page_id": "p1", "field": "", "operation": "ocr_paddle", "cost_usd": 6.107e-05, "latency_ms": 4396.75, "meta": {}}
+{"ts": "2026-07-27T14:26:10.768160+00:00", "doc_id": "cms1500_42_0006", "page_id": "p1", "field": "", "operation": "validate_fuse", "cost_usd": 1e-08, "latency_ms": 0.53, "meta": {}}
+{"ts": "2026-07-27T14:26:11.253825+00:00", "doc_id": "cms1500_42_0013", "page_id": "p1", "field": "", "operation": "preprocess", "cost_usd": 5.99e-06, "latency_ms": 431.25, "meta": {}}
+{"ts": "2026-07-27T14:26:11.295212+00:00", "doc_id": "cms1500_42_0013", "page_id": "p1", "field": "", "operation": "route", "cost_usd": 5.3e-07, "latency_ms": 37.95, "meta": {"type": "cms1500", "conf": 0.99}}
+{"ts": "2026-07-27T14:26:22.647695+00:00", "doc_id": "cms1500_42_0013", "page_id": "p1", "field": "", "operation": "preprocess", "cost_usd": 6.42e-06, "latency_ms": 462.29, "meta": {}}
+{"ts": "2026-07-27T14:26:23.134890+00:00", "doc_id": "cms1500_42_0013", "page_id": "p1", "field": "", "operation": "route", "cost_usd": 6.67e-06, "latency_ms": 480.21, "meta": {"type": "cms1500", "conf": 0.99}}
+{"ts": "2026-07-27T14:26:28.754907+00:00", "doc_id": "cms1500_42_0013", "page_id": "p1", "field": "", "operation": "ocr_paddle", "cost_usd": 7.518e-05, "latency_ms": 5412.64, "meta": {}}
+{"ts": "2026-07-27T14:26:28.813163+00:00", "doc_id": "cms1500_42_0013", "page_id": "p1", "field": "", "operation": "validate_fuse", "cost_usd": 3e-08, "latency_ms": 2.02, "meta": {}}
+{"ts": "2026-07-27T14:26:30.319528+00:00", "doc_id": "cms1500_42_0013", "page_id": "p1", "field": "", "operation": "preprocess", "cost_usd": 2.042e-05, "latency_ms": 1470.11, "meta": {}}
+{"ts": "2026-07-27T14:26:30.383011+00:00", "doc_id": "cms1500_42_0013", "page_id": "p1", "field": "", "operation": "route", "cost_usd": 8.1e-07, "latency_ms": 58.56, "meta": {"type": "cms1500", "conf": 0.98}}
+{"ts": "2026-07-27T14:26:36.248937+00:00", "doc_id": "cms1500_42_0013", "page_id": "p1", "field": "", "operation": "ocr_paddle", "cost_usd": 8.139e-05, "latency_ms": 5860.39, "meta": {}}
+{"ts": "2026-07-27T14:26:36.305582+00:00", "doc_id": "cms1500_42_0013", "page_id": "p1", "field": "", "operation": "validate_fuse", "cost_usd": 1e-08, "latency_ms": 0.52, "meta": {}}
+{"ts": "2026-07-27T14:26:36.763068+00:00", "doc_id": "cms1500_42_0016", "page_id": "p1", "field": "", "operation": "preprocess", "cost_usd": 5.77e-06, "latency_ms": 415.09, "meta": {}}
+{"ts": "2026-07-27T14:26:36.801982+00:00", "doc_id": "cms1500_42_0016", "page_id": "p1", "field": "", "operation": "route", "cost_usd": 5e-07, "latency_ms": 35.92, "meta": {"type": "cms1500", "conf": 0.99}}
+{"ts": "2026-07-27T14:26:41.147108+00:00", "doc_id": "cms1500_42_0016", "page_id": "p1", "field": "", "operation": "ocr_paddle", "cost_usd": 6.028e-05, "latency_ms": 4339.9, "meta": {}}
+{"ts": "2026-07-27T14:26:41.202552+00:00", "doc_id": "cms1500_42_0016", "page_id": "p1", "field": "", "operation": "validate_fuse", "cost_usd": 1e-08, "latency_ms": 0.57, "meta": {}}
+{"ts": "2026-07-27T14:26:42.973171+00:00", "doc_id": "cms1500_42_0016", "page_id": "p1", "field": "", "operation": "preprocess", "cost_usd": 2.36e-05, "latency_ms": 1698.9, "meta": {}}
+{"ts": "2026-07-27T14:26:43.045263+00:00", "doc_id": "cms1500_42_0016", "page_id": "p1", "field": "", "operation": "route", "cost_usd": 9.2e-07, "latency_ms": 65.92, "meta": {"type": "cms1500", "conf": 0.985}}
+{"ts": "2026-07-27T14:26:48.532190+00:00", "doc_id": "cms1500_42_0016", "page_id": "p1", "field": "", "operation": "ocr_paddle", "cost_usd": 7.616e-05, "latency_ms": 5483.62, "meta": {}}
+{"ts": "2026-07-27T14:26:48.588903+00:00", "doc_id": "cms1500_42_0016", "page_id": "p1", "field": "", "operation": "validate_fuse", "cost_usd": 1e-08, "latency_ms": 0.47, "meta": {}}
+{"ts": "2026-07-27T14:26:49.063061+00:00", "doc_id": "cms1500_42_0017", "page_id": "p1", "field": "", "operation": "preprocess", "cost_usd": 5.82e-06, "latency_ms": 419.21, "meta": {}}
+{"ts": "2026-07-27T14:26:49.104783+00:00", "doc_id": "cms1500_42_0017", "page_id": "p1", "field": "", "operation": "route", "cost_usd": 5e-07, "latency_ms": 35.78, "meta": {"type": "cms1500", "conf": 0.99}}
+{"ts": "2026-07-27T14:26:53.546324+00:00", "doc_id": "cms1500_42_0017", "page_id": "p1", "field": "", "operation": "ocr_paddle", "cost_usd": 6.161e-05, "latency_ms": 4435.56, "meta": {}}
+{"ts": "2026-07-27T14:26:53.586798+00:00", "doc_id": "cms1500_42_0017", "page_id": "p1", "field": "", "operation": "validate_fuse", "cost_usd": 1e-08, "latency_ms": 0.53, "meta": {}}
+{"ts": "2026-07-27T14:26:55.349222+00:00", "doc_id": "cms1500_42_0017", "page_id": "p1", "field": "", "operation": "preprocess", "cost_usd": 2.396e-05, "latency_ms": 1724.81, "meta": {}}
+{"ts": "2026-07-27T14:26:55.414146+00:00", "doc_id": "cms1500_42_0017", "page_id": "p1", "field": "", "operation": "route", "cost_usd": 7.2e-07, "latency_ms": 51.66, "meta": {"type": "cms1500", "conf": 0.986}}
+{"ts": "2026-07-27T14:27:00.029804+00:00", "doc_id": "cms1500_42_0017", "page_id": "p1", "field": "", "operation": "ocr_paddle", "cost_usd": 6.399e-05, "latency_ms": 4607.4, "meta": {}}
+{"ts": "2026-07-27T14:27:00.077084+00:00", "doc_id": "cms1500_42_0017", "page_id": "p1", "field": "", "operation": "validate_fuse", "cost_usd": 1e-08, "latency_ms": 0.45, "meta": {}}
+{"ts": "2026-07-27T14:27:00.596243+00:00", "doc_id": "cms1500_42_0019", "page_id": "p1", "field": "", "operation": "preprocess", "cost_usd": 6.3e-06, "latency_ms": 453.42, "meta": {}}
+{"ts": "2026-07-27T14:27:00.640002+00:00", "doc_id": "cms1500_42_0019", "page_id": "p1", "field": "", "operation": "route", "cost_usd": 5.5e-07, "latency_ms": 39.54, "meta": {"type": "cms1500", "conf": 0.99}}
+{"ts": "2026-07-27T14:27:05.384591+00:00", "doc_id": "cms1500_42_0019", "page_id": "p1", "field": "", "operation": "ocr_paddle", "cost_usd": 6.586e-05, "latency_ms": 4741.66, "meta": {}}
+{"ts": "2026-07-27T14:27:05.443658+00:00", "doc_id": "cms1500_42_0019", "page_id": "p1", "field": "", "operation": "validate_fuse", "cost_usd": 1e-08, "latency_ms": 0.84, "meta": {}}
+{"ts": "2026-07-27T14:27:14.864452+00:00", "doc_id": "cms1500_42_0019", "page_id": "p1", "field": "", "operation": "preprocess", "cost_usd": 2.684e-05, "latency_ms": 1932.76, "meta": {}}
+{"ts": "2026-07-27T14:27:15.305337+00:00", "doc_id": "cms1500_42_0019", "page_id": "p1", "field": "", "operation": "route", "cost_usd": 5.99e-06, "latency_ms": 431.09, "meta": {"type": "cms1500", "conf": 0.983}}
+{"ts": "2026-07-27T14:27:21.781659+00:00", "doc_id": "cms1500_42_0019", "page_id": "p1", "field": "", "operation": "ocr_paddle", "cost_usd": 8.693e-05, "latency_ms": 6259.06, "meta": {}}
+{"ts": "2026-07-27T14:27:21.922711+00:00", "doc_id": "cms1500_42_0019", "page_id": "p1", "field": "", "operation": "validate_fuse", "cost_usd": 6e-08, "latency_ms": 4.63, "meta": {}}
+{"ts": "2026-07-27T14:27:22.394334+00:00", "doc_id": "cms1500_42_0020", "page_id": "p1", "field": "", "operation": "preprocess", "cost_usd": 5.94e-06, "latency_ms": 427.66, "meta": {}}
+{"ts": "2026-07-27T14:27:22.441995+00:00", "doc_id": "cms1500_42_0020", "page_id": "p1", "field": "", "operation": "route", "cost_usd": 6e-07, "latency_ms": 42.86, "meta": {"type": "cms1500", "conf": 0.99}}
+{"ts": "2026-07-27T14:27:28.189549+00:00", "doc_id": "cms1500_42_0020", "page_id": "p1", "field": "", "operation": "ocr_paddle", "cost_usd": 7.977e-05, "latency_ms": 5743.44, "meta": {}}
+{"ts": "2026-07-27T14:27:28.247779+00:00", "doc_id": "cms1500_42_0020", "page_id": "p1", "field": "", "operation": "validate_fuse", "cost_usd": 1e-08, "latency_ms": 0.56, "meta": {}}
+{"ts": "2026-07-27T14:27:30.263291+00:00", "doc_id": "cms1500_42_0020", "page_id": "p1", "field": "", "operation": "preprocess", "cost_usd": 2.732e-05, "latency_ms": 1966.72, "meta": {}}
+{"ts": "2026-07-27T14:27:30.341203+00:00", "doc_id": "cms1500_42_0020", "page_id": "p1", "field": "", "operation": "route", "cost_usd": 9.6e-07, "latency_ms": 68.98, "meta": {"type": "cms1500", "conf": 0.986}}
+{"ts": "2026-07-27T14:27:34.961446+00:00", "doc_id": "cms1500_42_0020", "page_id": "p1", "field": "", "operation": "ocr_paddle", "cost_usd": 6.412e-05, "latency_ms": 4616.46, "meta": {}}
+{"ts": "2026-07-27T14:27:35.019539+00:00", "doc_id": "cms1500_42_0020", "page_id": "p1", "field": "", "operation": "validate_fuse", "cost_usd": 1e-08, "latency_ms": 0.46, "meta": {}}
+{"ts": "2026-07-27T14:27:35.481137+00:00", "doc_id": "cms1500_42_0021", "page_id": "p1", "field": "", "operation": "preprocess", "cost_usd": 5.82e-06, "latency_ms": 419.28, "meta": {}}
+{"ts": "2026-07-27T14:27:35.537317+00:00", "doc_id": "cms1500_42_0021", "page_id": "p1", "field": "", "operation": "route", "cost_usd": 5.9e-07, "latency_ms": 42.81, "meta": {"type": "cms1500", "conf": 0.99}}
+{"ts": "2026-07-27T14:27:40.249073+00:00", "doc_id": "cms1500_42_0021", "page_id": "p1", "field": "", "operation": "ocr_paddle", "cost_usd": 6.537e-05, "latency_ms": 4706.39, "meta": {}}
+{"ts": "2026-07-27T14:27:40.290767+00:00", "doc_id": "cms1500_42_0021", "page_id": "p1", "field": "", "operation": "validate_fuse", "cost_usd": 1e-08, "latency_ms": 0.7, "meta": {}}
+{"ts": "2026-07-27T14:27:42.041004+00:00", "doc_id": "cms1500_42_0021", "page_id": "p1", "field": "", "operation": "preprocess", "cost_usd": 2.375e-05, "latency_ms": 1710.18, "meta": {}}
+{"ts": "2026-07-27T14:27:42.104151+00:00", "doc_id": "cms1500_42_0021", "page_id": "p1", "field": "", "operation": "route", "cost_usd": 7.7e-07, "latency_ms": 55.1, "meta": {"type": "cms1500", "conf": 0.98}}
+{"ts": "2026-07-27T14:27:48.112677+00:00", "doc_id": "cms1500_42_0021", "page_id": "p1", "field": "", "operation": "ocr_paddle", "cost_usd": 8.337e-05, "latency_ms": 6002.59, "meta": {}}
+{"ts": "2026-07-27T14:27:48.159019+00:00", "doc_id": "cms1500_42_0021", "page_id": "p1", "field": "", "operation": "validate_fuse", "cost_usd": 1e-08, "latency_ms": 0.53, "meta": {}}
+{"ts": "2026-07-27T14:27:48.611687+00:00", "doc_id": "cms1500_42_0024", "page_id": "p1", "field": "", "operation": "preprocess", "cost_usd": 5.76e-06, "latency_ms": 414.82, "meta": {}}
+{"ts": "2026-07-27T14:27:48.658439+00:00", "doc_id": "cms1500_42_0024", "page_id": "p1", "field": "", "operation": "route", "cost_usd": 5.8e-07, "latency_ms": 41.75, "meta": {"type": "cms1500", "conf": 0.99}}
+{"ts": "2026-07-27T14:27:52.711390+00:00", "doc_id": "cms1500_42_0024", "page_id": "p1", "field": "", "operation": "ocr_paddle", "cost_usd": 5.624e-05, "latency_ms": 4048.98, "meta": {}}
+{"ts": "2026-07-27T14:27:52.762972+00:00", "doc_id": "cms1500_42_0024", "page_id": "p1", "field": "", "operation": "validate_fuse", "cost_usd": 1e-08, "latency_ms": 0.38, "meta": {}}
+{"ts": "2026-07-27T14:27:54.868025+00:00", "doc_id": "cms1500_42_0024", "page_id": "p1", "field": "", "operation": "preprocess", "cost_usd": 2.865e-05, "latency_ms": 2062.8, "meta": {}}
+{"ts": "2026-07-27T14:27:54.931703+00:00", "doc_id": "cms1500_42_0024", "page_id": "p1", "field": "", "operation": "route", "cost_usd": 8.1e-07, "latency_ms": 58.17, "meta": {"type": "cms1500", "conf": 0.98}}
+{"ts": "2026-07-27T14:28:04.537692+00:00", "doc_id": "cms1500_42_0024", "page_id": "p1", "field": "", "operation": "preprocess", "cost_usd": 2.798e-05, "latency_ms": 2014.37, "meta": {}}
+{"ts": "2026-07-27T14:28:04.956358+00:00", "doc_id": "cms1500_42_0024", "page_id": "p1", "field": "", "operation": "route", "cost_usd": 5.73e-06, "latency_ms": 412.33, "meta": {"type": "cms1500", "conf": 0.98}}
+{"ts": "2026-07-27T14:28:10.795501+00:00", "doc_id": "cms1500_42_0024", "page_id": "p1", "field": "", "operation": "ocr_paddle", "cost_usd": 7.838e-05, "latency_ms": 5643.36, "meta": {}}
+{"ts": "2026-07-27T14:28:10.866847+00:00", "doc_id": "cms1500_42_0024", "page_id": "p1", "field": "", "operation": "validate_fuse", "cost_usd": 3e-08, "latency_ms": 2.08, "meta": {}}
+{"ts": "2026-07-27T14:28:11.341890+00:00", "doc_id": "ub04_42_0002", "page_id": "p1", "field": "", "operation": "preprocess", "cost_usd": 5.9e-06, "latency_ms": 424.61, "meta": {}}
+{"ts": "2026-07-27T14:28:11.387353+00:00", "doc_id": "ub04_42_0002", "page_id": "p1", "field": "", "operation": "route", "cost_usd": 5.6e-07, "latency_ms": 40.47, "meta": {"type": "ub04", "conf": 0.99}}
+{"ts": "2026-07-27T14:28:16.493880+00:00", "doc_id": "ub04_42_0002", "page_id": "p1", "field": "", "operation": "ocr_paddle", "cost_usd": 7.084e-05, "latency_ms": 5100.79, "meta": {}}
+{"ts": "2026-07-27T14:28:16.555314+00:00", "doc_id": "ub04_42_0002", "page_id": "p1", "field": "", "operation": "validate_fuse", "cost_usd": 1e-08, "latency_ms": 0.5, "meta": {}}
+{"ts": "2026-07-27T14:28:19.053598+00:00", "doc_id": "ub04_42_0002", "page_id": "p1", "field": "", "operation": "preprocess", "cost_usd": 3.396e-05, "latency_ms": 2444.79, "meta": {}}
+{"ts": "2026-07-27T14:28:19.121605+00:00", "doc_id": "ub04_42_0002", "page_id": "p1", "field": "", "operation": "route", "cost_usd": 8.3e-07, "latency_ms": 59.57, "meta": {"type": "ub04", "conf": 0.984}}
+{"ts": "2026-07-27T14:28:24.074513+00:00", "doc_id": "ub04_42_0002", "page_id": "p1", "field": "", "operation": "ocr_paddle", "cost_usd": 6.873e-05, "latency_ms": 4948.71, "meta": {}}
+{"ts": "2026-07-27T14:28:24.128917+00:00", "doc_id": "ub04_42_0002", "page_id": "p1", "field": "", "operation": "validate_fuse", "cost_usd": 1e-08, "latency_ms": 0.42, "meta": {}}
+{"ts": "2026-07-27T14:28:24.614174+00:00", "doc_id": "ub04_42_0005", "page_id": "p1", "field": "", "operation": "preprocess", "cost_usd": 6.2e-06, "latency_ms": 446.67, "meta": {}}
+{"ts": "2026-07-27T14:28:24.662739+00:00", "doc_id": "ub04_42_0005", "page_id": "p1", "field": "", "operation": "route", "cost_usd": 5.9e-07, "latency_ms": 42.12, "meta": {"type": "ub04", "conf": 0.99}}
+{"ts": "2026-07-27T14:28:28.440689+00:00", "doc_id": "ub04_42_0005", "page_id": "p1", "field": "", "operation": "ocr_paddle", "cost_usd": 5.239e-05, "latency_ms": 3772.06, "meta": {}}
+{"ts": "2026-07-27T14:28:28.474256+00:00", "doc_id": "ub04_42_0005", "page_id": "p1", "field": "", "operation": "validate_fuse", "cost_usd": 1e-08, "latency_ms": 0.48, "meta": {}}
+{"ts": "2026-07-27T14:28:30.503137+00:00", "doc_id": "ub04_42_0005", "page_id": "p1", "field": "", "operation": "preprocess", "cost_usd": 2.764e-05, "latency_ms": 1990.08, "meta": {}}
+{"ts": "2026-07-27T14:28:30.596043+00:00", "doc_id": "ub04_42_0005", "page_id": "p1", "field": "", "operation": "route", "cost_usd": 1e-06, "latency_ms": 72.03, "meta": {"type": "ub04", "conf": 0.985}}
+{"ts": "2026-07-27T14:28:35.957735+00:00", "doc_id": "ub04_42_0005", "page_id": "p1", "field": "", "operation": "ocr_paddle", "cost_usd": 7.442e-05, "latency_ms": 5358.35, "meta": {}}
+{"ts": "2026-07-27T14:28:36.020133+00:00", "doc_id": "ub04_42_0005", "page_id": "p1", "field": "", "operation": "validate_fuse", "cost_usd": 1e-08, "latency_ms": 0.66, "meta": {}}
+{"ts": "2026-07-27T14:28:36.496593+00:00", "doc_id": "ub04_42_0007", "page_id": "p1", "field": "", "operation": "preprocess", "cost_usd": 6.02e-06, "latency_ms": 433.76, "meta": {}}
+{"ts": "2026-07-27T14:28:36.541641+00:00", "doc_id": "ub04_42_0007", "page_id": "p1", "field": "", "operation": "route", "cost_usd": 5.4e-07, "latency_ms": 38.85, "meta": {"type": "ub04", "conf": 0.99}}
+{"ts": "2026-07-27T14:28:40.609420+00:00", "doc_id": "ub04_42_0007", "page_id": "p1", "field": "", "operation": "ocr_paddle", "cost_usd": 5.644e-05, "latency_ms": 4064.04, "meta": {}}
+{"ts": "2026-07-27T14:28:40.660715+00:00", "doc_id": "ub04_42_0007", "page_id": "p1", "field": "", "operation": "validate_fuse", "cost_usd": 1e-08, "latency_ms": 0.44, "meta": {}}
+{"ts": "2026-07-27T14:28:42.293540+00:00", "doc_id": "ub04_42_0007", "page_id": "p1", "field": "", "operation": "preprocess", "cost_usd": 2.215e-05, "latency_ms": 1595.08, "meta": {}}
+{"ts": "2026-07-27T14:28:42.359411+00:00", "doc_id": "ub04_42_0007", "page_id": "p1", "field": "", "operation": "route", "cost_usd": 8.5e-07, "latency_ms": 60.99, "meta": {"type": "ub04", "conf": 0.982}}
+{"ts": "2026-07-27T14:28:56.858168+00:00", "doc_id": "ub04_42_0007", "page_id": "p1", "field": "", "operation": "preprocess", "cost_usd": 2.427e-05, "latency_ms": 1747.46, "meta": {}}
+{"ts": "2026-07-27T14:28:57.280921+00:00", "doc_id": "ub04_42_0007", "page_id": "p1", "field": "", "operation": "route", "cost_usd": 5.66e-06, "latency_ms": 407.53, "meta": {"type": "ub04", "conf": 0.982}}
+{"ts": "2026-07-27T14:29:02.822082+00:00", "doc_id": "ub04_42_0007", "page_id": "p1", "field": "", "operation": "ocr_paddle", "cost_usd": 7.372e-05, "latency_ms": 5307.94, "meta": {}}
+{"ts": "2026-07-27T14:29:02.891944+00:00", "doc_id": "ub04_42_0007", "page_id": "p1", "field": "", "operation": "validate_fuse", "cost_usd": 4e-08, "latency_ms": 2.54, "meta": {}}
+{"ts": "2026-07-27T14:29:03.354366+00:00", "doc_id": "ub04_42_0011", "page_id": "p1", "field": "", "operation": "preprocess", "cost_usd": 5.65e-06, "latency_ms": 406.56, "meta": {}}
+{"ts": "2026-07-27T14:29:03.398103+00:00", "doc_id": "ub04_42_0011", "page_id": "p1", "field": "", "operation": "route", "cost_usd": 5.4e-07, "latency_ms": 39.13, "meta": {"type": "ub04", "conf": 0.99}}
+{"ts": "2026-07-27T14:29:08.442808+00:00", "doc_id": "ub04_42_0011", "page_id": "p1", "field": "", "operation": "ocr_paddle", "cost_usd": 6.997e-05, "latency_ms": 5038.11, "meta": {}}
+{"ts": "2026-07-27T14:29:08.479022+00:00", "doc_id": "ub04_42_0011", "page_id": "p1", "field": "", "operation": "validate_fuse", "cost_usd": 1e-08, "latency_ms": 0.46, "meta": {}}
+{"ts": "2026-07-27T14:29:09.979265+00:00", "doc_id": "ub04_42_0011", "page_id": "p1", "field": "", "operation": "preprocess", "cost_usd": 2.028e-05, "latency_ms": 1460.33, "meta": {}}
+{"ts": "2026-07-27T14:29:10.036760+00:00", "doc_id": "ub04_42_0011", "page_id": "p1", "field": "", "operation": "route", "cost_usd": 6.8e-07, "latency_ms": 49.07, "meta": {"type": "ub04", "conf": 0.981}}
+{"ts": "2026-07-27T14:29:13.944060+00:00", "doc_id": "ub04_42_0011", "page_id": "p1", "field": "", "operation": "ocr_paddle", "cost_usd": 5.417e-05, "latency_ms": 3900.31, "meta": {}}
+{"ts": "2026-07-27T14:29:13.987227+00:00", "doc_id": "ub04_42_0011", "page_id": "p1", "field": "", "operation": "validate_fuse", "cost_usd": 1e-08, "latency_ms": 0.48, "meta": {}}
+{"ts": "2026-07-27T14:29:14.464794+00:00", "doc_id": "ub04_42_0014", "page_id": "p1", "field": "", "operation": "preprocess", "cost_usd": 6.12e-06, "latency_ms": 440.55, "meta": {}}
+{"ts": "2026-07-27T14:29:14.503047+00:00", "doc_id": "ub04_42_0014", "page_id": "p1", "field": "", "operation": "route", "cost_usd": 4.7e-07, "latency_ms": 33.93, "meta": {"type": "ub04", "conf": 0.99}}
+{"ts": "2026-07-27T14:29:18.306000+00:00", "doc_id": "ub04_42_0014", "page_id": "p1", "field": "", "operation": "ocr_paddle", "cost_usd": 5.277e-05, "latency_ms": 3799.76, "meta": {}}
+{"ts": "2026-07-27T14:29:18.348976+00:00", "doc_id": "ub04_42_0014", "page_id": "p1", "field": "", "operation": "validate_fuse", "cost_usd": 1e-08, "latency_ms": 0.5, "meta": {}}
+{"ts": "2026-07-27T14:29:20.233300+00:00", "doc_id": "ub04_42_0014", "page_id": "p1", "field": "", "operation": "preprocess", "cost_usd": 2.561e-05, "latency_ms": 1844.14, "meta": {}}
+{"ts": "2026-07-27T14:29:20.290036+00:00", "doc_id": "ub04_42_0014", "page_id": "p1", "field": "", "operation": "route", "cost_usd": 7.3e-07, "latency_ms": 52.37, "meta": {"type": "ub04", "conf": 0.987}}
+{"ts": "2026-07-27T14:29:25.424669+00:00", "doc_id": "ub04_42_0014", "page_id": "p1", "field": "", "operation": "ocr_paddle", "cost_usd": 7.126e-05, "latency_ms": 5130.99, "meta": {}}
+{"ts": "2026-07-27T14:29:25.484008+00:00", "doc_id": "ub04_42_0014", "page_id": "p1", "field": "", "operation": "validate_fuse", "cost_usd": 1e-08, "latency_ms": 0.45, "meta": {}}
+{"ts": "2026-07-27T14:29:25.962490+00:00", "doc_id": "ub04_42_0017", "page_id": "p1", "field": "", "operation": "preprocess", "cost_usd": 5.89e-06, "latency_ms": 423.72, "meta": {}}
+{"ts": "2026-07-27T14:29:26.012914+00:00", "doc_id": "ub04_42_0017", "page_id": "p1", "field": "", "operation": "route", "cost_usd": 6.3e-07, "latency_ms": 45.46, "meta": {"type": "ub04", "conf": 0.99}}
+{"ts": "2026-07-27T14:29:30.400070+00:00", "doc_id": "ub04_42_0017", "page_id": "p1", "field": "", "operation": "ocr_paddle", "cost_usd": 6.087e-05, "latency_ms": 4382.81, "meta": {}}
+{"ts": "2026-07-27T14:29:30.455220+00:00", "doc_id": "ub04_42_0017", "page_id": "p1", "field": "", "operation": "validate_fuse", "cost_usd": 1e-08, "latency_ms": 0.53, "meta": {}}
+{"ts": "2026-07-27T14:29:32.212556+00:00", "doc_id": "ub04_42_0017", "page_id": "p1", "field": "", "operation": "preprocess", "cost_usd": 2.376e-05, "latency_ms": 1710.73, "meta": {}}
+{"ts": "2026-07-27T14:29:32.290752+00:00", "doc_id": "ub04_42_0017", "page_id": "p1", "field": "", "operation": "route", "cost_usd": 9.6e-07, "latency_ms": 69.04, "meta": {"type": "ub04", "conf": 0.985}}
+{"ts": "2026-07-27T14:29:37.313932+00:00", "doc_id": "ub04_42_0017", "page_id": "p1", "field": "", "operation": "ocr_paddle", "cost_usd": 6.958e-05, "latency_ms": 5009.47, "meta": {}}
+{"ts": "2026-07-27T14:29:37.380407+00:00", "doc_id": "ub04_42_0017", "page_id": "p1", "field": "", "operation": "validate_fuse", "cost_usd": 2e-08, "latency_ms": 1.66, "meta": {}}
+{"ts": "2026-07-27T14:29:37.854805+00:00", "doc_id": "ub04_42_0018", "page_id": "p1", "field": "", "operation": "preprocess", "cost_usd": 5.75e-06, "latency_ms": 414.13, "meta": {}}
+{"ts": "2026-07-27T14:29:37.896082+00:00", "doc_id": "ub04_42_0018", "page_id": "p1", "field": "", "operation": "route", "cost_usd": 5.3e-07, "latency_ms": 38.22, "meta": {"type": "ub04", "conf": 0.99}}
+{"ts": "2026-07-27T14:29:55.727655+00:00", "doc_id": "ub04_42_0018", "page_id": "p1", "field": "", "operation": "preprocess", "cost_usd": 8.06e-06, "latency_ms": 580.58, "meta": {}}
+{"ts": "2026-07-27T14:29:56.369308+00:00", "doc_id": "ub04_42_0018", "page_id": "p1", "field": "", "operation": "route", "cost_usd": 8.85e-06, "latency_ms": 637.33, "meta": {"type": "ub04", "conf": 0.99}}
+{"ts": "2026-07-27T14:30:01.757541+00:00", "doc_id": "ub04_42_0018", "page_id": "p1", "field": "", "operation": "ocr_paddle", "cost_usd": 6.986e-05, "latency_ms": 5030.26, "meta": {}}
+{"ts": "2026-07-27T14:30:01.808830+00:00", "doc_id": "ub04_42_0018", "page_id": "p1", "field": "", "operation": "validate_fuse", "cost_usd": 3e-08, "latency_ms": 2.42, "meta": {}}
+{"ts": "2026-07-27T14:30:03.736993+00:00", "doc_id": "ub04_42_0018", "page_id": "p1", "field": "", "operation": "preprocess", "cost_usd": 2.609e-05, "latency_ms": 1878.8, "meta": {}}
+{"ts": "2026-07-27T14:30:03.819622+00:00", "doc_id": "ub04_42_0018", "page_id": "p1", "field": "", "operation": "route", "cost_usd": 9.5e-07, "latency_ms": 68.51, "meta": {"type": "ub04", "conf": 0.984}}
+{"ts": "2026-07-27T14:30:09.190561+00:00", "doc_id": "ub04_42_0018", "page_id": "p1", "field": "", "operation": "ocr_paddle", "cost_usd": 7.456e-05, "latency_ms": 5368.45, "meta": {}}
+{"ts": "2026-07-27T14:30:09.249281+00:00", "doc_id": "ub04_42_0018", "page_id": "p1", "field": "", "operation": "validate_fuse", "cost_usd": 1e-08, "latency_ms": 0.48, "meta": {}}
+{"ts": "2026-07-27T14:30:09.713043+00:00", "doc_id": "ub04_42_0019", "page_id": "p1", "field": "", "operation": "preprocess", "cost_usd": 5.67e-06, "latency_ms": 407.93, "meta": {}}
+{"ts": "2026-07-27T14:30:09.752969+00:00", "doc_id": "ub04_42_0019", "page_id": "p1", "field": "", "operation": "route", "cost_usd": 5.1e-07, "latency_ms": 36.6, "meta": {"type": "ub04", "conf": 0.99}}
+{"ts": "2026-07-27T14:30:13.980827+00:00", "doc_id": "ub04_42_0019", "page_id": "p1", "field": "", "operation": "ocr_paddle", "cost_usd": 5.863e-05, "latency_ms": 4221.57, "meta": {}}
+{"ts": "2026-07-27T14:30:14.026074+00:00", "doc_id": "ub04_42_0019", "page_id": "p1", "field": "", "operation": "validate_fuse", "cost_usd": 1e-08, "latency_ms": 0.74, "meta": {}}
+{"ts": "2026-07-27T14:30:16.337829+00:00", "doc_id": "ub04_42_0019", "page_id": "p1", "field": "", "operation": "preprocess", "cost_usd": 3.163e-05, "latency_ms": 2277.64, "meta": {}}
+{"ts": "2026-07-27T14:30:16.412349+00:00", "doc_id": "ub04_42_0019", "page_id": "p1", "field": "", "operation": "route", "cost_usd": 9.7e-07, "latency_ms": 69.66, "meta": {"type": "ub04", "conf": 0.987}}
+{"ts": "2026-07-27T14:30:22.238876+00:00", "doc_id": "ub04_42_0019", "page_id": "p1", "field": "", "operation": "ocr_paddle", "cost_usd": 8.088e-05, "latency_ms": 5823.25, "meta": {}}
+{"ts": "2026-07-27T14:30:22.303079+00:00", "doc_id": "ub04_42_0019", "page_id": "p1", "field": "", "operation": "validate_fuse", "cost_usd": 1e-08, "latency_ms": 0.49, "meta": {}}
+{"ts": "2026-07-27T14:30:22.850492+00:00", "doc_id": "ub04_42_0020", "page_id": "p1", "field": "", "operation": "preprocess", "cost_usd": 6.93e-06, "latency_ms": 498.93, "meta": {}}
+{"ts": "2026-07-27T14:30:22.902926+00:00", "doc_id": "ub04_42_0020", "page_id": "p1", "field": "", "operation": "route", "cost_usd": 6.7e-07, "latency_ms": 48.11, "meta": {"type": "ub04", "conf": 0.99}}
+{"ts": "2026-07-27T14:30:27.344366+00:00", "doc_id": "ub04_42_0020", "page_id": "p1", "field": "", "operation": "ocr_paddle", "cost_usd": 6.162e-05, "latency_ms": 4436.84, "meta": {}}
+{"ts": "2026-07-27T14:30:27.375649+00:00", "doc_id": "ub04_42_0020", "page_id": "p1", "field": "", "operation": "validate_fuse", "cost_usd": 1e-08, "latency_ms": 0.53, "meta": {}}
+{"ts": "2026-07-27T14:30:29.685041+00:00", "doc_id": "ub04_42_0020", "page_id": "p1", "field": "", "operation": "preprocess", "cost_usd": 3.139e-05, "latency_ms": 2260.15, "meta": {}}
+{"ts": "2026-07-27T14:30:29.758041+00:00", "doc_id": "ub04_42_0020", "page_id": "p1", "field": "", "operation": "route", "cost_usd": 9.4e-07, "latency_ms": 67.56, "meta": {"type": "ub04", "conf": 0.987}}
+{"ts": "2026-07-27T14:30:35.335898+00:00", "doc_id": "ub04_42_0020", "page_id": "p1", "field": "", "operation": "ocr_paddle", "cost_usd": 7.742e-05, "latency_ms": 5574.57, "meta": {}}
+{"ts": "2026-07-27T14:30:35.401952+00:00", "doc_id": "ub04_42_0020", "page_id": "p1", "field": "", "operation": "validate_fuse", "cost_usd": 1e-08, "latency_ms": 0.92, "meta": {}}
+{"ts": "2026-07-27T14:30:35.897663+00:00", "doc_id": "ub04_42_0024", "page_id": "p1", "field": "", "operation": "preprocess", "cost_usd": 6.06e-06, "latency_ms": 436.62, "meta": {}}
+{"ts": "2026-07-27T14:30:35.948687+00:00", "doc_id": "ub04_42_0024", "page_id": "p1", "field": "", "operation": "route", "cost_usd": 5.4e-07, "latency_ms": 39.12, "meta": {"type": "ub04", "conf": 0.99}}
+{"ts": "2026-07-27T14:30:52.480472+00:00", "doc_id": "ub04_42_0024", "page_id": "p1", "field": "", "operation": "preprocess", "cost_usd": 6.98e-06, "latency_ms": 502.61, "meta": {}}
+{"ts": "2026-07-27T14:30:53.015424+00:00", "doc_id": "ub04_42_0024", "page_id": "p1", "field": "", "operation": "route", "cost_usd": 7.34e-06, "latency_ms": 528.74, "meta": {"type": "ub04", "conf": 0.99}}
+{"ts": "2026-07-27T14:30:58.840934+00:00", "doc_id": "ub04_42_0024", "page_id": "p1", "field": "", "operation": "ocr_paddle", "cost_usd": 7.805e-05, "latency_ms": 5619.42, "meta": {}}
+{"ts": "2026-07-27T14:30:58.903697+00:00", "doc_id": "ub04_42_0024", "page_id": "p1", "field": "", "operation": "validate_fuse", "cost_usd": 3e-08, "latency_ms": 2.13, "meta": {}}
+{"ts": "2026-07-27T14:31:01.197648+00:00", "doc_id": "ub04_42_0024", "page_id": "p1", "field": "", "operation": "preprocess", "cost_usd": 3.118e-05, "latency_ms": 2244.73, "meta": {}}
+{"ts": "2026-07-27T14:31:01.285289+00:00", "doc_id": "ub04_42_0024", "page_id": "p1", "field": "", "operation": "route", "cost_usd": 1.12e-06, "latency_ms": 80.79, "meta": {"type": "ub04", "conf": 0.986}}
+{"ts": "2026-07-27T14:31:07.264423+00:00", "doc_id": "ub04_42_0024", "page_id": "p1", "field": "", "operation": "ocr_paddle", "cost_usd": 8.299e-05, "latency_ms": 5975.4, "meta": {}}
+{"ts": "2026-07-27T14:31:07.334061+00:00", "doc_id": "ub04_42_0024", "page_id": "p1", "field": "", "operation": "validate_fuse", "cost_usd": 1e-08, "latency_ms": 0.69, "meta": {}}
