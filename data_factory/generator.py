@@ -46,10 +46,13 @@ def validate_npi(npi: str) -> bool:
     return luhn_check_digit("80840" + npi[:9]) == int(npi[9])
 
 
+_FAKE = Faker()  # module-level: constructing Faker per claim is ~100x slower
+
+
 def generate_claim(seed: int) -> dict:
     """One synthetic CMS-1500 claim as a flat ground-truth dict."""
     rng = random.Random(seed)
-    fake = Faker()
+    fake = _FAKE
     Faker.seed(seed)
 
     patient_last, patient_first = fake.last_name(), fake.first_name()
