@@ -6,6 +6,7 @@ pyyaml>=6.0
 numpy>=1.26
 pytesseract>=0.3.13
 rapidocr-onnxruntime>=1.2.3
+streamlit>=1.41
 
 # pytesseract is only a wrapper: the Tesseract binary is NOT a Python package
 # and must be installed separately (Apache-2.0).
