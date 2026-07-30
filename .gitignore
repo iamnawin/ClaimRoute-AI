@@ -13,3 +13,4 @@ eval/results/cache/
 .claude-flow/
 eval/results/_smoke_*.jsonl
 eval/results/vision_cache.jsonl
+eval/frozen/_work/
