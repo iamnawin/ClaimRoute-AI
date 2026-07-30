@@ -1,0 +1,39 @@
+# Day 9 replay-calibrated operating modes.
+# Confidence thresholds apply only to recorded Day 8 candidates. The harness
+# never invents provider outcomes for fields that were not escalated on Day 8.
+version: 1
+source: eval/results/day8_escalation_rows.jsonl
+
+modes:
+  economy:
+    local_accept_confidence: 0.80
+    multimodal_accept_confidence: 0.93
+    paid_escalation_criticalities: [high]
+    accept_with_flag_criticalities: [low, med]
+    retry_before_escalation: true
+    allow_optional_escalation: false
+
+  balanced:
+    local_accept_confidence: 0.80
+    multimodal_accept_confidence: 0.90
+    paid_escalation_criticalities: [high, med]
+    accept_with_flag_criticalities: [low, med]
+    retry_before_escalation: true
+    allow_optional_escalation: false
+
+  accuracy:
+    local_accept_confidence: 0.88
+    multimodal_accept_confidence: 0.90
+    paid_escalation_criticalities: [high, med, low]
+    accept_with_flag_criticalities: []
+    retry_before_escalation: true
+    allow_optional_escalation: false
+
+sweep:
+  local_accept_confidence: [0.80, 0.84, 0.88, 0.92, 0.95]
+  multimodal_accept_confidence: [0.88, 0.90, 0.92, 0.95]
+  paid_escalation_criticalities:
+    - [high]
+    - [high, med]
+    - [high, med, low]
+  accept_with_flag: [false, true]

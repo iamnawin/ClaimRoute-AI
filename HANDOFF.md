@@ -1,24 +1,64 @@
-# Handoff — claims-engine (Day 8 escalation harness verified)
+# Handoff — claims-engine (Day 9 replay calibration verified)
 
 ## Status
 
 ```
 Day 7: COMPLETE
-Day 8: IN PROGRESS
+Day 8: COMPLETE
+Day 9: COMPLETE
 ```
 
 Both supported by test evidence below. Architecture v1.2 remains locked.
 
 | | |
 |---|---|
-| Current phase | Tier-2 escalation (Day 8) |
-| Last verified commit | `ae0097c` on `main`; Day 8 harness work is currently uncommitted |
+| Current phase | Failure analysis and operating-mode calibration (Day 9) |
+| Last verified commit | `5e4f80e` on `main`; Day 9 work is the next separate commit |
 | Working branch | `main` (preserve concurrent Day 7 result changes and `docs/MEMORY.md`) |
 | Safety branch | `safety/day8-pre-audit` → `07b3857`, kept as a pre-audit restore point |
-| Tests passed | **57 / 57** (46 existing + 11 Day 8 harness tests) |
+| Tests passed | **64 / 64** (57 existing + 7 Day 9 calibration tests) |
 | Tests failed | **0** |
 | Dependency status | requirements.txt synchronized, licence table complete, clean-venv install verified |
 | Architecture status | v1.2 locked, unchanged by this audit |
+
+## Session log — 30 Jul 2026 (Day 9 calibration)
+
+1. **Failure analysis completed:** analyzed all 170 Day 8 HUMAN_REVIEW rows plus the
+   one incorrect terminal row. Of the 170 human-review values, 157 were already exact-match
+   correct; the dominant root cause is post-escalation governor threshold/budget behavior,
+   not OCR or measured provider failure.
+2. **Root-cause evidence:** 157 governor-threshold, 8 offline-oracle limitation,
+   3 deterministic-normalization, 2 preprocessing/crop-strategy, and 1 OCR-segmentation
+   case. Final validation stamps contain zero FAIL verdicts in this cohort.
+3. **Outputs created:** `day9_failure_analysis.json/.csv` (171 field records),
+   `docs/evaluation/day9_failure_analysis.md`, `configs/operating_modes.yaml`,
+   `eval/day9_calibration.py`, 120 sweep rows, a deterministic JSON summary, and a
+   five-point accuracy-cost frontier.
+4. **Replay boundary:** the harness reuses the 406 recorded Day 8 escalation candidates and
+   60 page receipts. It reruns no OCR, calls no provider, and uses no official data. Because
+   Day 8 did not persist the selected pre-escalation candidate or full page validation context,
+   local candidates are deterministic reconstructions from primary/retry attempts. Do not
+   present this frontier as measured real-provider or production-governor performance.
+5. **Calibrated modes (field / critical accuracy; escalation; human review; projected total):**
+   Economy = **96.55% / 98.97%; 3.96%; 3.31%; $0.000200/page**. Balanced =
+   **98.51% / 99.72%; 7.50%; 0.98%; $0.000240/page**. Accuracy =
+   **98.79% / 99.81%; 17.23%; 4.33%; $0.000351/page**. Accuracy has zero flagged
+   outcomes by design; its human-review rate is therefore higher than Balanced.
+6. **Recommended headline mode:** Balanced at local accept `0.80`, multimodal accept
+   `0.90`, paid escalation for high/medium criticality, flags for low/medium where policy
+   permits, retry before escalation, and no optional-field escalation.
+7. **Cost labeling:** measured API spend remains **$0**. All oracle API costs are projected.
+   Runtime governor presets were not changed from replay evidence alone; architecture v1.2
+   remains locked.
+8. **Validation:** `python -m pytest tests/test_day9.py -q` = 7/7;
+   `python -m pytest tests/ -q` = 64/64; repeated generation produced byte-identical files.
+9. **Remaining blockers:** real-provider calibration still requires approved synthetic-only
+   execution; official-dataset tuning remains blocked until role, mapping, retention, and PHI
+   handling are confirmed.
+10. **Next exact command:** `python -m eval.day9_calibration`.
+
+Day 9 intentionally has no engine redesign and no UI changes. Any later UI work must be a
+separate commit.
 
 ## Mission & deadline
 
