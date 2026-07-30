@@ -30,16 +30,21 @@ python -m data_factory.make_dataset --n-per-form 10 --seed 42 --out data/generat
 Every generated page ships with exact ground-truth JSON. The dataset is fully synthetic and
 reproducible from a single seed — no PHI exists anywhere in this repository.
 
-## Local demo application
+## Interactive synthetic-claim demo
 
 ```bash
 .venv/Scripts/python.exe -m streamlit run app/streamlit_app.py
 ```
 
 Open `http://localhost:8501`. The demo defaults to a bundled synthetic claim and Balanced
-mode. PNG, JPEG, and single-page TIFF uploads are accepted up to 10 MB. Uploaded documents
-always remain local-only and never invoke an external provider. See
+mode. Public uploads are limited to user-attested synthetic PNG, JPEG, and single-page TIFF
+files up to 10 MB. Temporary upload files are deleted after decoding, and uploads never invoke
+an external provider. Real claims and PHI are prohibited. See
 `docs/operations/local_app_runbook.md` and `docs/demo_script.md` before a judged demo.
+
+For Streamlit Community Cloud, deploy `app/streamlit_app.py` from the repository root with
+Python 3.12 and no secrets. Python dependencies are pinned in `requirements.txt`; Debian OCR
+packages are declared in `packages.txt`. See `docs/operations/public_deployment.md`.
 
 ## Frozen Day 11 evidence
 

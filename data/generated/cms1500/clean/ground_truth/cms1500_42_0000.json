@@ -1,0 +1,409 @@
+{
+  "doc_id": "cms1500_42_0000",
+  "page_id": "p1",
+  "form": "cms1500",
+  "tier": "clean",
+  "seed": 4200000,
+  "degradation": {
+    "tier": "clean",
+    "seed": 42000000
+  },
+  "fields": {
+    "insured_id": {
+      "value": "J493678499",
+      "bbox": [
+        70,
+        122,
+        227,
+        141
+      ]
+    },
+    "patient_name": {
+      "value": "Parker, Lori",
+      "bbox": [
+        70,
+        201,
+        258,
+        224
+      ]
+    },
+    "patient_dob": {
+      "value": "01 10 1946",
+      "bbox": [
+        720,
+        202,
+        877,
+        221
+      ]
+    },
+    "patient_sex": {
+      "value": "F",
+      "bbox": [
+        1060,
+        202,
+        1076,
+        221
+      ]
+    },
+    "insured_name": {
+      "value": "Parker, Lori",
+      "bbox": [
+        1210,
+        201,
+        1398,
+        224
+      ]
+    },
+    "patient_address": {
+      "value": "933 Mark Common",
+      "bbox": [
+        70,
+        281,
+        305,
+        301
+      ]
+    },
+    "patient_city": {
+      "value": "Stefanieborough",
+      "bbox": [
+        720,
+        281,
+        955,
+        306
+      ]
+    },
+    "patient_state": {
+      "value": "GU",
+      "bbox": [
+        1060,
+        282,
+        1091,
+        301
+      ]
+    },
+    "patient_zip": {
+      "value": "55456",
+      "bbox": [
+        1210,
+        282,
+        1288,
+        301
+      ]
+    },
+    "patient_relationship": {
+      "value": "Self",
+      "bbox": [
+        1440,
+        281,
+        1503,
+        301
+      ]
+    },
+    "insurance_plan_name": {
+      "value": "Aetna PPO",
+      "bbox": [
+        1120,
+        122,
+        1261,
+        141
+      ]
+    },
+    "federal_tax_id": {
+      "value": "33-2083960",
+      "bbox": [
+        70,
+        740,
+        227,
+        759
+      ]
+    },
+    "patient_account_no": {
+      "value": "ACCT69083",
+      "bbox": [
+        440,
+        740,
+        581,
+        759
+      ]
+    },
+    "amount_paid": {
+      "value": "0.00",
+      "bbox": [
+        1100,
+        740,
+        1163,
+        759
+      ]
+    },
+    "total_charge": {
+      "value": "1172.50",
+      "bbox": [
+        810,
+        740,
+        920,
+        759
+      ]
+    },
+    "billing_provider_name": {
+      "value": "Gonzales Medical Group",
+      "bbox": [
+        70,
+        819,
+        414,
+        844
+      ]
+    },
+    "billing_provider_npi": {
+      "value": "2128169572",
+      "bbox": [
+        810,
+        820,
+        967,
+        839
+      ]
+    },
+    "referring_provider_npi": {
+      "value": "2319002467",
+      "bbox": [
+        1390,
+        740,
+        1547,
+        759
+      ]
+    },
+    "diagnosis_code_a": {
+      "value": "I10",
+      "bbox": [
+        70,
+        412,
+        117,
+        431
+      ]
+    },
+    "diagnosis_code_b": {
+      "value": "Z00.00",
+      "bbox": [
+        465,
+        412,
+        559,
+        431
+      ]
+    },
+    "line1_date_from": {
+      "value": "02 27 26",
+      "bbox": [
+        70,
+        535,
+        176,
+        551
+      ]
+    },
+    "line1_date_to": {
+      "value": "02 27 26",
+      "bbox": [
+        310,
+        535,
+        416,
+        551
+      ]
+    },
+    "line1_place_of_service": {
+      "value": "22",
+      "bbox": [
+        550,
+        535,
+        577,
+        551
+      ]
+    },
+    "line1_cpt_code": {
+      "value": "36415",
+      "bbox": [
+        660,
+        535,
+        726,
+        551
+      ]
+    },
+    "line1_diagnosis_pointer": {
+      "value": "B",
+      "bbox": [
+        870,
+        535,
+        883,
+        551
+      ]
+    },
+    "line1_charges": {
+      "value": "539.50",
+      "bbox": [
+        990,
+        535,
+        1070,
+        551
+      ]
+    },
+    "line1_units": {
+      "value": "2",
+      "bbox": [
+        1210,
+        535,
+        1223,
+        551
+      ]
+    },
+    "line1_rendering_npi": {
+      "value": "1393521954",
+      "bbox": [
+        1320,
+        535,
+        1453,
+        551
+      ]
+    },
+    "line2_date_from": {
+      "value": "02 17 26",
+      "bbox": [
+        70,
+        595,
+        176,
+        611
+      ]
+    },
+    "line2_date_to": {
+      "value": "02 17 26",
+      "bbox": [
+        310,
+        595,
+        416,
+        611
+      ]
+    },
+    "line2_place_of_service": {
+      "value": "11",
+      "bbox": [
+        550,
+        595,
+        577,
+        611
+      ]
+    },
+    "line2_cpt_code": {
+      "value": "97110",
+      "bbox": [
+        660,
+        595,
+        726,
+        611
+      ]
+    },
+    "line2_diagnosis_pointer": {
+      "value": "B",
+      "bbox": [
+        870,
+        595,
+        883,
+        611
+      ]
+    },
+    "line2_charges": {
+      "value": "116.25",
+      "bbox": [
+        990,
+        595,
+        1070,
+        611
+      ]
+    },
+    "line2_units": {
+      "value": "1",
+      "bbox": [
+        1210,
+        595,
+        1223,
+        611
+      ]
+    },
+    "line2_rendering_npi": {
+      "value": "1393521954",
+      "bbox": [
+        1320,
+        595,
+        1453,
+        611
+      ]
+    },
+    "line3_date_from": {
+      "value": "04 26 26",
+      "bbox": [
+        70,
+        655,
+        176,
+        671
+      ]
+    },
+    "line3_date_to": {
+      "value": "04 26 26",
+      "bbox": [
+        310,
+        655,
+        416,
+        671
+      ]
+    },
+    "line3_place_of_service": {
+      "value": "21",
+      "bbox": [
+        550,
+        655,
+        577,
+        671
+      ]
+    },
+    "line3_cpt_code": {
+      "value": "99203",
+      "bbox": [
+        660,
+        655,
+        726,
+        671
+      ]
+    },
+    "line3_diagnosis_pointer": {
+      "value": "A",
+      "bbox": [
+        870,
+        655,
+        883,
+        671
+      ]
+    },
+    "line3_charges": {
+      "value": "516.75",
+      "bbox": [
+        990,
+        655,
+        1070,
+        671
+      ]
+    },
+    "line3_units": {
+      "value": "3",
+      "bbox": [
+        1210,
+        655,
+        1223,
+        671
+      ]
+    },
+    "line3_rendering_npi": {
+      "value": "1393521954",
+      "bbox": [
+        1320,
+        655,
+        1453,
+        671
+      ]
+    }
+  }
+}

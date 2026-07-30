@@ -5,3 +5,11 @@ backgroundColor = "#FAFAFA"
 secondaryBackgroundColor = "#EEF4F3"
 textColor = "#172B33"
 font = "sans serif"
+
+[server]
+headless = true
+maxUploadSize = 10
+enableXsrfProtection = true
+
+[client]
+showErrorDetails = false

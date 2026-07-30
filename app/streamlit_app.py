@@ -92,13 +92,18 @@ def _document_controls(st):
         document = service.load_synthetic(selected)
         return document, selected["doc_id"], selected["tier"], mode, "bundled_synthetic"
 
+    st.sidebar.warning("Synthetic files only. Do not upload real claims or PHI.")
+    synthetic_confirmed = st.sidebar.checkbox(
+        "I confirm this is synthetic and contains no PHI")
     uploaded = st.sidebar.file_uploader(
-        "Claim image", type=["png", "jpg", "jpeg", "tif", "tiff"],
-        help="PNG, JPEG, or single-page TIFF. Maximum 10 MB and 1 page.")
+        "Synthetic claim image", type=["png", "jpg", "jpeg", "tif", "tiff"],
+        help="Synthetic PNG, JPEG, or single-page TIFF. Maximum 10 MB and 1 page.",
+        disabled=not synthetic_confirmed)
     if uploaded is None:
         return None
     try:
-        document = service.inspect_upload(uploaded.name, uploaded.getvalue())
+        document = service.inspect_upload(
+            uploaded.name, uploaded.getvalue(), synthetic_confirmed=synthetic_confirmed)
     except service.UploadValidationError as exc:
         st.error(str(exc))
         return None
@@ -280,8 +285,9 @@ def main() -> None:
     _style(st)
     st.markdown(
         '<div class="cr-header"><h1>ClaimRoute AI</h1>'
-        '<p>Inspect how each healthcare claim field earns its route through local OCR, '
-        'validation, governed retry, and selective escalation.</p></div>',
+        '<p><strong>Interactive synthetic-claim demo.</strong> Inspect how each field earns '
+        'its route through local OCR, validation, governed retry, and selective escalation. '
+        'Real claims and PHI are not permitted.</p></div>',
         unsafe_allow_html=True)
     st.markdown(
         '<div class="cr-pipeline">Document → Preprocess → Route → Primary OCR → Validate → '
@@ -294,8 +300,8 @@ def main() -> None:
         return
     document, doc_id, tier, mode, source_kind = controls
     if source_kind == "upload":
-        st.warning("This document may contain PHI. It stays local, uses no external provider, "
-                   "and extracted values are not written to application logs.")
+        st.success("Synthetic upload confirmed. Temporary upload storage is deleted after "
+                   "decoding, and no external provider is used.")
     else:
         st.success("Safe synthetic example. Zero PHI by construction and no external API call.")
 

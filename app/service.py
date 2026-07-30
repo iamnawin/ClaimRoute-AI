@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import hashlib
-import io
 import json
 import tempfile
 import time
@@ -82,8 +81,12 @@ def list_synthetic_examples(root: Path = SYNTHETIC_ROOT) -> list[dict]:
     return examples
 
 
-def inspect_upload(filename: str, content: bytes, *, max_bytes: int = MAX_UPLOAD_BYTES,
-                   max_pages: int = MAX_PAGE_COUNT) -> DocumentInput:
+def inspect_upload(filename: str, content: bytes, *, synthetic_confirmed: bool = False,
+                   max_bytes: int = MAX_UPLOAD_BYTES, max_pages: int = MAX_PAGE_COUNT,
+                   temp_root: Path | None = None) -> DocumentInput:
+    if not synthetic_confirmed:
+        raise UploadValidationError(
+            "Public uploads are synthetic-only. Confirm that the file contains no PHI.")
     suffix = Path(filename).suffix.lower()
     if suffix not in ALLOWED_EXTENSIONS:
         raise UploadValidationError(
@@ -94,13 +97,16 @@ def inspect_upload(filename: str, content: bytes, *, max_bytes: int = MAX_UPLOAD
         raise UploadValidationError(
             f"File size exceeds the {max_bytes / 1024 / 1024:g} MB limit.")
     try:
-        with Image.open(io.BytesIO(content)) as probe:
-            file_format = (probe.format or "").upper()
-            page_count = int(getattr(probe, "n_frames", 1))
-            probe.verify()
-        with Image.open(io.BytesIO(content)) as source:
-            source.seek(0)
-            image = source.convert("RGB").copy()
+        with tempfile.TemporaryDirectory(prefix="claimroute-upload-", dir=temp_root) as temp_dir:
+            upload_path = Path(temp_dir) / f"upload{suffix}"
+            upload_path.write_bytes(content)
+            with Image.open(upload_path) as probe:
+                file_format = (probe.format or "").upper()
+                page_count = int(getattr(probe, "n_frames", 1))
+                probe.verify()
+            with Image.open(upload_path) as source:
+                source.seek(0)
+                image = source.convert("RGB").copy()
     except Exception as exc:
         raise UploadValidationError("The file is not a readable claim image.") from exc
     if file_format not in ALLOWED_FORMATS:
@@ -121,7 +127,7 @@ def inspect_upload(filename: str, content: bytes, *, max_bytes: int = MAX_UPLOAD
 def load_synthetic(example: dict) -> DocumentInput:
     path = Path(example["path"])
     content = path.read_bytes()
-    document = inspect_upload(path.name, content)
+    document = inspect_upload(path.name, content, synthetic_confirmed=True)
     return document
 
 

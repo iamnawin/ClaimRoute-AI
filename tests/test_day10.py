@@ -53,8 +53,9 @@ def test_modes_load_and_balanced_is_default():
     assert modes["balanced"]["local_accept_confidence"] == 0.80
 
 
-def test_upload_accepts_real_png_and_detects_metadata():
-    document = service.inspect_upload("claim.png", _image_bytes())
+def test_upload_accepts_synthetic_png_and_detects_metadata():
+    document = service.inspect_upload(
+        "claim.png", _image_bytes(), synthetic_confirmed=True)
     assert document.file_format == "PNG"
     assert document.page_count == 1
     assert document.size_bytes > 0
@@ -62,15 +63,29 @@ def test_upload_accepts_real_png_and_detects_metadata():
 
 def test_upload_rejects_extension_and_oversize():
     with pytest.raises(service.UploadValidationError, match="file type"):
-        service.inspect_upload("claim.exe", b"not an image")
+        service.inspect_upload(
+            "claim.exe", b"not an image", synthetic_confirmed=True)
     with pytest.raises(service.UploadValidationError, match="size"):
-        service.inspect_upload("claim.png", b"x" * 11, max_bytes=10)
+        service.inspect_upload(
+            "claim.png", b"x" * 11, max_bytes=10, synthetic_confirmed=True)
 
 
 def test_upload_rejects_too_many_pages():
     data = _image_bytes("TIFF", frames=2)
     with pytest.raises(service.UploadValidationError, match="page limit"):
-        service.inspect_upload("claim.tiff", data, max_pages=1)
+        service.inspect_upload(
+            "claim.tiff", data, max_pages=1, synthetic_confirmed=True)
+
+
+def test_public_upload_requires_synthetic_attestation_and_deletes_temp_file(tmp_path):
+    with pytest.raises(service.UploadValidationError, match="synthetic"):
+        service.inspect_upload("claim.png", _image_bytes())
+
+    document = service.inspect_upload(
+        "claim.png", _image_bytes(), synthetic_confirmed=True, temp_root=tmp_path)
+
+    assert document.file_format == "PNG"
+    assert list(tmp_path.iterdir()) == []
 
 
 def test_uploaded_document_invokes_real_pipeline_locally_only(tmp_path):
