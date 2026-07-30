@@ -1,5 +1,57 @@
 # Handoff — claims-engine (Day 11 frozen evidence verified)
 
+## Session log - 30 Jul 2026 (official Tier A template: split + normalization audit)
+
+Starting commit `34dfe8a` (pushed; `main` synchronized with `origin/main`).
+
+### Tier A development / holdout split (frozen before any template work)
+
+12 Tier A organiser items. 11 link deterministically; 1 is `no_match` and is excluded from
+development, holdout, and every denominator.
+
+| Role | Safe source IDs (SHA-256 prefixes) |
+|---|---|
+| Development (3) | selected below |
+| Holdout (8) | remaining deterministic items, unopened |
+| Excluded (1) | `ebff47584693` (`no_match`, 0 present fields) |
+
+Per-document linkage and field population (from the existing PHI-safe rows, no values read):
+
+`5858cb1e596e` ord=1 score=37 margin=36 present=21/35 - `facb7ec12b51` ord=2 score=12 present=15/20 -
+`048efa7751fb` ord=3 score=14 present=28/34 - `2b40627c91cf` ord=4 score=22 present=15/25 -
+`ac3175590d3e` ord=5 score=14 present=19/21 - `a807e15a901d` ord=6 score=6 present=13/20 -
+`eb751d61893b` ord=7 score=27 present=23/37 - `8ab2cae907ad` ord=8 score=29 present=24/31 -
+`4742abf30950` ord=10 score=31 present=16/26 - `a0ccd0f63f79` ord=11 score=30 present=20/27 -
+`0a0eb68453ea` ord=12 score=27 present=17/23.
+
+### Correction to the previous session's third finding
+
+The previous log reported a "58.3% OCR ceiling" for the proof document. That number was
+measured against **raw OCR text**, which was the wrong comparison basis: the evaluator does not
+compare raw text, it compares through `eval/official/normalization.py`. Re-checked against the
+actual comparison path, the date and currency classes are **already handled correctly**
+(`normalize_value` strips non-digits and tries both `%Y%m%d` and `%m%d%Y`; money strips
+punctuation and formats to 2dp). The stated ceiling therefore overstated the normalization gap
+and is withdrawn.
+
+### Real normalization defect found (must be fixed before freeze)
+
+`eval/official/evaluator.py:compare_fields` normalizes using the **ClaimRoute** field name, but
+`eval/official/normalization.py` keys its sets on the **spec** names. The evaluator's own aliasing
+therefore routes several fields away from their typed branch:
+
+- `line{1,2,3}_date_from` / `_date_to` -> `default` branch instead of `DATE`. Verified on synthetic
+  values: expected `20240315` vs printed `03 15 2024` normalizes to `20240315` vs `03152024` and is
+  scored **incorrect even when OCR is perfect**. Up to 6 of ~35 evaluated fields (~17% of the
+  denominator) are unscoreable for this reason alone.
+- `billing_provider_npi`, `referring_provider_npi`, `line*_cpt_code`, `diagnosis_code_*` also miss
+  `CODE_FIELDS`, but the `default` branch happens to apply the same alphanumeric strip, so these are
+  latent rather than active defects.
+- `line*_charges` misses `MONEY_FIELDS`; the default strip coincidentally matches on both sides.
+
+This is a general deterministic field-rule defect, not a document-specific correction, so fixing it
+is in scope for the pre-freeze normalization step.
+
 ## Session log - 30 Jul 2026 (official Tier A registration diagnosis)
 
 Starting commit `34e8df3` on `main`, clean tree, synchronized with `origin/main`.

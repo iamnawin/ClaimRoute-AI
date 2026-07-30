@@ -1,0 +1,72 @@
+{
+  "split_id": "tier_a_official_v1",
+  "created": "2026-07-30",
+  "created_at_commit": "34dfe8a",
+  "tier": "A",
+  "form_revision": "CMS-1500 (02-12)",
+  "purpose": "Separate the organiser Tier A items used to author the official CMS-1500 (02-12) template from the items reserved for a single untouched scoring run.",
+  "selection_basis": "Safe published metadata only (linkage status, linkage margin, field-population ratio) from eval/official/results/official_sample_rows.jsonl. No page pixels, crops, or expected values were read to make this selection.",
+  "selection_rule": "Among deterministically linked items with linkage margin >= 10, take the lowest, median, and highest field-population ratio so the development subset spans the observed population range.",
+  "immutable": true,
+  "immutability_note": "Items must never move between development and holdout. Any change invalidates every holdout result produced under this split_id and requires a new split_id.",
+  "counts": {
+    "total_tier_a_items": 12,
+    "deterministic_links": 11,
+    "development": 3,
+    "holdout": 8,
+    "excluded": 1
+  },
+  "development": [
+    {
+      "source_id": "5858cb1e596e",
+      "record_ordinal": 1,
+      "linkage_status": "deterministic",
+      "linkage_score": 37,
+      "linkage_margin": 36,
+      "present_fields": 21,
+      "evaluated_fields": 35,
+      "fill_ratio": 0.6,
+      "rationale": "Strongest linkage in Tier A and the page already inspected during root-cause diagnosis; keeping it in development prevents prior inspection from contaminating the holdout."
+    },
+    {
+      "source_id": "a0ccd0f63f79",
+      "record_ordinal": 11,
+      "linkage_status": "deterministic",
+      "linkage_score": 30,
+      "linkage_margin": 29,
+      "present_fields": 20,
+      "evaluated_fields": 27,
+      "fill_ratio": 0.74,
+      "rationale": "Median field population with a high linkage margin."
+    },
+    {
+      "source_id": "ac3175590d3e",
+      "record_ordinal": 5,
+      "linkage_status": "deterministic",
+      "linkage_score": 14,
+      "linkage_margin": 12,
+      "present_fields": 19,
+      "evaluated_fields": 21,
+      "fill_ratio": 0.9,
+      "rationale": "Densest field population; exercises boxes left blank on the other two development pages."
+    }
+  ],
+  "holdout": [
+    {"source_id": "facb7ec12b51", "record_ordinal": 2, "linkage_margin": 11},
+    {"source_id": "048efa7751fb", "record_ordinal": 3, "linkage_margin": 13},
+    {"source_id": "2b40627c91cf", "record_ordinal": 4, "linkage_margin": 21},
+    {"source_id": "a807e15a901d", "record_ordinal": 6, "linkage_margin": 6},
+    {"source_id": "eb751d61893b", "record_ordinal": 7, "linkage_margin": 25},
+    {"source_id": "8ab2cae907ad", "record_ordinal": 8, "linkage_margin": 28},
+    {"source_id": "4742abf30950", "record_ordinal": 10, "linkage_margin": 29},
+    {"source_id": "0a0eb68453ea", "record_ordinal": 12, "linkage_margin": 24}
+  ],
+  "excluded": [
+    {
+      "source_id": "ebff47584693",
+      "record_ordinal": null,
+      "linkage_status": "no_match",
+      "reason": "Linkage abstained with score 0 and no present fields. Excluded from development, holdout, and every accuracy denominator."
+    }
+  ]
+}
