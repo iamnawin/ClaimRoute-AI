@@ -6,6 +6,8 @@ data/
 !data/.gitkeep
 eval/results/cache/
 .streamlit/
+!.streamlit/
+!.streamlit/config.toml
 *.egg-info/
 .pytest_cache/
 .claude-flow/
