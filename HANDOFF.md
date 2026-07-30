@@ -1,4 +1,4 @@
-# Handoff — claims-engine (Day 7 verified; resume at Day 8 escalation evaluation)
+# Handoff — claims-engine (Day 8 escalation harness verified)
 
 ## Status
 
@@ -12,10 +12,10 @@ Both supported by test evidence below. Architecture v1.2 remains locked.
 | | |
 |---|---|
 | Current phase | Tier-2 escalation (Day 8) |
-| Last verified commit | `8fed3b1` on `main` (pushed to `origin/main`) |
-| Working branch | `main` (no WIP branch outstanding) |
+| Last verified commit | `ae0097c` on `main`; Day 8 harness work is currently uncommitted |
+| Working branch | `main` (preserve concurrent Day 7 result changes and `docs/MEMORY.md`) |
 | Safety branch | `safety/day8-pre-audit` → `07b3857`, kept as a pre-audit restore point |
-| Tests passed | **46 / 46** (35 non-day2 + 11 day2) |
+| Tests passed | **57 / 57** (46 existing + 11 Day 8 harness tests) |
 | Tests failed | **0** |
 | Dependency status | requirements.txt synchronized, licence table complete, clean-venv install verified |
 | Architecture status | v1.2 locked, unchanged by this audit |
@@ -24,6 +24,38 @@ Both supported by test evidence below. Architecture v1.2 remains locked.
 
 Solo build, **Datamatics AI Engineering Hackathon 2026**. **Competition ends Sunday 2 Aug 2026**
 (official brief arrived 27 Jul; the original 12-day plan is compressed to ~6).
+
+## Session log — 30 Jul 2026 (Day 8 escalation harness)
+
+1. **Task completed:** implemented `eval/day8_escalation.py` using the existing
+   `run_page` → `escalate_field` → grounding/revalidation → governor spine.
+2. **Files changed:** added the harness and `tests/test_day8.py`; generated resumable
+   field rows, page receipts, cost ledger, and JSON/CSV summaries under `eval/results/`.
+3. **Commands run:** `python -m pytest tests/test_day8.py -q`, full
+   `python -m pytest tests/ -q`, small clean smoke run, resumable 10-page chunks for
+   clean/noisy/ugly, then `python -m eval.day8_escalation --tiers clean noisy ugly --summarize`.
+4. **Tests/results:** 57/57 tests pass. Completed 60 calibration pages / 2,148 fields;
+   wrote 406 unique escalated-field rows with zero duplicate rows and zero provider errors.
+5. **Cost labeling:** `offline-oracle` measured API spend is **$0**. Projected oracle
+   spend is **$0.0128319 total / $0.000214 per page blended**. Projected total automated
+   cost is **$0.000369/page blended**; measured local automated cost is **$0.000155/page**.
+6. **Tier evidence:** field accuracy clean/noisy/ugly = **99.44% / 99.30% / 97.07%**;
+   escalation rate = **3.21% / 8.66% / 44.83%**; human review =
+   **0.70% / 1.96% / 21.09%**. Blended accuracy = **98.60%** and human review = **7.91%**.
+7. **Known issues:** oracle results prove the controlled boundary, not any real model's
+   accuracy. Ugly-tier escalation/human-review rates remain high. Clean has seven cache hits
+   from the pre-existing smoke cache; cache savings are reported separately. Official PHI data
+   was not used and remains prohibited from external providers.
+8. **Next exact task:** review the 170 human-review escalation rows, classify grounding vs
+   validator/confidence causes, then decide whether a real-provider synthetic calibration run
+   is justified before tagging `v0.4-escalation`.
+
+Resume/verify command:
+
+```bash
+python -m pytest tests/ -q
+python -m eval.day8_escalation --tiers clean noisy ugly --summarize
+```
 
 ## Session log — 30 Jul 2026 (baseline audit)
 
