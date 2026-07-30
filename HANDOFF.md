@@ -1,5 +1,36 @@
 # Handoff — claims-engine (Day 11 frozen evidence verified)
 
+## Session log - 30 Jul 2026 (public deployment complete)
+
+1. **Public showcase:** `https://claimrouteai.netlify.app/` is live. Netlify serves the landing
+   and submission-evidence site; it does not run the Python extraction engine.
+2. **Working application:** `https://claimroute-ai.streamlit.app/` is live. The primary
+   **Launch live demo** actions in `site/index.html` point to this URL.
+3. **Deployment fix:** commit `34e8df37b5d23cfcddabcee86c7e2da519d03c80` removed the
+   conflicting apt package. Streamlit Community Cloud installed Tesseract 5.5, English OCR data,
+   the Python dependencies, and started Streamlit successfully.
+4. **Functional verification:** bundled synthetic processing works in Balanced mode; Tesseract
+   extraction completes; final JSON and audit JSON downloads work; external provider calls remain
+   disabled. This public application is synthetic-data-only and prohibits real claims/PHI.
+5. **Independent reachability check:** the Netlify landing page, Streamlit application, and
+   Streamlit health endpoint each returned HTTP 200 on 30 Jul 2026. A separate automated
+   incognito-browser interaction pass was unavailable because the local browser-control runtime
+   failed before opening a session; do not represent that specific check as independently complete.
+
+## Public deployment status
+
+```
+Netlify landing and evidence site: LIVE
+Streamlit synthetic-claim application: LIVE
+Bundled synthetic sample: VERIFIED
+Tesseract OCR: VERIFIED
+Final JSON download: VERIFIED
+Audit JSON download: VERIFIED
+External provider calls: DISABLED
+Real PHI / official dataset access: PROHIBITED
+Independent incognito-browser pass: PENDING
+```
+
 ## Session log - 30 Jul 2026 (official organiser sample)
 
 1. Added a read-only, local-only adapter in `eval/official/`: multipage TIFF ingestion, NSF 320
