@@ -75,7 +75,15 @@ def retry_field(fr: FieldResult, img: Image.Image, form: str, variant: int,
         crop = crop.resize((crop.width * 2, crop.height * 2), Image.LANCZOS)
 
     t0 = time.perf_counter()
-    words = get_engine(engine_name).extract(crop)
+    eng = get_engine(engine_name)
+    # A field crop is one box, not a page. Ask for block segmentation where the
+    # engine supports it; the default page mode drops lone characters entirely
+    # (patient_sex, units, diagnosis_pointer) — precisely the fields the retry
+    # rung exists to rescue.
+    if engine_name == "tesseract":
+        words = eng.extract(crop, psm=eng.PSM_BLOCK)
+    else:
+        words = eng.extract(crop)
     ms = (time.perf_counter() - t0) * 1000
     cost = _cpu_cost(ms)
     ledger.log(doc_id=fr.doc_id, page_id=fr.page_id, field_name=fr.field_name,

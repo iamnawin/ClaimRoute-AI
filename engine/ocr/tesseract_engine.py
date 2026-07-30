@@ -39,8 +39,19 @@ if _BINARY:
 class TesseractEngine(OcrEngine):
     name = "tesseract"
 
-    def extract(self, img: Image.Image) -> list[OcrWord]:
-        data = pytesseract.image_to_data(img, output_type=pytesseract.Output.DICT)
+    # Tesseract's default page-segmentation mode (3, "fully automatic") assumes a
+    # page of prose and DISCARDS an isolated glyph sitting alone in a small box —
+    # it returns nothing at all for CMS-1500 boxes like sex, units, and diagnosis
+    # pointer. PSM 6 ("a single uniform block") reads them correctly. This is why
+    # the retry rung could not rescue single-character fields: not a bad crop, a
+    # segmentation assumption that does not hold for one character in a box.
+    PSM_PAGE = 3
+    PSM_BLOCK = 6
+
+    def extract(self, img: Image.Image, psm: int | None = None) -> list[OcrWord]:
+        config = f"--psm {psm}" if psm is not None else ""
+        data = pytesseract.image_to_data(img, config=config,
+                                         output_type=pytesseract.Output.DICT)
         self.last_raw = data
         words = []
         for i, text in enumerate(data["text"]):
