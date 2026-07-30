@@ -1,88 +1,174 @@
-# Handoff — claims-engine (resume at Day 7: Cost Governor + retry rung)
+# Handoff — claims-engine (Day 7 verified; resume at Day 8 escalation evaluation)
+
+## Status
+
+```
+Day 7: COMPLETE
+Day 8: IN PROGRESS
+```
+
+Both supported by test evidence below. Architecture v1.2 remains locked.
+
+| | |
+|---|---|
+| Current phase | Tier-2 escalation (Day 8) |
+| Last verified commit | `8fed3b1` on `main` (pushed to `origin/main`) |
+| Working branch | `main` (no WIP branch outstanding) |
+| Safety branch | `safety/day8-pre-audit` → `07b3857`, kept as a pre-audit restore point |
+| Tests passed | **46 / 46** (35 non-day2 + 11 day2) |
+| Tests failed | **0** |
+| Dependency status | requirements.txt synchronized, licence table complete, clean-venv install verified |
+| Architecture status | v1.2 locked, unchanged by this audit |
 
 ## Mission & deadline
-Solo build, **Datamatics AI Engineering Hackathon 2026**. Architecture v1.2 locked.
-**Competition ends Sunday 2 Aug 2026** (official brief arrived 27 Jul — the original 12-day
-plan is compressed to ~6). Days 1–6 COMPLETE, 36 tests green, HEAD `62c35c9`, tag
-`v0.2-validated`.
 
-## OFFICIAL BRIEF CHANGES (supersede the execution plan where they conflict)
-- **Weights changed:** Accuracy 35%, **Cost per page 35%** (was 25%), Innovation 10% (was 20%),
-  Scalability 10%, Simplicity 10%. → invest in ledger-backed cost evidence, not demo polish.
-- **Four tiers, scored separately AND combined:**
-  - Tier A = machine-printed CMS-1500, single page → **covered** (our clean/noisy/ugly CMS-1500)
-  - Tier B = CMS-1500 **plus attachments; find the CMS-1500, discard other pages** → **GAP**:
-    needs page-stream keep/discard (router already emits unstructured/unknown + evidence)
-  - Tier C = UB-04 single page → **covered**
-  - Tier D = **unstructured layout**, extract specified fields → **BIGGEST GAP** (was a stretch
-    goal, now a scored tier; this is where Tier-2 multimodal escalation earns its keep)
-- **Official sample dataset is mandatory for benchmarking** — it was NOT attached to the DL
-  email. User has been asked to chase it (ClaimsExtraction.Hackathon@datamatics.com / Reshma
-  Balachandran). **Until it lands, mirror the tier structure synthetically** (Tier B = multi-page
-  bundles with cover/separator/EOB pages; Tier D = unstructured referral/EOB letters). Our
-  synthetic factory remains a deliverable (reproducible, PHI-free, exact ground truth = their
-  "novel benchmarking methods" bonus).
-- Their bonus list ≈ our architecture: difficult-regions-only AI, dynamic model selection,
-  auto confidence scoring, learning from corrections, model-agnostic orchestration, **on-prem
-  inference (PP-OCR/ONNX — no cloud needed for Tier 1)**, open-source-first. Say this explicitly
-  in the submission.
-- Registration closed 28 Jul; user was given the email text to send.
+Solo build, **Datamatics AI Engineering Hackathon 2026**. **Competition ends Sunday 2 Aug 2026**
+(official brief arrived 27 Jul; the original 12-day plan is compressed to ~6).
+
+## Session log — 30 Jul 2026 (baseline audit)
+
+1. **CLAUDE.md updated** with current architecture, module map, conventions and hard rules
+   (it had described a Day 3–5 snapshot and omitted governor/retry/escalation/vision).
+2. **Baseline audit performed.** Day 8 work was already committed at `07b3857` and pushed, so
+   no stash was needed; `safety/day8-pre-audit` was created before detaching HEAD.
+3. **Test comparison performed** at `v0.3-governor` vs `07b3857` — see the table below.
+4. **Defects identified and fixed** — two root causes behind all four failures.
+5. **Dependency documentation updated** and verified by clean-venv install.
+6. **Next task selected**: Day 8 escalation evaluation (below).
+
+## Baseline comparison: `v0.3-governor` vs Day 8 tree
+
+Same dataset both runs (`data/` is gitignored, so it does not move with the checkout —
+any difference would be attributable to code alone).
+
+| Test | Day 7 baseline | Day 8 tree (pre-fix) | Regression? | Classification |
+|---|---|---|---|---|
+| `test_day2::test_all_tiers_pass_ink_guardrail` | FAIL | FAIL | No | Guardrail defect |
+| `test_day2::test_build_small_dataset_end_to_end` | FAIL | FAIL | No | Guardrail defect |
+| `test_day3::test_bboxes_survive_preprocessing_on_ugly` | FAIL | FAIL | No | Guardrail defect |
+| `test_day5::test_spine_end_to_end_clean_page` | FAIL | FAIL | No | Pre-existing Day 7 defect |
+| 3 × Tesseract-not-found (`day5`, `day6`, `day7`) | FAIL (env) | PASS | No — Day 8 **fixed** it | Environment |
+
+**Zero regressions introduced by Day 8.** All four failures pre-date it and reproduce
+identically at the tag. The three Tesseract failures are an environment artefact: the binary is
+installed but not on PATH, and the Day 8 commit incidentally fixed it by adding binary
+auto-discovery to the adapter. Counting pass/fail alone would have credited Day 8 with
+"fixing 3 tests"; reading the diff is what attributes it correctly.
+
+## Defects found and fixed
+
+### 1. bbox-ink guardrail measured legibility, not geometry (3 of the 4 failures)
+
+`check_bbox_ink` required `pixel < 128` — an **absolute** darkness cutoff — to prove a bbox
+still covered its ink. But photometric tiers and Tier-0 `illumination_flatten` legitimately
+lighten the page. After preprocessing an ugly UB-04 the darkest pixel *anywhere on the image*
+is ~114, so all 34 correctly-placed bboxes failed simultaneously.
+
+The tell: the `noisy` tier failed too, and `noisy` provably never moves a coordinate
+(`degrade()` returns `dict(bboxes)` unchanged). Geometry could not have drifted.
+
+Fixed by measuring each crop against **its own 90th-percentile background**. Verified to keep
+detection power rather than trade it away: 0 false alarms on correct bboxes across all three
+tiers, while injected drift of 25–60px still fails 18–24 of 34 fields.
+Logged as decision 11 in `docs/assumptions.md`. **Do not "fix" this by lowering the absolute
+threshold** — it would pass today's images and silently lose drift detection on darker paper.
+
+### 2. Retry rung could not read single-character fields (the 4th failure)
+
+`test_day5` was 37/44. All 7 misses were single-character boxes: `patient_sex` ('F'), three
+`line*_units`, three `line*_diagnosis_pointer`. Tesseract's default PSM 3 assumes a page of
+prose and discards a lone glyph in a small box, returning nothing; PSM 6/7/10 read all three
+correctly. So the retry rung could not rescue exactly the fields it exists for — all seven went
+primary → RETRY → ESCALATE unresolved and would have been billed to a paid model for want of a
+one-line config.
+
+Fixed with an optional `psm` argument on the Tesseract adapter (**default unchanged**, so the
+Day 4 full-page bake-off path is untouched) and the retry rung requesting PSM 6 for crops.
+Result: `cms1500_42_0000` clean-page accuracy **37/44 → 44/44**, all seven resolved at the
+local-compute rung, none escalated. Logged as decision 12.
+
+Neither fix weakened a test, lowered a threshold, or disabled a check.
 
 ## Current measured evidence (calibration split only; test split still frozen)
-- **Day 3** (`eval/results/day3_report.json`): router 100% on 150 pages, 0 bbox-ink failures,
-  clean pages untouched by Tier-0, ~1.1 s/page.
-- **Day 4** (`eval/results/day4_bakeoff.json`): primary = **paddle** (PP-OCR via ONNX), retry =
-  **tesseract** (rescues 4.1% of primary misses; raw-ugly failure rate 80% → 0% with Tier-0).
-- **Day 5** (`eval/results/day5_report.json`): spine field accuracy **97.1 / 99.2 / 99.4%**
-  (clean / noisy / ugly, preprocessing on). Raw-ugly = **0%**.
-  **Phrase this carefully in the submission** (a judge will otherwise catch it): raw-ugly is 0%
-  because *rotation breaks the router before extraction is ever attempted*, not because OCR
-  fails. Correct line: *"Tier-0 preprocessing restores the degraded-page free path: automated
-  field extraction rises from 0% to 99.4% because rotation correction makes routing and layout
-  mapping viable, at ~$0.0001/page."* Call it **pipeline recovery**, never "OCR uplift".
-- **Day 6** (`eval/results/day6_report.json`): validators flag **100%** of spine errors;
-  false-alarm rate 4.4% (clean) / 1.9% (ugly); mean fused confidence **0.97 correct vs 0.68
-  errors** — the separation the governor routes on.
-- Known failure class (clean tier, ~97%): on *sharp* pages PP-OCR merges adjacent name boxes
-  into one line span → `patient_name`/`insured_name` get concatenated text. `name_format`
-  already FAILs these (comma count). **Day 7's crop-level Tesseract retry should resolve them
-  at near-zero incremental cost — that's the retry rung's first proof.**
+
+- **Day 3** (`day3_report.json`): router 100% on 150 pages, 0 bbox-ink failures, clean pages
+  untouched by Tier-0, ~1.1 s/page.
+- **Day 4** (`day4_bakeoff.json`): primary = **paddle** (PP-OCR via ONNX), retry = **tesseract**
+  (rescues 4.1% of primary misses; raw-ugly failure 80% → 0% with Tier-0).
+- **Day 5** (`day5_report.json`): spine field accuracy 97.1 / 99.2 / 99.4% (clean/noisy/ugly).
+- **Day 6** (`day6_report.json`): validators flag 100% of spine errors; false-alarm 4.4% clean /
+  1.9% ugly; mean fused confidence 0.97 correct vs 0.68 errors.
+- **Day 7** (`day7_report.json`, regenerated 30 Jul after the fixes, clean tier, 20 docs /
+  716 fields):
+  - field accuracy **99.16%**
+  - funnel **81.01% ACCEPT · 15.78% ACCEPT_WITH_FLAG · 3.21% ESCALATE · 0% HUMAN_REVIEW**
+  - retry rung: 436 fields retried (60.89%), **413 resolved**, 2 still wrong
+  - retry cost **$0.0000020 per retried field**
+  - ledger total **$0.000115 per page** over 20 pages (`ocr_paddle` $0.00123,
+    `retry_tesseract` $0.00087, `preprocess` $0.00015, `route` $0.00005) — all local compute
+  - **noisy/ugly tiers not yet run** through the funnel; do this before quoting a blended number
+
+## Day 7 acceptance criteria — all met
+
+1. Governor 4-way decision from all four inputs — `engine/governor.py`, tested in `test_day7.py`.
+2. Retry rung crops, re-OCRs with tesseract, revalidates, feeds engine agreement — verified.
+3. Funnel measured — above.
+4. Tag `v0.3-governor` exists.
 
 ## SUBMISSION WORDING RULES (a judge will test these)
+
 1. Tier-0 result is **pipeline recovery**, never "OCR uplift": 0% → 99.4% on ugly because
    rotation correction makes routing and layout mapping viable, not because OCR improved.
 2. The retry rung is **"local compute only" / "near-zero incremental cost"** — never "$0" or
    "free". It burns CPU, that CPU is priced in `configs/prices.yaml`, and every retry is logged
-   to the ledger. Same rule for preprocessing, routing, and validation: they are cheap
-   deterministic stages, not costless ones.
+   to the ledger. Same for preprocessing, routing, validation.
+3. `offline-oracle` is a **deterministic test double**. Its accuracy is not evidence about any
+   real model; its cost is *projected* from token counts, never measured spend.
+4. Cache hits and grounding rejections are reported separately so neither flatters the cost story.
 
 ## What exists (don't rebuild)
-`data_factory/` (CMS-1500 + UB-04, 3 tiers, exact bboxes, ink guardrail) · `engine/schemas.py`
-(6-state, ACCEPT_WITH_OVERRIDE human-only) · `ledger.py` · `preprocess.py` (signal-gated,
-transform history + bbox replay) · `router.py` (free, evidence + variant) · `ocr/` (base +
-paddle + tesseract adapters, raw preserved) · `layout/` (templates generated from renderers per
-line-count variant + overlap-based mapper) · `validators/` (15 validators, policy-driven,
-dictionaries) · `fusion.py` (explainable; **verdicts deliberately NOT fused — they are separate
-governor inputs**) · `extract.py` (the spine) · `eval/day{3,4,5,6}_*.py` (chunked, resumable).
 
-## Day 7 scope (next)
-1. `engine/governor.py`: 4-way decision (ACCEPT / ACCEPT_WITH_FLAG / RETRY / ESCALATE, terminal
-   HUMAN_REVIEW) from **fused confidence + validator verdicts + field policy + attempt history**;
-   attempt budget from `configs/pipeline.yaml` (primary 1 / retry 1 / multimodal 1 / grounding 0).
-2. Retry rung: crop the field bbox, re-OCR with **tesseract** (word-level), engine agreement
-   feeds fusion, **result re-enters validation**.
-3. Measure the funnel: % resolved by primary / retry / accept-with-flag / still-uncertain.
-4. Tag `v0.3-governor`.
+`data_factory/` (CMS-1500 + UB-04, 3 tiers, exact bboxes, ink guardrail) · `engine/schemas.py`
+(6-state, ACCEPT_WITH_OVERRIDE human-only) · `ledger.py` · `preprocess.py` · `router.py` ·
+`ocr/` (paddle + tesseract, PSM-aware) · `layout/` · `validators/` (15) · `fusion.py` ·
+`governor.py` · `retry_rung.py` · `cropper.py` (PHI boundary, structural) · `grounding.py` ·
+`escalate.py` · `vision/` (base + offline-oracle + openai + gemini) · `extract.py` (the spine) ·
+`eval/day{3,4,5,6,7}_*.py`.
+
+## Day 8 scope (next, in order)
+
+1. **Do not add new escalation functionality** until its evidence exists — the code is written
+   (`escalate.py`, `grounding.py`, `cropper.py`, `vision/`) but has only a smoke test.
+2. Write `eval/day8_escalation.py` following the established harness contract
+   (`--tiers/--limit/--summarize`, JSONL rows, per-row flush, resume on restart).
+3. Measure with `offline-oracle`: escalation rate, grounding rejection rate, cache-hit rate,
+   projected cost/page, and accuracy delta on the 3.21% that reach ESCALATE.
+4. Run the funnel on **noisy and ugly** tiers so the Day 7 number is not clean-only.
+5. Tag `v0.4-escalation`.
 
 ## Environment gotchas (hard-won)
-Bash calls are independent, background procs die, **hard 45 s cap** → chunk everything; eval
-pattern = JSONL rows + per-row flush + `--limit`/resume (copy `eval/day6_eval.py`). Full pytest
-run is ~55 s → split it (`--ignore=tests/test_day2.py`, then that file alone). pip needs
-`--break-system-packages`. Installed: faker, pyyaml, pillow, numpy, pytest, pytesseract,
-rapidocr-onnxruntime. Never seed with `hash(str)`. Windows paths for Read/Write/Edit;
-`/sessions/...` for bash only. Mount deletion is enabled; stale `.git/*.lock` files have bitten
-twice — `rm -f .git/HEAD.lock` if git complains.
 
-## Suggested skills next session
-`anthropic-skills:executing-plans`, `anthropic-skills:test-driven-development`,
-`anthropic-skills:verification-before-completion`, `anthropic-skills:systematic-debugging`.
+Shell calls are independent and long runs get killed → **chunk everything** (`--limit` +
+resumable JSONL rows). Full pytest ~50 s (non-day2) + ~15 s (day2). Tesseract 5.4.0 is
+installed at `C:\Program Files\Tesseract-OCR\` but **not on PATH** — `tesseract_engine.py`
+auto-discovers it (PATH → standard locations → `TESSERACT_CMD`), so no PATH edit is needed.
+Never seed with `hash(str)`. Windows paths for Read/Write/Edit. `docs/*.docx` can be file-locked
+by Word and block `git switch`; use `git switch --force` (the blob is committed and identical).
+Stale `.git/*.lock` files have bitten twice.
+
+## Resume commands
+
+```bash
+cd "D:/AI-Workspace/hackathon 2026/claims-engine"
+git log --oneline -1          # expect 8fed3b1 (or later) on main
+
+python -m pytest tests/ --ignore=tests/test_day2.py   # expect 35 passed
+python -m pytest tests/test_day2.py                   # expect 11 passed
+
+# Day 7 funnel on the tiers not yet covered
+python -m eval.day7_funnel --tiers noisy --limit 12
+python -m eval.day7_funnel --summarize
+```
+
+**Next exact task:** write `eval/day8_escalation.py` (harness only, no new engine code), then
+run it chunked against `offline-oracle` on the calibration split.
