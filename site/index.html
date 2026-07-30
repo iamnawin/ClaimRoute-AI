@@ -1,0 +1,551 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="ClaimRoute AI project status and verified hackathon evidence.">
+  <meta name="theme-color" content="#087a70">
+  <title>ClaimRoute AI | Project Status</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --page: oklch(0.985 0.004 190);
+      --surface: oklch(1 0 0);
+      --surface-soft: oklch(0.955 0.016 188);
+      --ink: oklch(0.225 0.025 200);
+      --muted: oklch(0.43 0.025 200);
+      --line: oklch(0.86 0.018 190);
+      --accent: oklch(0.48 0.105 188);
+      --accent-dark: oklch(0.34 0.08 188);
+      --success: oklch(0.41 0.09 155);
+      --radius: 14px;
+      --max: 1180px;
+    }
+
+    * { box-sizing: border-box; }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      margin: 0;
+      background: var(--page);
+      color: var(--ink);
+      font-family: "Segoe UI", Arial, sans-serif;
+      font-size: 16px;
+      line-height: 1.55;
+    }
+
+    a { color: inherit; }
+
+    .visually-hidden {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }
+
+    a:focus-visible,
+    summary:focus-visible {
+      outline: 3px solid var(--accent);
+      outline-offset: 4px;
+    }
+
+    .shell {
+      width: min(calc(100% - 40px), var(--max));
+      margin-inline: auto;
+    }
+
+    .topbar {
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      border-bottom: 1px solid var(--line);
+      background: color-mix(in oklch, var(--page) 94%, transparent);
+      backdrop-filter: blur(12px);
+    }
+
+    .nav {
+      min-height: 68px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 24px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 11px;
+      font-weight: 760;
+      letter-spacing: -0.02em;
+      text-decoration: none;
+    }
+
+    .brand-mark {
+      width: 32px;
+      height: 32px;
+      display: grid;
+      place-items: center;
+      border-radius: 9px;
+      background: var(--accent);
+      color: white;
+      font-weight: 800;
+    }
+
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: 24px;
+      font-size: 0.9rem;
+      font-weight: 650;
+    }
+
+    .nav-links a { text-decoration: none; }
+    .nav-links a:hover { color: var(--accent-dark); }
+
+    .hero {
+      min-height: calc(100dvh - 68px);
+      display: grid;
+      grid-template-columns: minmax(0, 0.82fr) minmax(420px, 1.18fr);
+      align-items: center;
+      gap: clamp(38px, 6vw, 84px);
+      padding-block: clamp(54px, 8vw, 96px);
+    }
+
+    .status-line {
+      display: inline-flex;
+      align-items: center;
+      gap: 9px;
+      margin: 0 0 22px;
+      color: var(--success);
+      font-size: 0.88rem;
+      font-weight: 760;
+    }
+
+    .status-line::before {
+      content: "";
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      background: currentColor;
+    }
+
+    h1, h2, h3 {
+      margin-top: 0;
+      letter-spacing: -0.035em;
+      line-height: 1.08;
+      text-wrap: balance;
+    }
+
+    h1 {
+      max-width: 11ch;
+      margin-bottom: 22px;
+      font-size: clamp(3.1rem, 7vw, 5.8rem);
+      font-weight: 780;
+    }
+
+    .lede {
+      max-width: 55ch;
+      margin: 0 0 30px;
+      color: var(--muted);
+      font-size: clamp(1.05rem, 2vw, 1.22rem);
+    }
+
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    .button {
+      min-height: 46px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0 18px;
+      border: 1px solid var(--ink);
+      border-radius: 9px;
+      background: var(--ink);
+      color: white;
+      font-weight: 730;
+      text-decoration: none;
+      transition: transform 180ms ease, background 180ms ease;
+    }
+
+    .button.secondary {
+      background: transparent;
+      color: var(--ink);
+    }
+
+    .button:hover { background: var(--accent-dark); }
+    .button.secondary:hover { color: white; }
+    .button:active { transform: translateY(1px); }
+
+    .product-shot {
+      margin: 0;
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--surface);
+    }
+
+    .product-shot img {
+      display: block;
+      width: 100%;
+      height: auto;
+    }
+
+    .product-shot figcaption {
+      padding: 12px 16px;
+      border-top: 1px solid var(--line);
+      color: var(--muted);
+      font-size: 0.84rem;
+    }
+
+    .evidence {
+      padding-block: 86px;
+      border-top: 1px solid var(--line);
+    }
+
+    .section-heading {
+      max-width: 720px;
+      margin-bottom: 42px;
+    }
+
+    .section-heading h2 {
+      margin-bottom: 14px;
+      font-size: clamp(2rem, 4vw, 3.4rem);
+    }
+
+    .section-heading p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 1.05rem;
+    }
+
+    .metrics {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 1px;
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--line);
+      list-style: none;
+    }
+
+    .metric {
+      min-height: 150px;
+      padding: 26px;
+      background: var(--surface);
+    }
+
+    .metric strong {
+      display: block;
+      margin-bottom: 8px;
+      color: var(--accent-dark);
+      font-size: 2.2rem;
+      line-height: 1;
+      letter-spacing: -0.04em;
+    }
+
+    .metric span {
+      color: var(--muted);
+      font-size: 0.92rem;
+    }
+
+    .architecture {
+      padding-block: 86px;
+      background: var(--surface-soft);
+    }
+
+    .route {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 10px;
+      margin: 34px 0 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .route li {
+      padding: 10px 13px;
+      border: 1px solid color-mix(in oklch, var(--accent) 32%, var(--line));
+      border-radius: 9px;
+      background: var(--surface);
+      font-size: 0.88rem;
+      font-weight: 680;
+    }
+
+    .route li:not(:last-child)::after {
+      content: "→";
+      margin-left: 24px;
+      color: var(--accent-dark);
+    }
+
+    .progress-section {
+      display: grid;
+      grid-template-columns: minmax(0, 0.8fr) minmax(420px, 1.2fr);
+      gap: clamp(44px, 8vw, 100px);
+      padding-block: 90px;
+    }
+
+    .progress-section h2 {
+      margin-bottom: 16px;
+      font-size: clamp(2rem, 4vw, 3.2rem);
+    }
+
+    .progress-section > div > p { color: var(--muted); }
+
+    .checklist {
+      display: grid;
+      gap: 12px;
+      margin: 0;
+      padding: 0;
+      border: 0;
+    }
+
+    .check {
+      display: grid;
+      grid-template-columns: 24px 1fr auto;
+      align-items: start;
+      gap: 13px;
+      padding: 16px 0;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .check input {
+      width: 20px;
+      height: 20px;
+      margin: 2px 0 0;
+      accent-color: var(--accent);
+    }
+
+    .check strong { display: block; }
+
+    .check small {
+      display: block;
+      margin-top: 3px;
+      color: var(--muted);
+    }
+
+    .state {
+      color: var(--success);
+      font-size: 0.82rem;
+      font-weight: 750;
+    }
+
+    .next {
+      padding: 20px;
+      border-radius: var(--radius);
+      background: var(--surface-soft);
+    }
+
+    .next strong { color: var(--accent-dark); }
+
+    .runbook {
+      padding-block: 86px;
+      border-top: 1px solid var(--line);
+    }
+
+    details {
+      max-width: 820px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--surface);
+    }
+
+    summary {
+      padding: 18px 20px;
+      cursor: pointer;
+      font-weight: 740;
+    }
+
+    pre {
+      margin: 0;
+      padding: 20px;
+      overflow-x: auto;
+      border-top: 1px solid var(--line);
+      background: oklch(0.23 0.025 200);
+      color: oklch(0.95 0.012 188);
+      font: 0.9rem/1.7 Consolas, monospace;
+    }
+
+    footer {
+      padding-block: 34px;
+      border-top: 1px solid var(--line);
+      color: var(--muted);
+      font-size: 0.86rem;
+    }
+
+    .footer-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 24px;
+    }
+
+    @media (max-width: 900px) {
+      .hero,
+      .progress-section {
+        grid-template-columns: 1fr;
+      }
+
+      .hero { min-height: auto; }
+      .product-shot { max-width: 720px; }
+      .metrics { grid-template-columns: repeat(2, 1fr); }
+      .route li:not(:last-child)::after { content: none; }
+    }
+
+    @media (max-width: 620px) {
+      .shell { width: min(calc(100% - 28px), var(--max)); }
+      .nav-links a:not(:last-child) { display: none; }
+      h1 { font-size: clamp(2.8rem, 16vw, 4.2rem); }
+      .metrics { grid-template-columns: 1fr; }
+      .metric { min-height: 120px; }
+      .check { grid-template-columns: 24px 1fr; }
+      .state { grid-column: 2; }
+      .footer-row { display: block; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      html { scroll-behavior: auto; }
+      *, *::before, *::after { transition: none !important; }
+    }
+
+    @media (prefers-reduced-transparency: reduce) {
+      .topbar { background: var(--page); backdrop-filter: none; }
+    }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <nav class="shell nav" aria-label="Primary navigation">
+      <a class="brand" href="#top" aria-label="ClaimRoute AI home">
+        <span class="brand-mark" aria-hidden="true">CR</span>
+        <span>ClaimRoute AI</span>
+      </a>
+      <div class="nav-links">
+        <a href="#evidence">Evidence</a>
+        <a href="#progress">Progress</a>
+        <a href="https://github.com/iamnawin/ClaimRoute-AI">GitHub</a>
+      </div>
+    </nav>
+  </header>
+
+  <main id="top">
+    <section class="shell hero" aria-labelledby="hero-title">
+      <div>
+        <p class="status-line">Day 10 prototype complete</p>
+        <h1 id="hero-title">Route every field with evidence.</h1>
+        <p class="lede">Healthcare claims extraction with local OCR, governed retries, selective escalation, and visible cost controls.</p>
+        <div class="actions">
+          <a class="button" href="#progress">Review progress</a>
+          <a class="button secondary" href="https://github.com/iamnawin/ClaimRoute-AI">View source</a>
+        </div>
+      </div>
+      <figure class="product-shot">
+        <img src="https://raw.githubusercontent.com/iamnawin/ClaimRoute-AI/main/docs/screenshots/day10_home.png" alt="ClaimRoute Streamlit interface showing a safe synthetic claim and balanced operating mode" width="1600" height="1200">
+        <figcaption>Day 10 Streamlit prototype using a bundled zero-PHI synthetic claim.</figcaption>
+      </figure>
+    </section>
+
+    <section class="shell evidence" id="evidence" aria-labelledby="evidence-title">
+      <div class="section-heading">
+        <h2 id="evidence-title">Verified, not estimated.</h2>
+        <p>These results come from the tested Day 10 build. Projected scale costs remain separately labeled inside the application.</p>
+      </div>
+      <ul class="metrics" aria-label="Verified project evidence">
+        <li class="metric"><strong>75/75</strong><span>Automated tests passed</span></li>
+        <li class="metric"><strong>46</strong><span>Fields resolved in the clean synthetic run</span></li>
+        <li class="metric"><strong>0</strong><span>External API calls during verification</span></li>
+        <li class="metric"><strong>$0</strong><span>Measured external API spend</span></li>
+      </ul>
+    </section>
+
+    <section class="architecture" aria-labelledby="architecture-title">
+      <div class="shell">
+        <div class="section-heading">
+          <h2 id="architecture-title">Cost governance is in the route.</h2>
+          <p>Each field advances only as far as its confidence and validation evidence require.</p>
+        </div>
+        <ol class="route" aria-label="ClaimRoute processing architecture">
+          <li>Document</li>
+          <li>Preprocess</li>
+          <li>Primary OCR</li>
+          <li>Validate</li>
+          <li>Cost Governor</li>
+          <li>Local Retry</li>
+          <li>Selective Escalation</li>
+          <li>Structured Output</li>
+        </ol>
+      </div>
+    </section>
+
+    <section class="shell progress-section" id="progress" aria-labelledby="progress-title">
+      <div>
+        <h2 id="progress-title">What is ready now</h2>
+        <p>The public page tracks completed work without presenting roadmap items as finished.</p>
+        <p class="next"><strong>Next:</strong> Day 11 frozen-test verification and deployment readiness. No official PHI is included in this public site.</p>
+      </div>
+      <fieldset class="checklist">
+        <legend class="visually-hidden">Completed ClaimRoute capabilities</legend>
+        <label class="check">
+          <input type="checkbox" checked disabled>
+          <span><strong>Extraction pipeline</strong><small>Preprocessing, document classification, OCR, layout mapping, and validation.</small></span>
+          <span class="state">Complete</span>
+        </label>
+        <label class="check">
+          <input type="checkbox" checked disabled>
+          <span><strong>Cost Governor</strong><small>Accept, flag, retry, selective escalation, and human review decisions.</small></span>
+          <span class="state">Complete</span>
+        </label>
+        <label class="check">
+          <input type="checkbox" checked disabled>
+          <span><strong>Synthetic benchmark evidence</strong><small>Clean, noisy, ugly, and blended test tiers with replayable receipts.</small></span>
+          <span class="state">Complete</span>
+        </label>
+        <label class="check">
+          <input type="checkbox" checked disabled>
+          <span><strong>Operator prototype</strong><small>Safe synthetic selection, local upload, route inspection, costs, and JSON exports.</small></span>
+          <span class="state">Complete</span>
+        </label>
+        <label class="check">
+          <input type="checkbox" checked disabled>
+          <span><strong>Demo and operations evidence</strong><small>Local runbook, judged-demo script, screenshot-safe mode, and automated tests.</small></span>
+          <span class="state">Complete</span>
+        </label>
+      </fieldset>
+    </section>
+
+    <section class="runbook" aria-labelledby="run-title">
+      <div class="shell">
+        <div class="section-heading">
+          <h2 id="run-title">Run the working prototype locally</h2>
+          <p>Netlify hosts this project-status page. The Python Streamlit application runs from the repository.</p>
+        </div>
+        <details>
+          <summary>Local startup commands</summary>
+          <pre><code>uv venv
+uv pip install -r requirements.txt
+.venv\Scripts\python.exe -m streamlit run app\streamlit_app.py</code></pre>
+        </details>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="shell footer-row">
+      <span>ClaimRoute AI. Datamatics AI Engineering Hackathon 2026.</span>
+      <span>Public page contains synthetic evidence only.</span>
+    </div>
+  </footer>
+</body>
+</html>
