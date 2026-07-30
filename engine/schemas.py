@@ -115,6 +115,7 @@ class PageResult:
     quality_score: float = 0.0
     fields: dict = field(default_factory=dict)   # field_name -> FieldResult
     decisions: dict = field(default_factory=dict)  # field -> [(state, reason), ...]
+    escalations: dict = field(default_factory=dict)  # field -> escalate_field() record
 
     def to_json_dict(self) -> dict:
         """Final structured output: value + validation stamp + provenance + cost."""

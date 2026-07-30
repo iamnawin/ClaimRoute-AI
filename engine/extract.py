@@ -11,6 +11,7 @@ import time
 import yaml
 from PIL import Image
 
+from engine.escalate import escalate_field
 from engine.fusion import fuse
 from engine.governor import apply
 from engine.ledger import CostLedger
@@ -23,6 +24,7 @@ from engine.router import route
 from engine.schemas import Attempt, FieldResult, FieldState, PageResult
 
 _PRICES = yaml.safe_load(open("configs/prices.yaml"))
+_PIPE = yaml.safe_load(open("configs/pipeline.yaml"))
 VCPU_HOUR = _PRICES["compute"]["vcpu_hour_usd"]
 
 
@@ -32,7 +34,9 @@ def _cpu_cost(ms: float) -> float:
 
 def run_page(img: Image.Image, doc_id: str, ledger: CostLedger,
              primary_engine: str = "paddle", prep: bool = True,
-             run_retry: bool = True, preset_name: str | None = None) -> PageResult:
+             run_retry: bool = True, preset_name: str | None = None,
+             run_escalate: bool = False, escalate_model: str | None = None,
+             tier: str = "clean") -> PageResult:
     # Tier 0
     t0 = time.perf_counter()
     if prep:
@@ -99,6 +103,21 @@ def run_page(img: Image.Image, doc_id: str, ledger: CostLedger,
             retry_field(fr, work, r["document_type"], r["variant"],
                         values, page.quality_score, ledger)
             # Every retried candidate re-enters the governor after revalidation.
+            state, reason = apply(fr, preset_name)
+            page.decisions[name].append((state.value, reason))
+
+    # ---- Tier 2: selective, policy-governed escalation (the only paid rung) ----
+    # Only fields the governor routed to ESCALATE reach here: the 4.96% that
+    # survived every free and near-free stage. Everything else costs nothing more.
+    if run_escalate:
+        model = escalate_model or _PIPE["escalation"]["active_model"]
+        for name, fr in page.fields.items():
+            if fr.state != FieldState.ESCALATE:
+                continue
+            rec = escalate_field(fr, work, r["document_type"], r["variant"],
+                                 values, page.quality_score, ledger, model,
+                                 tier=tier)
+            page.escalations[name] = rec
             state, reason = apply(fr, preset_name)
             page.decisions[name].append((state.value, reason))
 

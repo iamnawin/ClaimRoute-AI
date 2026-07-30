@@ -48,12 +48,29 @@ def decide(fr: FieldResult, preset_name: str | None = None) -> tuple[FieldState,
     escalations_left = fr.attempts_used("multimodal") < BUDGET["multimodal"]
     may_escalate = p.get("external_model_allowed", True) and escalations_left
 
+    def flaggable() -> bool:
+        """May this field be accepted with a flag instead of being bought or
+        escalated to a human? Policy decides; criticality only sets the default.
+        A field whose policy says `allow_accept_with_flag: true` means it."""
+        return (ps["allow_accept_with_flag"] and p.get("allow_accept_with_flag")
+                and p.get("criticality") != "high")
+
     def next_rung(reason: str) -> tuple[FieldState, str]:
         """Cheapest remaining rung, in ladder order."""
         if retries_left:
             return FieldState.RETRY, f"{reason}; retry budget available"
         if may_escalate:
             return FieldState.ESCALATE, f"{reason}; retry exhausted"
+        # Budget exhausted. Before spending a human touch (the most expensive
+        # lane there is), re-ask the cheap question: did the rungs we already
+        # PAID FOR leave this field good enough to flag? Escalation buys
+        # evidence; discarding that evidence because a counter hit zero would
+        # bill twice for the same field and learn nothing.
+        if not failed and conf >= ps["escalate_threshold"] and flaggable():
+            return (FieldState.ACCEPT_WITH_FLAG,
+                    f"attempts exhausted; validators clean, conf {conf:.2f} "
+                    f"tolerable for {p.get('criticality')} criticality — "
+                    f"flagged rather than sent to a human")
         return FieldState.HUMAN_REVIEW, f"{reason}; attempt budget exhausted"
 
     # 0. Legitimately-blank optional box: accept as empty, spend nothing.
@@ -76,10 +93,11 @@ def decide(fr: FieldResult, preset_name: str | None = None) -> tuple[FieldState,
 
     # 4. Middle band: non-critical fields may be accepted with a flag rather
     #    than spending on them (the cheapest legitimate resolution).
-    if (conf >= ps["escalate_threshold"] and ps["allow_accept_with_flag"]
-            and p.get("allow_accept_with_flag") and p.get("criticality") == "low"):
+    #    High-criticality fields are never flagged their way out of scrutiny.
+    if conf >= ps["escalate_threshold"] and flaggable():
         return (FieldState.ACCEPT_WITH_FLAG,
-                f"low criticality, validators clean, conf {conf:.2f} tolerable")
+                f"{p.get('criticality')} criticality, validators clean, "
+                f"conf {conf:.2f} tolerable")
 
     # 5. Otherwise buy more evidence, cheapest rung first.
     return next_rung(f"conf {conf:.2f} below accept threshold")

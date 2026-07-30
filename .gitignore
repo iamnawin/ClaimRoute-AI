@@ -8,3 +8,6 @@ eval/results/cache/
 .streamlit/
 *.egg-info/
 .pytest_cache/
+.claude-flow/
+eval/results/_smoke_*.jsonl
+eval/results/vision_cache.jsonl

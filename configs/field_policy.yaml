@@ -21,7 +21,10 @@ fields:
   patient_dob:           { criticality: high, required_validators: [date_valid, dob_before_service] }
   patient_sex:           { criticality: low,  allow_accept_with_flag: true }
   insured_name:          { criticality: med,  required_validators: [name_format] }
-  patient_address:       { criticality: low,  allow_accept_with_flag: true }
+  # Street address is the most re-identifying free-text field on the form: it is
+  # never permitted to leave the trust boundary, regardless of confidence. Low
+  # criticality means it can be flagged instead — cheaper AND safer.
+  patient_address:       { criticality: low,  allow_accept_with_flag: true, external_model_allowed: false }
   patient_city:          { criticality: low,  allow_accept_with_flag: true }
   patient_state:         { criticality: low,  allow_accept_with_flag: true }
   patient_zip:           { criticality: med,  required_validators: [zip_format] }

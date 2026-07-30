@@ -29,6 +29,28 @@ active_preset: balanced
 model_policy:
   # PHI minimisation through field-level isolation and policy-governed escalation.
   send_full_pages_externally: false      # crops only, never full pages — enforced at the boundary
-  approved_providers: []                 # filled after Day 8 vision bake-off
+  # Only a model listed here may be called. An unlisted model is blocked BEFORE
+  # the request, and the block is logged (operation=escalate_blocked).
+  approved_providers: [offline-oracle, gpt-5-nano, gemini-2.5-flash-lite]
   require_zero_retention: true
   audit_all_external_requests: true
+
+  # Crop bounds — enforced structurally in engine/cropper.py, not by convention.
+  crop_margin_px: 12
+  max_crop_page_fraction: 0.25   # a "crop" larger than this is a page; refuse to send it
+
+  cache_path: eval/results/vision_cache.jsonl
+
+  # Offline oracle = DETERMINISTIC TEST DOUBLE for the escalation boundary.
+  # Its accuracy is NOT evidence about any real model; its cost is PROJECTED
+  # from token counts priced against configs/prices.yaml, never measured spend.
+  offline_oracle:
+    price_as: gpt-5-nano
+    image_tokens: 260
+    p_wrong: 0.06         # confidently wrong transcription
+    p_ungrounded: 0.04    # value not backed by its own visible_text (hallucination)
+    p_prose: 0.02         # answers with prose instead of JSON
+    p_blank: 0.03         # claims the box is empty
+
+escalation:
+  active_model: offline-oracle   # swap to gpt-5-nano / gemini-2.5-flash-lite with a key set
