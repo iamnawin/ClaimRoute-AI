@@ -1,5 +1,70 @@
 # Handoff — claims-engine (Day 11 frozen evidence verified)
 
+## Session log - 30 Jul 2026 (official Tier A registration diagnosis)
+
+Starting commit `34e8df3` on `main`, clean tree, synchronized with `origin/main`.
+
+**Objective:** prove one official Tier A CMS-1500 page can be registered so its field crops
+contain the correct printed values.
+
+**Proof document:** Tier A, source id `5858cb1e596e` (SHA-256 prefix), page 1 of 1,
+1712 x 2214 px, 200 DPI, 1-bit CCITT G4. Deterministically linked to expected record
+ordinal 1 with score 37 / margin 36 (the strongest link in Tier A). Form revision printed
+on the page: **FORM 1500 (02-12)**, approved OMB-0938-1197.
+
+**Root cause of the registration mismatch: WRONG CANONICAL TEMPLATE GEOMETRY.**
+Not translation, scale, rotation, perspective, DPI, or cropped margins.
+
+Evidence, measured on the proof page:
+
+1. Templates are stored in *normalized* [0..1] coordinates against a form extent
+   (`engine/layout/build_templates.py`, `coord_frame: "red-grid extent"`), so page size and
+   DPI differences are already absorbed. Page-size mismatch cannot be the cause.
+2. Locating expected values by OCR and comparing to the template prediction gives
+   **inconsistent per-field displacement**: `patient_name` dx=+0.040 dy=+0.072, but
+   `insured_id` dx=**+0.496** dy=+0.025. A displacement spread of ~0.46 of page width
+   cannot be produced by any single rigid or affine transform.
+3. The reason is semantic. `data_factory/render_cms1500.py:56` draws Box 1a
+   (`insured_id`) at `MARGIN` — far left, normalized x 0.006-0.106. On the genuine
+   CMS-1500 the same box is top **right**; OCR finds it at x≈852/1696 ≈ 0.50.
+   The synthetic form is a stylized approximation of a CMS-1500, not a faithful
+   reproduction of its box geometry.
+4. Template regions consequently land on unrelated boxes: `insured_id` -> "PICA / 7. MEDICARE"
+   (header), `patient_name` -> the address row, `total_charge` -> the assignment/signature area.
+
+**Secondary defect (contributing, not causal):** `grayscale_form_extent` uses a 0.2% ink
+quantile and therefore anchors to a 1-6 px black scanner border present on 12/12 Tier A pages,
+returning extent `[0, 0, 1696, 2136]` on the proof page instead of the true form extent.
+Small compared to defect 1, but it must be fixed for any registration to be reproducible.
+
+**Independent third defect — OCR/normalization, below registration.** Even with perfect
+registration, only **7 of 12** expected values for this document match the OCR text under
+exact comparison (58.3% ceiling). Inspection shows most of the shortfall is format, not
+recognition, and falls into three classes:
+
+- **Date format:** the record stores `YYYYMMDD`; the form prints `MM DD YYYY` in separate
+  boxes. The digits are read correctly and the comparison still fails.
+- **Punctuation/separator:** currency is printed with different separator conventions than
+  the fixed-width record stores.
+- **Genuinely not printed:** at least one record field has no corresponding printed box on
+  this form, so it is unreachable by any extraction method and must be excluded from the
+  denominator rather than scored as an OCR failure.
+
+Crop correctness, OCR correctness and normalization correctness must therefore be reported
+separately, never blended. Literal field values are deliberately omitted from this log; they
+are organiser record data and stay out of tracked files.
+
+**Consequence for scope.** Correct registration requires authoring an *official* CMS-1500
+(02-12) template family from the real form geometry, not adjusting a transform. That is new
+canonical data, and per `docs/official_dataset_benchmark.md` it must be built on a separately
+declared calibration subset and frozen before any untouched item is scored. That work was
+**not** started in this session: no template was authored and no transform was implemented,
+so no accuracy improvement is claimed.
+
+**Repository changes this session:** `.gitignore` only (ignore `eval/official/diagnostics/`,
+which renders organiser page pixels and must never be committed). No engine, template,
+evaluator or frozen-benchmark file was modified. Frozen synthetic evidence is unchanged.
+
 ## Session log - 30 Jul 2026 (public deployment update)
 
 1. **Public showcase:** `https://claimrouteai.netlify.app/` is reachable. Netlify serves the

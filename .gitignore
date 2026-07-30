@@ -25,6 +25,9 @@ data/generated/cms1500/ugly/ground_truth/*
 !data/generated/cms1500/ugly/images/cms1500_42_0000.png
 !data/generated/cms1500/ugly/ground_truth/cms1500_42_0000.json
 eval/results/cache/
+# Registration diagnostics render ORGANISER page pixels (potential PHI).
+# Local inspection only — never committed. See docs/security_and_phi.md.
+eval/official/diagnostics/
 .streamlit/
 !.streamlit/
 !.streamlit/config.toml
