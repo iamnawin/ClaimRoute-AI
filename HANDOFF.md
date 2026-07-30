@@ -1,4 +1,4 @@
-# Handoff — claims-engine (Day 10 working UI verified)
+# Handoff — claims-engine (Day 11 frozen evidence verified)
 
 ## Status
 
@@ -7,20 +7,61 @@ Day 7: COMPLETE
 Day 8: COMPLETE
 Day 9: COMPLETE
 Day 10: COMPLETE
+Day 11: COMPLETE
 ```
 
 All supported by test evidence below. Architecture v1.2 remains locked.
 
 | | |
 |---|---|
-| Current phase | Working prototype UI and safe local demo workflow (Day 10) |
+| Current phase | Frozen synthetic evidence and submission audit (Day 11) |
+| Frozen benchmark commit | `8324d600fa61ad7c6a57f7c70e3126232bd4e602` |
 | Last verified UI commit | `7701e49` on `main`; feature, test, and presentation commits are separate |
 | Working branch | `main` (preserve concurrent Day 7 result changes and `docs/MEMORY.md`) |
 | Safety branch | `safety/day8-pre-audit` → `07b3857`, kept as a pre-audit restore point |
-| Tests passed | **75 / 75** (64 existing + 11 Day 10 application tests) |
+| Tests passed | **83 / 83** |
 | Tests failed | **0** |
 | Dependency status | requirements.txt synchronized, licence table complete, clean-venv install verified |
 | Architecture status | v1.2 locked, unchanged by this audit |
+
+## Session log - 30 Jul 2026 (Day 11 frozen evidence)
+
+1. **Freeze:** committed the evaluation harness first, then froze the clean tree at `8324d60`.
+   `eval/frozen/frozen_manifest.json` records the commit, environment, operating mode, dataset,
+   commands, and evidence labels. Architecture v1.2 and all thresholds/policies remain unchanged.
+2. **Dataset:** 30 held-out synthetic documents, each rendered clean/noisy/ugly = 90 pages and
+   3,168 ground-truth fields. Calibration/test overlap = 0; duplicate rows/pages = 0; test SHA-256
+   `4d70876b676cc06a4b2558e3d1a49450f826803c4b8d85f89041b91c80d2be5a`.
+3. **Blended Balanced result:** 99.716% field accuracy, 99.936% critical-field accuracy,
+   93.303% primary local resolution, 6.697% local retry, 71.560% retry resolution, 1.905%
+   escalation, 4.839% escalation resolution, 10.353% accept-with-flag, and 1.813% human review.
+4. **Tier accuracy / critical / human review:** clean 99.905% / 100% / 0%; noisy 99.811% /
+   100% / 1.106%; ugly 99.432% / 99.807% / 4.332%.
+5. **Cost:** measured external calls = 0 and measured API spend = $0. Measured local cost is
+   $0.0000722/page. Projected selective-oracle API cost is $0.0000227/page and projected total
+   automated cost is $0.0000949/page. Human review is a separate configured assumption.
+6. **Throughput:** 90 pages in 586.931 seconds; 9.200 pages/minute, 552.024 pages/hour,
+   6.521-second mean, 5.269-second p50, and 10.825-second p95 on the recorded development
+   workstation. This is not a production throughput claim; memory/provider latency were unmeasured.
+7. **Ablations:** primary-only 66.351%; preprocessing 99.527%; validators expose 6.881%
+   unresolved; local retry reaches 99.842% with 1.957% unresolved; full governed pipeline reaches
+   99.716% with 1.862% unresolved. A validators-disabled full pipeline is unsupported and was not
+   invented after freeze.
+8. **Config SHA-256:** `engines.yaml` `2ab91b47...d0dcb77`; `field_policy.yaml`
+   `f08543f7...6244bd`; `operating_modes.yaml` `bb56ade8...372093`; `pipeline.yaml`
+   `dfb8afae...a3c90d`; `prices.yaml` `96d1ab06...9a8c1`. Full hashes, critical runtime hashes,
+   and environment metadata are in `eval/frozen/config_hashes.json`.
+9. **Safety/licensing:** official-looking data remains excluded; no external provider or tracked
+   secret/PHI/local dataset was found. Installed dependency license metadata is recorded in
+   `docs/licensing.md`; provider and dataset terms remain separate approval tracks.
+10. **Known limitations:** synthetic generalization is unverified; offline oracle is not provider
+    accuracy/latency evidence; ugly escalations had zero governor-accepted resolution; production
+    controls and throughput are untested; degraded overlays can be offset in processed coordinates.
+11. **Unresolved organizer questions:** official image-to-output mapping, permitted purpose, PHI
+    status, retention/deletion, and named-provider crop permissions.
+12. **Next exact task:** build the final presentation and recorded synthetic demo using
+    `docs/submission/claims_register.md`; fix or visibly disclose the degraded-overlay coordinate
+    limitation before recording.
 
 ## Session log — 30 Jul 2026 (Day 10 UI)
 

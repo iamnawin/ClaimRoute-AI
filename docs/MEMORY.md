@@ -1,5 +1,30 @@
 
-# ClaimRoute Day 10 UI memory
+# ClaimRoute project memory
+
+## Day 11 frozen submission audit - 30 Jul 2026
+
+- Frozen anchor: `8324d600fa61ad7c6a57f7c70e3126232bd4e602`; architecture v1.2 and runtime
+  thresholds/policies unchanged after results.
+- Test boundary: 30 held-out synthetic documents x clean/noisy/ugly = 90 pages, 3,168 fields;
+  zero calibration overlap, zero duplicate rows, official data excluded, zero external calls.
+- Balanced blended: 99.716% field accuracy, 99.936% critical accuracy, 93.303% primary local
+  resolution, 6.697% retry, 1.905% escalation, 1.813% human review.
+- Cost: $0 measured API spend; $0.0000722/page measured local usage at configured price;
+  $0.0000227/page projected oracle API; $0.0000949/page projected automated total.
+- Prototype throughput: 9.200 pages/minute, 6.521-second mean, 5.269-second p50,
+  10.825-second p95. This is not production evidence.
+- Main limitation: ugly-tier escalated fields had zero governor-accepted resolution under the
+  locked policy. Do not tune after freeze; report it and retain human review.
+- Created frozen manifests/rows/pages/ledger/summaries/ablations/cost projections plus methodology,
+  cost, throughput, licensing, security, judging, evidence, and claims documents.
+- Streamlit benchmark source now reads the final frozen synthetic summary. Netlify remains a static
+  project-status page only and must never accept official claims.
+- Approved headline: "Balanced achieved 99.716% exact field accuracy on the frozen synthetic
+  benchmark." Never convert this into a real-claims, real-provider, or production-scale claim.
+- Next: final presentation and recorded synthetic demo; fix or disclose the degraded overlay's
+  processed-coordinate offset before recording.
+
+## Day 10 UI memory
 
 Date: 30 Jul 2026
 Status: COMPLETE
