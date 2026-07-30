@@ -41,6 +41,19 @@ mode. PNG, JPEG, and single-page TIFF uploads are accepted up to 10 MB. Uploaded
 always remain local-only and never invoke an external provider. See
 `docs/operations/local_app_runbook.md` and `docs/demo_script.md` before a judged demo.
 
+## Frozen Day 11 evidence
+
+Balanced mode achieved **99.716% exact field accuracy** and **99.936% critical-field accuracy**
+on the frozen synthetic test split: 30 documents rendered across clean, noisy, and ugly tiers
+(90 pages / 3,168 fields). Measured external API spend was **$0**. Measured local processing
+prices to **$0.0000722/page** at the configured compute rate; projected selective-oracle automated
+cost is **$0.0000949/page**. Prototype throughput was **9.20 pages/minute** on the recorded
+development workstation.
+
+These are synthetic-test results, not real-claim or provider-accuracy claims. Start with
+`docs/submission/evidence_index.md` and `docs/submission/claims_register.md`; exact manifests and
+receipts are under `eval/frozen/`.
+
 ## Licensing
 
 Every component below is open source and permissively licensed (MIT, BSD, or Apache-2.0);
@@ -49,16 +62,16 @@ the installed version, not inferred.
 
 | Component | Version | Purpose | Licence | Scope | Source |
 |---|---|---|---|---|---|
-| Pillow | 12.1.1 | Image IO, rendering, geometric ops | MIT-CMU | runtime | [python-pillow/Pillow](https://github.com/python-pillow/Pillow) |
-| NumPy | 2.3.0 | Array maths for preprocessing, router, guardrail | BSD-3-Clause | runtime | [numpy/numpy](https://github.com/numpy/numpy) |
-| PyYAML | 6.0.2 | Config loading (`configs/*.yaml`) | MIT | runtime | [yaml/pyyaml](https://github.com/yaml/pyyaml) |
+| Pillow | 12.3.0 | Image IO, rendering, geometric ops | MIT-CMU | runtime | [python-pillow/Pillow](https://github.com/python-pillow/Pillow) |
+| NumPy | 2.4.6 | Array maths for preprocessing, router, guardrail | BSD-3-Clause AND 0BSD AND MIT AND Zlib AND CC0-1.0 | runtime | [numpy/numpy](https://github.com/numpy/numpy) |
+| PyYAML | 6.0.3 | Config loading (`configs/*.yaml`) | MIT | runtime | [yaml/pyyaml](https://github.com/yaml/pyyaml) |
 | Faker | 40.36.0 | Synthetic claim field values (data factory) | MIT | runtime | [joke2k/faker](https://github.com/joke2k/faker) |
-| rapidocr-onnxruntime | 1.2.3 | PP-OCR inference via ONNX (primary OCR, on-prem) | Apache-2.0 | runtime | [RapidAI/RapidOCR](https://github.com/RapidAI/RapidOCR) |
+| rapidocr-onnxruntime | 1.4.4 | PP-OCR inference via ONNX (primary OCR, on-prem) | Apache-2.0 | runtime | [RapidAI/RapidOCR](https://github.com/RapidAI/RapidOCR) |
 | pytesseract | 0.3.13 | Python wrapper for the Tesseract binary (retry OCR) | Apache-2.0 | runtime | [madmaze/pytesseract](https://github.com/madmaze/pytesseract) |
 | Tesseract OCR | 5.4.0 | OCR engine binary — **not a Python package**, installed separately | Apache-2.0 | runtime, external | [tesseract-ocr/tesseract](https://github.com/tesseract-ocr/tesseract) |
-| onnxruntime | 1.20.1 | Inference runtime (transitive, via rapidocr-onnxruntime) | MIT | runtime, transitive | [microsoft/onnxruntime](https://github.com/microsoft/onnxruntime) |
+| onnxruntime | 1.28.0 | Inference runtime (transitive, via rapidocr-onnxruntime) | MIT | runtime, transitive | [microsoft/onnxruntime](https://github.com/microsoft/onnxruntime) |
 | OpenCV (opencv-python) | 5.0.0.93 | Image ops (transitive, via rapidocr-onnxruntime) | Apache-2.0 | runtime, transitive | [opencv/opencv-python](https://github.com/opencv/opencv-python) |
-| Streamlit | 1.41+ | Local demo application | Apache-2.0 | runtime | [streamlit/streamlit](https://github.com/streamlit/streamlit) |
+| Streamlit | 1.60.0 | Local demo application | Apache-2.0 | runtime | [streamlit/streamlit](https://github.com/streamlit/streamlit) |
 | pytest | 9.1.1 | Test runner | MIT | development | [pytest-dev/pytest](https://github.com/pytest-dev/pytest) |
 
 No cloud OCR or vision service is required to run the pipeline: Tier-1 extraction is fully

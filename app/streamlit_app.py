@@ -252,7 +252,8 @@ def _render_modes(st):
 def _render_benchmark(st):
     benchmark = service.load_benchmark_summary()
     calibration = service.load_calibration_summary()
-    st.warning("Synthetic benchmark with offline-oracle projection. Not the final official benchmark.")
+    st.warning("Final frozen synthetic benchmark with offline-oracle projection. "
+               "Not evidence on official or real claims.")
     rows = []
     for tier in ("clean", "noisy", "ugly", "blended"):
         metrics = benchmark["blended"] if tier == "blended" else benchmark["per_tier"][tier]

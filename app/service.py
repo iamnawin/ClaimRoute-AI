@@ -21,7 +21,7 @@ from engine.schemas import FieldState, PageResult
 ROOT = Path(__file__).resolve().parents[1]
 MODES_PATH = ROOT / "configs" / "operating_modes.yaml"
 CALIBRATION_PATH = ROOT / "eval" / "results" / "day9_calibration_summary.json"
-BENCHMARK_PATH = ROOT / "eval" / "results" / "day8_escalation_summary.json"
+BENCHMARK_PATH = ROOT / "eval" / "frozen" / "final_benchmark_summary.json"
 SYNTHETIC_ROOT = ROOT / "data" / "generated"
 
 DEFAULT_MODE = "balanced"

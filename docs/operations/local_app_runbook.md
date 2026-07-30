@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Run the Day 10 Streamlit application against bundled synthetic claims or a local raster image.
+Run the ClaimRoute Streamlit application against bundled synthetic claims or a local raster image.
 The UI calls `engine.extract.run_page`; it contains no OCR, validation, or governor implementation.
 
 ## Install and start
@@ -59,7 +59,7 @@ python -m pytest tests/test_day10.py -q
 python -m pytest tests/ -q
 ```
 
-Manual verification completed on 30 Jul 2026:
+Day 10 manual workflow verification completed on 30 Jul 2026:
 
 | Document | Mode | Fields | Local accepts | Retries | Escalations | Human review | API calls avoided |
 |---|---|---:|---:|---:|---:|---:|---:|
@@ -67,6 +67,9 @@ Manual verification completed on 30 Jul 2026:
 | `cms1500_42_0000 / ugly` | Balanced | 46 | 32 | 3 | 1 | 1 | 45 |
 
 Both runs used zero external API calls. Offline-oracle cost is projected; measured API spend is $0.
+The Benchmark tab now reads the frozen Day 11 synthetic summary from
+`eval/frozen/final_benchmark_summary.json`; the accuracy-cost frontier remains Day 9 replay
+calibration evidence and is labelled accordingly.
 
 ## Known limitations
 
@@ -75,7 +78,7 @@ Both runs used zero external API calls. Offline-oracle cost is projected; measur
 - Bounding boxes are returned in processed-page coordinates. An overlay on a heavily degraded
   source image can be visually offset.
 - Uploaded images remain local-only, so fields requiring Tier 2 finish at escalation or human review.
-- Day 9 metrics are replay calibration evidence. Current extraction still uses the locked v1.2
+- Day 9 frontier metrics are replay calibration evidence. Current extraction still uses the locked v1.2
   runtime presets in `configs/pipeline.yaml`; UI work did not retune them.
 - Human override workflow and authenticated review queues are not part of the hackathon UI.
 

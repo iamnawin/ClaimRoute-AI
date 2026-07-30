@@ -1,0 +1,18 @@
+{
+  "sha256": {
+    "configs/engines.yaml": "2ab91b47c27a885f8553bfb415941f6f8b0ca91275d54203801ba7fcda0dcb77",
+    "configs/field_policy.yaml": "f08543f7f07c97a46c1c171960578d46e4f87d98114ad224353beb94c86244bd",
+    "configs/operating_modes.yaml": "bb56ade800f57b6d4b6b9e2643ddd4d069b8357cc0dd974818f428978c372093",
+    "configs/pipeline.yaml": "dfb8afaef089ee08720d96d37b6c92717874320d184a9c90d67957058ddb4811",
+    "configs/prices.yaml": "96d1ab0695597d37450e1dbad670df0c00a956be23228490ed1912d42f69a8c1",
+    "data/generated/manifest.json": "ba29a2e8d0f71672408082632ba6046811ab0862e8f57fc549816d2be1e8ce5c",
+    "engine/cropper.py": "a1d6bb4a80c08432f1184d6043c07d1c10c92e5edb34017768cf295c054ad11f",
+    "engine/escalate.py": "43897b915fb994ba1c11203d837f7b880333195ff329a64526e31689bde9f3c8",
+    "engine/governor.py": "04ad46057364f79beadcccea9423f50bfa578ad3655c3b2296a02c6edd52e1b2",
+    "engine/preprocess.py": "0e2a3317b19f02e21daf4a6779ad3a50f5e19d1de26cd53ea428cccebcbab476",
+    "engine/retry_rung.py": "cc42da496fe89075f82b68f9e310246e5322e929a9f41bc5f29320b75f632f86",
+    "engine/validators/registry.py": "2799503be91e5a7dc36022dea62b069919d863b58020f799ba57a1e6fb29ed67",
+    "eval/splits/split_v1.json": "0b543ea626b716750ffcbace342645ef166fee7fd38593917190c46f93575818",
+    "requirements.txt": "58e4e686f459c3d9f25dd947af49833bf5c56d9d57b45aa88706b29da2045c08"
+  }
+}

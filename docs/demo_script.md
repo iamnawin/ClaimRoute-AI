@@ -50,10 +50,13 @@ Open Operating modes. The table is loaded from the Day 9 calibration output.
 
 ### Show benchmark evidence
 
-Open Benchmark and state the label exactly: "Synthetic benchmark with offline-oracle projection."
+Open Benchmark and state the label exactly: "Final frozen synthetic benchmark with offline-oracle
+projection. Not evidence on official or real claims."
 
 Show clean, noisy, ugly, blended, critical-field accuracy, escalation, human review, projected
-cost per page, and the accuracy-cost frontier. Do not call it the final official benchmark.
+cost per page, and the accuracy-cost frontier. The headline is 99.716% exact field accuracy,
+99.936% critical-field accuracy, 1.905% escalation, 1.813% human review, and $0.0000949/page
+projected automated cost across 90 synthetic pages. Do not call it an official-data benchmark.
 
 ### Export the receipt
 
@@ -74,10 +77,11 @@ projections are explicitly labeled PROJECTED. Mode thresholds are labeled CONFIG
 
 **Is the benchmark official?**
 
-No. It is a synthetic calibration benchmark. Official dataset use remains blocked until role,
-mapping, retention, and PHI handling are confirmed.
+No. It is the final frozen **synthetic** test benchmark. Official dataset use remains blocked until
+role, mapping, retention, PHI handling, and provider permissions are confirmed.
 
 ## Fallback
 
-If the live pipeline is unavailable, show `docs/screenshots/day10_home.png` and the committed Day 8
-and Day 9 evidence. Do not show official claims or substitute hard-coded extraction results.
+If the live pipeline is unavailable, show `docs/screenshots/day10_home.png` and the committed Day 11
+summary in `eval/frozen/final_benchmark_summary.json`. Do not show official claims or substitute
+hard-coded extraction results.

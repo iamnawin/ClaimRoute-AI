@@ -1,0 +1,6 @@
+arm,status,pages,evaluated_fields,accuracy,critical_field_accuracy,unresolved_rate,human_review_rate,local_cost_per_page_usd,projected_automated_cost_per_page_usd,average_latency_ms,throughput_pages_per_minute,routing_denominator_fields
+primary_ocr_only,measured,90,3168,0.6635101,0.66666667,0.33585859,0.0,3.778e-05,3.778e-05,2720.18933333,22.05728817,3255
+primary_plus_preprocessing,measured,90,3168,0.99526515,0.99935525,0.00378788,0.0,6.635e-05,6.635e-05,4777.62233333,12.55854813,3255
+primary_plus_validators,measured,90,3168,0.99526515,0.99935525,0.06881313,0.0,6.636e-05,6.636e-05,4778.28277778,12.55681231,3255
+primary_validators_local_retry,measured,90,3168,0.99842172,0.99935525,0.01957071,0.0,7.22e-05,7.22e-05,5198.48522222,11.54182371,3255
+full_cost_governed_pipeline,measured local plus projected offline-oracle,90,3168,0.99715909,0.99935525,0.01862374,0.01862374,7.22e-05,9.49e-05,6521.45659556,9.20039858,3255

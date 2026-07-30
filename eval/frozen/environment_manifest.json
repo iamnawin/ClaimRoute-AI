@@ -1,0 +1,61 @@
+{
+  "captured_at": "2026-07-30T11:24:15.581967+00:00",
+  "implementation": "CPython",
+  "machine": "AMD64",
+  "packages": {
+    "faker": {
+      "license": "MIT License",
+      "license_expression": null,
+      "version": "40.36.0"
+    },
+    "numpy": {
+      "license": null,
+      "license_expression": "BSD-3-Clause AND 0BSD AND MIT AND Zlib AND CC0-1.0",
+      "version": "2.4.6"
+    },
+    "onnxruntime": {
+      "license": "MIT License",
+      "license_expression": null,
+      "version": "1.28.0"
+    },
+    "opencv-python": {
+      "license": "Apache 2.0",
+      "license_expression": null,
+      "version": "5.0.0.93"
+    },
+    "pillow": {
+      "license": null,
+      "license_expression": "MIT-CMU",
+      "version": "12.3.0"
+    },
+    "pytesseract": {
+      "license": "Apache License 2.0",
+      "license_expression": null,
+      "version": "0.3.13"
+    },
+    "pytest": {
+      "license": null,
+      "license_expression": "MIT",
+      "version": "9.1.1"
+    },
+    "pyyaml": {
+      "license": "MIT",
+      "license_expression": null,
+      "version": "6.0.3"
+    },
+    "rapidocr-onnxruntime": {
+      "license": "Apache-2.0",
+      "license_expression": null,
+      "version": "1.4.4"
+    },
+    "streamlit": {
+      "license": null,
+      "license_expression": "Apache-2.0",
+      "version": "1.60.0"
+    }
+  },
+  "platform": "Windows-10-10.0.26200-SP0",
+  "processor": "Intel64 Family 6 Model 170 Stepping 4, GenuineIntel",
+  "python": "3.11.13 (main, Jun  4 2025, 17:38:00) [MSC v.1943 64 bit (AMD64)]",
+  "tesseract": "tesseract v5.4.0.20240606"
+}

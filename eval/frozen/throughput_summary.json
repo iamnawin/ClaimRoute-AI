@@ -1,0 +1,15 @@
+{
+  "average_latency_per_page_ms": 6521.45659556,
+  "basis": "measured local prototype throughput on the frozen synthetic test run",
+  "environment_manifest": "eval/frozen/environment_manifest.json",
+  "memory_observation": "not measured; no supported process RSS probe was added",
+  "not_production_claim": true,
+  "p50_latency_ms": 5269.271,
+  "p95_latency_ms": 10824.586,
+  "pages": 90,
+  "pages_per_hour": 552.02391479,
+  "pages_per_minute": 9.20039858,
+  "projected_provider_latency": "not available",
+  "total_elapsed_ms": 586931.094,
+  "warm_up": "first completed page retained; no warm-up exclusion"
+}

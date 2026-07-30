@@ -443,7 +443,7 @@
   <main id="top">
     <section class="shell hero" aria-labelledby="hero-title">
       <div>
-        <p class="status-line">Day 10 prototype complete</p>
+        <p class="status-line">Day 11 submission audit complete</p>
         <h1 id="hero-title">Route every field with evidence.</h1>
         <p class="lede">Healthcare claims extraction with local OCR, governed retries, selective escalation, and visible cost controls.</p>
         <div class="actions">
@@ -460,13 +460,13 @@
     <section class="shell evidence" id="evidence" aria-labelledby="evidence-title">
       <div class="section-heading">
         <h2 id="evidence-title">Verified, not estimated.</h2>
-        <p>These results come from the tested Day 10 build. Projected scale costs remain separately labeled inside the application.</p>
+        <p>These results come from the frozen synthetic test build. They are not claims about official or real healthcare data.</p>
       </div>
       <ul class="metrics" aria-label="Verified project evidence">
-        <li class="metric"><strong>75/75</strong><span>Automated tests passed</span></li>
-        <li class="metric"><strong>46</strong><span>Fields resolved in the clean synthetic run</span></li>
-        <li class="metric"><strong>0</strong><span>External API calls during verification</span></li>
-        <li class="metric"><strong>$0</strong><span>Measured external API spend</span></li>
+        <li class="metric"><strong>83/83</strong><span>Automated tests passed</span></li>
+        <li class="metric"><strong>90</strong><span>Frozen synthetic test pages</span></li>
+        <li class="metric"><strong>99.716%</strong><span>Exact field accuracy on synthetic test data</span></li>
+        <li class="metric"><strong>$0</strong><span>Measured external API spend; projected costs are separate</span></li>
       </ul>
     </section>
 
@@ -493,7 +493,7 @@
       <div>
         <h2 id="progress-title">What is ready now</h2>
         <p>The public page tracks completed work without presenting roadmap items as finished.</p>
-        <p class="next"><strong>Next:</strong> Day 11 frozen-test verification and deployment readiness. No official PHI is included in this public site.</p>
+        <p class="next"><strong>Next:</strong> final presentation and recorded synthetic demo. No official claims or PHI are included in this public site.</p>
       </div>
       <fieldset class="checklist">
         <legend class="visually-hidden">Completed ClaimRoute capabilities</legend>
@@ -509,7 +509,7 @@
         </label>
         <label class="check">
           <input type="checkbox" checked disabled>
-          <span><strong>Synthetic benchmark evidence</strong><small>Clean, noisy, ugly, and blended test tiers with replayable receipts.</small></span>
+          <span><strong>Frozen synthetic benchmark</strong><small>90 clean, noisy, and ugly pages with field, page, ledger, ablation, cost, and throughput receipts.</small></span>
           <span class="state">Complete</span>
         </label>
         <label class="check">
@@ -519,7 +519,7 @@
         </label>
         <label class="check">
           <input type="checkbox" checked disabled>
-          <span><strong>Demo and operations evidence</strong><small>Local runbook, judged-demo script, screenshot-safe mode, and automated tests.</small></span>
+          <span><strong>Submission-readiness audit</strong><small>Claims register, judging matrix, licensing, PHI boundary, runbook, and 83 automated tests.</small></span>
           <span class="state">Complete</span>
         </label>
       </fieldset>
@@ -534,7 +534,7 @@
         <details>
           <summary>Local startup commands</summary>
           <pre><code>uv venv
-uv pip install -r requirements.txt
+uv pip install --python .venv\Scripts\python.exe -r requirements.txt
 .venv\Scripts\python.exe -m streamlit run app\streamlit_app.py</code></pre>
         </details>
       </div>

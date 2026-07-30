@@ -1,0 +1,125 @@
+{
+  "architecture": "v1.2 locked",
+  "benchmark_commands": [
+    "python -m eval.day11_frozen freeze",
+    "python -m eval.day11_frozen run --limit 5",
+    "python -m eval.day11_frozen summarize"
+  ],
+  "configuration_frozen": true,
+  "cost_labels": {
+    "external_api_spend": "MEASURED (must remain $0)",
+    "local_compute": "MEASURED",
+    "offline_oracle": "PROJECTED",
+    "scale_costs": "PROJECTED",
+    "vcpu_and_human_review_prices": "CONFIGURED ASSUMPTION"
+  },
+  "dataset": {
+    "calibration_documents": 20,
+    "calibration_test_overlap": 0,
+    "dataset_ids": [
+      "cms1500_42_0001",
+      "cms1500_42_0002",
+      "cms1500_42_0003",
+      "cms1500_42_0004",
+      "cms1500_42_0007",
+      "cms1500_42_0008",
+      "cms1500_42_0009",
+      "cms1500_42_0010",
+      "cms1500_42_0011",
+      "cms1500_42_0012",
+      "cms1500_42_0014",
+      "cms1500_42_0015",
+      "cms1500_42_0018",
+      "cms1500_42_0022",
+      "cms1500_42_0023",
+      "ub04_42_0000",
+      "ub04_42_0001",
+      "ub04_42_0003",
+      "ub04_42_0004",
+      "ub04_42_0006",
+      "ub04_42_0008",
+      "ub04_42_0009",
+      "ub04_42_0010",
+      "ub04_42_0012",
+      "ub04_42_0013",
+      "ub04_42_0015",
+      "ub04_42_0016",
+      "ub04_42_0021",
+      "ub04_42_0022",
+      "ub04_42_0023"
+    ],
+    "frozen_test_documents": 30,
+    "frozen_test_fields": 3168,
+    "frozen_test_pages": 90,
+    "official_data_included": false,
+    "seeds": {
+      "cms1500_42_0001": 4200001,
+      "cms1500_42_0002": 4200002,
+      "cms1500_42_0003": 4200003,
+      "cms1500_42_0004": 4200004,
+      "cms1500_42_0007": 4200007,
+      "cms1500_42_0008": 4200008,
+      "cms1500_42_0009": 4200009,
+      "cms1500_42_0010": 4200010,
+      "cms1500_42_0011": 4200011,
+      "cms1500_42_0012": 4200012,
+      "cms1500_42_0014": 4200014,
+      "cms1500_42_0015": 4200015,
+      "cms1500_42_0018": 4200018,
+      "cms1500_42_0022": 4200022,
+      "cms1500_42_0023": 4200023,
+      "ub04_42_0000": 4250000,
+      "ub04_42_0001": 4250001,
+      "ub04_42_0003": 4250003,
+      "ub04_42_0004": 4250004,
+      "ub04_42_0006": 4250006,
+      "ub04_42_0008": 4250008,
+      "ub04_42_0009": 4250009,
+      "ub04_42_0010": 4250010,
+      "ub04_42_0012": 4250012,
+      "ub04_42_0013": 4250013,
+      "ub04_42_0015": 4250015,
+      "ub04_42_0016": 4250016,
+      "ub04_42_0021": 4250021,
+      "ub04_42_0022": 4250022,
+      "ub04_42_0023": 4250023
+    },
+    "test_sha256": "4d70876b676cc06a4b2558e3d1a49450f826803c4b8d85f89041b91c80d2be5a",
+    "tiers": [
+      "clean",
+      "noisy",
+      "ugly"
+    ]
+  },
+  "evaluation_timestamp": "2026-07-30T11:24:15.945447+00:00",
+  "git_branch": "main",
+  "git_commit": "8324d600fa61ad7c6a57f7c70e3126232bd4e602",
+  "operating_mode": "balanced",
+  "provider_policy": {
+    "external_calls": false,
+    "full_page_external": false,
+    "official_data": false,
+    "test_double": "offline-oracle"
+  },
+  "replay_mode_record": {
+    "accept_with_flag_criticalities": [
+      "low",
+      "med"
+    ],
+    "allow_optional_escalation": false,
+    "local_accept_confidence": 0.8,
+    "multimodal_accept_confidence": 0.9,
+    "paid_escalation_criticalities": [
+      "high",
+      "med"
+    ],
+    "retry_before_escalation": true
+  },
+  "runtime_preset": {
+    "accept_threshold": 0.88,
+    "allow_accept_with_flag": true,
+    "escalate_threshold": 0.6
+  },
+  "schema_version": 1,
+  "working_tree_status_before_freeze": "clean"
+}

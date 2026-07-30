@@ -1,0 +1,79 @@
+{
+  "arms": {
+    "full_cost_governed_pipeline": {
+      "accuracy": 0.99715909,
+      "average_latency_ms": 6521.45659556,
+      "critical_field_accuracy": 0.99935525,
+      "evaluated_fields": 3168,
+      "human_review_rate": 0.01862374,
+      "local_cost_per_page_usd": 7.22e-05,
+      "pages": 90,
+      "projected_automated_cost_per_page_usd": 9.49e-05,
+      "routing_denominator_fields": 3255,
+      "status": "measured local plus projected offline-oracle",
+      "throughput_pages_per_minute": 9.20039858,
+      "unresolved_rate": 0.01862374
+    },
+    "full_pipeline_without_healthcare_validators": {
+      "reason": "No validator bypass exists in the frozen engine; adding one after freeze would invalidate evidence.",
+      "status": "not supported"
+    },
+    "primary_ocr_only": {
+      "accuracy": 0.6635101,
+      "average_latency_ms": 2720.18933333,
+      "critical_field_accuracy": 0.66666667,
+      "evaluated_fields": 3168,
+      "human_review_rate": 0.0,
+      "local_cost_per_page_usd": 3.778e-05,
+      "pages": 90,
+      "projected_automated_cost_per_page_usd": 3.778e-05,
+      "routing_denominator_fields": 3255,
+      "status": "measured",
+      "throughput_pages_per_minute": 22.05728817,
+      "unresolved_rate": 0.33585859
+    },
+    "primary_plus_preprocessing": {
+      "accuracy": 0.99526515,
+      "average_latency_ms": 4777.62233333,
+      "critical_field_accuracy": 0.99935525,
+      "evaluated_fields": 3168,
+      "human_review_rate": 0.0,
+      "local_cost_per_page_usd": 6.635e-05,
+      "pages": 90,
+      "projected_automated_cost_per_page_usd": 6.635e-05,
+      "routing_denominator_fields": 3255,
+      "status": "measured",
+      "throughput_pages_per_minute": 12.55854813,
+      "unresolved_rate": 0.00378788
+    },
+    "primary_plus_validators": {
+      "accuracy": 0.99526515,
+      "average_latency_ms": 4778.28277778,
+      "critical_field_accuracy": 0.99935525,
+      "evaluated_fields": 3168,
+      "human_review_rate": 0.0,
+      "local_cost_per_page_usd": 6.636e-05,
+      "pages": 90,
+      "projected_automated_cost_per_page_usd": 6.636e-05,
+      "routing_denominator_fields": 3255,
+      "status": "measured",
+      "throughput_pages_per_minute": 12.55681231,
+      "unresolved_rate": 0.06881313
+    },
+    "primary_validators_local_retry": {
+      "accuracy": 0.99842172,
+      "average_latency_ms": 5198.48522222,
+      "critical_field_accuracy": 0.99935525,
+      "evaluated_fields": 3168,
+      "human_review_rate": 0.0,
+      "local_cost_per_page_usd": 7.22e-05,
+      "pages": 90,
+      "projected_automated_cost_per_page_usd": 7.22e-05,
+      "routing_denominator_fields": 3255,
+      "status": "measured",
+      "throughput_pages_per_minute": 11.54182371,
+      "unresolved_rate": 0.01957071
+    }
+  },
+  "run_id": "day11-frozen-test-balanced-offline-oracle"
+}
