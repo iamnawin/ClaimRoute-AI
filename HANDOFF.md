@@ -1,4 +1,4 @@
-# Handoff — claims-engine (Day 9 replay calibration verified)
+# Handoff — claims-engine (Day 10 working UI verified)
 
 ## Status
 
@@ -6,20 +6,55 @@
 Day 7: COMPLETE
 Day 8: COMPLETE
 Day 9: COMPLETE
+Day 10: COMPLETE
 ```
 
-Both supported by test evidence below. Architecture v1.2 remains locked.
+All supported by test evidence below. Architecture v1.2 remains locked.
 
 | | |
 |---|---|
-| Current phase | Failure analysis and operating-mode calibration (Day 9) |
-| Last verified implementation commit | `8c88d38` on `main`; Day 9 calibration committed separately from UI work |
+| Current phase | Working prototype UI and safe local demo workflow (Day 10) |
+| Last verified UI commit | `7701e49` on `main`; feature, test, and presentation commits are separate |
 | Working branch | `main` (preserve concurrent Day 7 result changes and `docs/MEMORY.md`) |
 | Safety branch | `safety/day8-pre-audit` → `07b3857`, kept as a pre-audit restore point |
-| Tests passed | **64 / 64** (57 existing + 7 Day 9 calibration tests) |
+| Tests passed | **75 / 75** (64 existing + 11 Day 10 application tests) |
 | Tests failed | **0** |
 | Dependency status | requirements.txt synchronized, licence table complete, clean-venv install verified |
 | Architecture status | v1.2 locked, unchanged by this audit |
+
+## Session log — 30 Jul 2026 (Day 10 UI)
+
+1. **Framework:** retained the documented Streamlit direction. The pre-existing `app/` directory
+   was empty; no alternate UI framework or application entry point existed.
+2. **Thin adapter:** added `app/service.py` and `app/streamlit_app.py`. The application invokes
+   `engine.extract.run_page` directly and reuses `PageResult`, `FieldResult`, the ledger, field
+   policy, governor presets, and generated calibration summaries.
+3. **Workflow:** bundled synthetic selection or local raster upload, Balanced default, document
+   metadata, pipeline journey, actual resolution funnel, field table, overlay/crop evidence,
+   validator and governor paths, cost/latency, scale projections, mode comparison, benchmark,
+   and final/audit JSON downloads.
+4. **Safety:** PNG/JPEG/single-page TIFF only, 10 MB and one-page limits, in-memory input,
+   temporary-ledger cleanup, generic error messages, duplicate-run protection, screenshot-safe
+   default, no value logging, and no real-provider control. Uploads always set
+   `run_escalate=False`; only bundled synthetic examples can use `offline-oracle`.
+5. **Cost labeling:** local compute and measured API spend are labeled MEASURED. Offline-oracle
+   and scale costs are labeled PROJECTED. Mode thresholds are labeled CONFIGURED ASSUMPTION.
+6. **Manual clean run:** `cms1500_42_0000 / clean`, Balanced, 46 fields, 46 local accepts,
+   0 retries, 0 escalations, 0 human review, 46 API calls avoided, zero external calls.
+7. **Manual degraded run:** `cms1500_42_0000 / ugly`, Balanced, 46 fields, 32 local accepts,
+   11 flags, 3 retries, 1 offline-oracle escalation, 1 human review, 45 API calls avoided,
+   measured API spend $0.
+8. **Validation:** `python -m pytest tests/test_day10.py -q` = 11/11;
+   `python -m pytest tests/ -q` = 75/75. Streamlit AppTest produced zero exceptions for startup,
+   clean, and ugly workflows.
+9. **Screenshot:** screenshot-safe start screen saved to `docs/screenshots/day10_home.png`.
+10. **Known limits:** one raster page, no PDF, soft post-run timeout, processed-coordinate overlay
+    can offset on degraded source pixels, uploads cannot complete paid escalation, and no human
+    review queue. Day 9 replay modes remain evidence; locked runtime presets were not retuned.
+11. **Deployment:** local or access-controlled synthetic demo only. No public official-data
+    deployment until auth, retention, worker isolation, provider approval, and mapping are verified.
+12. **Next exact task:** run the Day 11 frozen-test evaluation and submission readiness audit
+    without tuning thresholds or using official data until its governance is confirmed.
 
 ## Session log — 30 Jul 2026 (Day 9 calibration)
 

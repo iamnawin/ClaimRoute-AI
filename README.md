@@ -22,12 +22,24 @@ data/           generated datasets (reproducible from seed; not committed)
 ## Quickstart
 
 ```bash
-pip install -r requirements.txt
-python -m data_factory.make_dataset --n 10 --seed 42 --out data/raw/cms1500
+uv venv
+uv pip install --python .venv/Scripts/python.exe -r requirements.txt
+python -m data_factory.make_dataset --n-per-form 10 --seed 42 --out data/generated
 ```
 
 Every generated page ships with exact ground-truth JSON. The dataset is fully synthetic and
 reproducible from a single seed — no PHI exists anywhere in this repository.
+
+## Local demo application
+
+```bash
+.venv/Scripts/python.exe -m streamlit run app/streamlit_app.py
+```
+
+Open `http://localhost:8501`. The demo defaults to a bundled synthetic claim and Balanced
+mode. PNG, JPEG, and single-page TIFF uploads are accepted up to 10 MB. Uploaded documents
+always remain local-only and never invoke an external provider. See
+`docs/operations/local_app_runbook.md` and `docs/demo_script.md` before a judged demo.
 
 ## Licensing
 
@@ -46,6 +58,7 @@ the installed version, not inferred.
 | Tesseract OCR | 5.4.0 | OCR engine binary — **not a Python package**, installed separately | Apache-2.0 | runtime, external | [tesseract-ocr/tesseract](https://github.com/tesseract-ocr/tesseract) |
 | onnxruntime | 1.20.1 | Inference runtime (transitive, via rapidocr-onnxruntime) | MIT | runtime, transitive | [microsoft/onnxruntime](https://github.com/microsoft/onnxruntime) |
 | OpenCV (opencv-python) | 5.0.0.93 | Image ops (transitive, via rapidocr-onnxruntime) | Apache-2.0 | runtime, transitive | [opencv/opencv-python](https://github.com/opencv/opencv-python) |
+| Streamlit | 1.41+ | Local demo application | Apache-2.0 | runtime | [streamlit/streamlit](https://github.com/streamlit/streamlit) |
 | pytest | 9.1.1 | Test runner | MIT | development | [pytest-dev/pytest](https://github.com/pytest-dev/pytest) |
 
 No cloud OCR or vision service is required to run the pipeline: Tier-1 extraction is fully
