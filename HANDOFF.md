@@ -13,7 +13,7 @@ Both supported by test evidence below. Architecture v1.2 remains locked.
 | | |
 |---|---|
 | Current phase | Failure analysis and operating-mode calibration (Day 9) |
-| Last verified commit | `5e4f80e` on `main`; Day 9 work is the next separate commit |
+| Last verified implementation commit | `8c88d38` on `main`; Day 9 calibration committed separately from UI work |
 | Working branch | `main` (preserve concurrent Day 7 result changes and `docs/MEMORY.md`) |
 | Safety branch | `safety/day8-pre-audit` → `07b3857`, kept as a pre-audit restore point |
 | Tests passed | **64 / 64** (57 existing + 7 Day 9 calibration tests) |
