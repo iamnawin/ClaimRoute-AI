@@ -125,13 +125,26 @@ def degrade(img: Image.Image, bboxes: dict, tier: str, seed: int
 # ---------- guardrail ----------
 
 def check_bbox_ink(img: Image.Image, bboxes: dict, sample: int = 8,
-                   min_dark_fraction: float = 0.004, pad: int = 4) -> list[str]:
-    """Verify stored bboxes still cover ink after degradation.
+                   min_dark_fraction: float = 0.004, pad: int = 4,
+                   min_contrast: float = 25.0) -> list[str]:
+    """Verify stored bboxes still cover their value ink after degradation.
 
-    Crops each sampled bbox (+pad) and requires a minimum fraction of dark
-    pixels (value ink). Returns the list of FAILING field names (empty = OK).
+    The invariant under test is GEOMETRIC: does each bbox still sit on top of
+    the ink it originally covered? It is deliberately NOT a legibility test —
+    photometric degradation is allowed to make text faint, and Tier-0
+    preprocessing is allowed to rescale the whole page's tone.
+
+    So ink is measured RELATIVE TO EACH CROP'S OWN BACKGROUND (90th percentile)
+    rather than against an absolute darkness cutoff. An absolute cutoff conflates
+    the two concerns and fails on correctly-placed boxes the moment a tier fades
+    the page: `illumination_flatten` can leave an image whose darkest pixel is
+    ~114, at which point *every* box "has no ink" while every box is in fact
+    perfectly positioned. A drifted bbox still fails here, because it lands on
+    blank paper and blank paper has no local contrast.
+
+    Returns the list of FAILING field names (empty = OK).
     """
-    gray = np.asarray(img.convert("L"))
+    gray = np.asarray(img.convert("L")).astype(np.float32)
     names = sorted(bboxes)[:sample] if sample else sorted(bboxes)
     failures = []
     for name in names:
@@ -139,6 +152,10 @@ def check_bbox_ink(img: Image.Image, bboxes: dict, sample: int = 8,
         x0, y0 = max(0, int(x0) - pad), max(0, int(y0) - pad)
         x1, y1 = min(gray.shape[1], int(x1) + pad), min(gray.shape[0], int(y1) + pad)
         crop = gray[y0:y1, x0:x1]
-        if crop.size == 0 or (crop < 128).mean() < min_dark_fraction:
+        if crop.size == 0:
+            failures.append(name)
+            continue
+        background = np.percentile(crop, 90)
+        if (crop < background - min_contrast).mean() < min_dark_fraction:
             failures.append(name)
     return failures
