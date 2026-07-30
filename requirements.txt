@@ -1,3 +1,18 @@
+# Runtime dependencies. Versions are floors matching what the committed
+# evidence in eval/results/ was produced with. Licences: see README.md.
 pillow>=10.0
 faker>=24.0
 pyyaml>=6.0
+numpy>=1.26
+pytesseract>=0.3.13
+rapidocr-onnxruntime>=1.2.3
+
+# pytesseract is only a wrapper: the Tesseract binary is NOT a Python package
+# and must be installed separately (Apache-2.0).
+#   Windows: winget install UB-Mannheim.TesseractOCR
+#   Debian:  apt-get install tesseract-ocr
+# engine/ocr/tesseract_engine.py finds it on PATH, at the standard install
+# locations, or via the TESSERACT_CMD environment variable.
+
+# Development only (not needed to run the pipeline):
+#   pytest>=8.0
