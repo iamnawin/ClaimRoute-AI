@@ -112,6 +112,32 @@ official mapping, and PHI governance are verified.
 Run the Day 11 frozen-test evaluation and submission-readiness audit without tuning thresholds or
 using official data until its governance is confirmed.
 
+## Public Netlify project status page
+
+Date: 30 Jul 2026
+Status: LIVE
+URL: `https://claimrouteai.netlify.app/`
+
+Netlify now publishes a static, zero-PHI project status page from `site/`. It shows the Day 10
+prototype screenshot, verified test and cost evidence, the extraction route, a completed-work
+checklist, the next task, and local Streamlit startup commands. The public page does not execute
+the Python extraction engine or accept claim uploads because Netlify is a static host and the
+working Streamlit prototype requires a Python application server.
+
+Files created:
+
+- `netlify.toml`: publishes `site/` and applies basic security and cache headers
+- `site/index.html`: responsive, accessible project status page with the verified Day 10 evidence
+
+Verification:
+
+- HTML validation: passed with zero errors
+- Local static server: HTTP 200
+- Public Netlify URL: HTTP 200 with the expected page title
+- Product screenshot asset: HTTP 200, `image/png`
+- Security headers: `nosniff`, frame denial, strict referrer policy, and camera/microphone/location denial
+- Deployment commit: `f42d8e2` (`feat: add Netlify project status site`)
+
 ---
 
 claude-mem
