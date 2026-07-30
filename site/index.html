@@ -3,9 +3,9 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="ClaimRoute AI project status and verified hackathon evidence.">
+  <meta name="description" content="ClaimRoute AI interactive synthetic-claim demo and verified hackathon evidence.">
   <meta name="theme-color" content="#087a70">
-  <title>ClaimRoute AI | Project Status</title>
+  <title>ClaimRoute AI | Interactive Synthetic-Claim Demo</title>
   <style>
     :root {
       color-scheme: light;
@@ -109,12 +109,11 @@
     .nav-links a:hover { color: var(--accent-dark); }
 
     .hero {
-      min-height: calc(100dvh - 68px);
       display: grid;
       grid-template-columns: minmax(0, 0.82fr) minmax(420px, 1.18fr);
       align-items: center;
       gap: clamp(38px, 6vw, 84px);
-      padding-block: clamp(54px, 8vw, 96px);
+      padding-block: clamp(30px, 5vw, 62px);
     }
 
     .status-line {
@@ -210,6 +209,35 @@
     .evidence {
       padding-block: 86px;
       border-top: 1px solid var(--line);
+    }
+
+    .demo-section {
+      padding-block: 56px;
+      border-top: 1px solid var(--line);
+      background: var(--surface-soft);
+    }
+
+    .demo-card {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 32px;
+      padding: clamp(24px, 4vw, 42px);
+      border: 1px solid color-mix(in oklch, var(--accent) 32%, var(--line));
+      border-radius: var(--radius);
+      background: var(--surface);
+    }
+
+    .demo-card h2 { margin-bottom: 12px; font-size: clamp(1.8rem, 3vw, 2.8rem); }
+    .demo-card p { max-width: 68ch; margin: 0; color: var(--muted); }
+
+    .deployment-labels {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px 22px;
+      margin-top: 18px;
+      font-size: .9rem;
+      font-weight: 700;
     }
 
     .section-heading {
@@ -394,7 +422,8 @@
 
     @media (max-width: 900px) {
       .hero,
-      .progress-section {
+      .progress-section,
+      .demo-card {
         grid-template-columns: 1fr;
       }
 
@@ -433,6 +462,7 @@
         <span>ClaimRoute AI</span>
       </a>
       <div class="nav-links">
+        <a href="#demo">Live demo</a>
         <a href="#evidence">Evidence</a>
         <a href="#progress">Progress</a>
         <a href="https://github.com/iamnawin/ClaimRoute-AI">GitHub</a>
@@ -443,18 +473,33 @@
   <main id="top">
     <section class="shell hero" aria-labelledby="hero-title">
       <div>
-        <p class="status-line">Day 11 submission audit complete</p>
+        <p class="status-line">Interactive synthetic-claim demo</p>
         <h1 id="hero-title">Route every field with evidence.</h1>
-        <p class="lede">Healthcare claims extraction with local OCR, governed retries, selective escalation, and visible cost controls.</p>
+        <p class="lede"><strong>Interactive synthetic-claim demo.</strong> Choose an operating mode, run extraction, inspect provenance, confidence, cost, and latency, then download final and audit JSON.</p>
         <div class="actions">
-          <a class="button" href="#progress">Review progress</a>
-          <a class="button secondary" href="https://github.com/iamnawin/ClaimRoute-AI">View source</a>
+          <a class="button" href="https://claimroute-ai.streamlit.app">Launch live demo</a>
+          <a class="button secondary" href="#evidence">View evidence</a>
+          <a class="button secondary" href="https://github.com/iamnawin/ClaimRoute-AI">GitHub</a>
         </div>
       </div>
       <figure class="product-shot">
         <img src="https://raw.githubusercontent.com/iamnawin/ClaimRoute-AI/main/docs/screenshots/day10_home.png" alt="ClaimRoute Streamlit interface showing a safe synthetic claim and balanced operating mode" width="1600" height="1200">
-        <figcaption>Day 10 Streamlit prototype using a bundled zero-PHI synthetic claim.</figcaption>
+        <figcaption>Working Streamlit application using bundled zero-PHI synthetic claims. Netlify hosts this showcase, not the Python engine.</figcaption>
       </figure>
+    </section>
+
+    <section class="demo-section" id="demo" aria-labelledby="demo-title">
+      <div class="shell demo-card">
+        <div>
+          <h2 id="demo-title">Try the working application</h2>
+          <p>The Python extraction workflow runs on Streamlit. Use a bundled synthetic claim or upload a synthetic-only image, select Economy, Balanced, or Strict Accuracy, and inspect the complete routing receipt.</p>
+          <div class="deployment-labels" aria-label="Deployment roles">
+            <span>Public showcase: Netlify</span>
+            <span>Working application: Streamlit</span>
+          </div>
+        </div>
+        <a class="button" href="https://claimroute-ai.streamlit.app">Launch live demo</a>
+      </div>
     </section>
 
     <section class="shell evidence" id="evidence" aria-labelledby="evidence-title">
@@ -463,7 +508,7 @@
         <p>These results come from the frozen synthetic test build. They are not claims about official or real healthcare data.</p>
       </div>
       <ul class="metrics" aria-label="Verified project evidence">
-        <li class="metric"><strong>83/83</strong><span>Automated tests passed</span></li>
+        <li class="metric"><strong>84/84</strong><span>Automated tests passed</span></li>
         <li class="metric"><strong>90</strong><span>Frozen synthetic test pages</span></li>
         <li class="metric"><strong>99.716%</strong><span>Exact field accuracy on synthetic test data</span></li>
         <li class="metric"><strong>$0</strong><span>Measured external API spend; projected costs are separate</span></li>
@@ -493,7 +538,7 @@
       <div>
         <h2 id="progress-title">What is ready now</h2>
         <p>The public page tracks completed work without presenting roadmap items as finished.</p>
-        <p class="next"><strong>Next:</strong> final presentation and recorded synthetic demo. No official claims or PHI are included in this public site.</p>
+        <p class="next"><strong>Delivery:</strong> this Netlify page presents the submission evidence; the linked Streamlit application runs the interactive synthetic workflow. No official claims or PHI are included.</p>
       </div>
       <fieldset class="checklist">
         <legend class="visually-hidden">Completed ClaimRoute capabilities</legend>
@@ -519,7 +564,7 @@
         </label>
         <label class="check">
           <input type="checkbox" checked disabled>
-          <span><strong>Submission-readiness audit</strong><small>Claims register, judging matrix, licensing, PHI boundary, runbook, and 83 automated tests.</small></span>
+          <span><strong>Submission-readiness audit</strong><small>Claims register, judging matrix, licensing, PHI boundary, runbook, and 84 automated tests.</small></span>
           <span class="state">Complete</span>
         </label>
       </fieldset>
@@ -528,14 +573,14 @@
     <section class="runbook" aria-labelledby="run-title">
       <div class="shell">
         <div class="section-heading">
-          <h2 id="run-title">Run the working prototype locally</h2>
-          <p>Netlify hosts this project-status page. The Python Streamlit application runs from the repository.</p>
+          <h2 id="run-title">Two surfaces, one submission</h2>
+          <p>Netlify is the public showcase and evidence index. Streamlit is the Python-capable host for the working synthetic-claim application.</p>
         </div>
         <details>
           <summary>Local startup commands</summary>
           <pre><code>uv venv
-uv pip install --python .venv\Scripts\python.exe -r requirements.txt
-.venv\Scripts\python.exe -m streamlit run app\streamlit_app.py</code></pre>
+uv pip install --python .venv/Scripts/python.exe -r requirements.txt
+.venv/Scripts/python.exe -m streamlit run app/streamlit_app.py</code></pre>
         </details>
       </div>
     </section>
