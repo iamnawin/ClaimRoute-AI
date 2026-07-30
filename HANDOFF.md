@@ -1,5 +1,38 @@
 # Handoff — claims-engine (Day 11 frozen evidence verified)
 
+## Session log - 30 Jul 2026 (official organiser sample)
+
+1. Added a read-only, local-only adapter in `eval/official/`: multipage TIFF ingestion, NSF 320
+   and UB 192 spec parsers, abstaining record linkage, ClaimRoute schema mapping, field-aware
+   normalization, Tier-B page selection, conservative Tier-D extraction, evaluator, and CLI.
+2. Processed **30 containers / 67 pages** and parsed A=12, B=5, C=6, D=7 expected records.
+   Source files were not modified or committed; external calls and spend were zero.
+3. Deterministic linkage: **26/30**. Four items remain ambiguous/unmatched and are unscored.
+   Therefore no combined official score is valid.
+4. Tier-B linked/page-evaluable proof: claim page 4/4 and attachment rejection 15/15. The cost
+   denominator is all 21 Tier-B input pages, including rejected attachments.
+5. Structured official exact-field result: A 0/299, B 0/121, C 0/105; D 1/168. This is a real
+   compatibility failure, not to be replaced by synthetic evidence. The frozen red-ink router and
+   templates do not align with legacy 1-bit organiser layouts.
+6. Local measurement: approximately $0.0000291/input page and 28.32 pages/minute on this
+   workstation. No production or external-provider claim is permitted.
+7. Added eight masked/synthetic official-adapter tests; the full suite is **92 passed / 0 failed**.
+   All 36 inventoried source-file SHA-256 values still match. PHI-safe outputs are under
+   `eval/official/results/`; methodology and remaining questions are in
+   `docs/official_dataset_benchmark.md`.
+8. Architecture v1.2 and `eval/frozen/` remain unchanged. Do not tune layouts on the same items
+   reported as evaluation data.
+9. **Next exact command:** `uv run pytest tests/test_official_dataset.py -q`
+
+## Official benchmark status
+
+```
+Official adapter: IMPLEMENTED
+Official processing: COMPLETE (30/30 containers)
+Official authoritative benchmark: NOT COMPLETE
+Frozen synthetic benchmark: UNCHANGED
+```
+
 ## Status
 
 ```
@@ -19,7 +52,7 @@ All supported by test evidence below. Architecture v1.2 remains locked.
 | Last verified UI commit | `7701e49` on `main`; feature, test, and presentation commits are separate |
 | Working branch | `main` (preserve concurrent Day 7 result changes and `docs/MEMORY.md`) |
 | Safety branch | `safety/day8-pre-audit` → `07b3857`, kept as a pre-audit restore point |
-| Tests passed | **83 / 83** |
+| Tests passed | **92 / 92** |
 | Tests failed | **0** |
 | Dependency status | requirements.txt synchronized, licence table complete, clean-venv install verified |
 | Architecture status | v1.2 locked, unchanged by this audit |

@@ -59,6 +59,15 @@ These are synthetic-test results, not real-claim or provider-accuracy claims. St
 `docs/submission/evidence_index.md` and `docs/submission/claims_register.md`; exact manifests and
 receipts are under `eval/frozen/`.
 
+## Official organiser sample
+
+The separate local-only adapter under `eval/official/` decoded all 30 organiser TIFF containers
+(67 pages) and parsed the supplied NSF/UB expected-output records without committing source data or
+values. The first run is **not an authoritative official benchmark**: four record links abstained,
+and the legacy monochrome layouts do not align with the synthetic red-grid templates. No combined
+official score is published. See `docs/official_dataset_benchmark.md` for the PHI-safe receipt,
+limitations, organiser questions, and exact rerun command.
+
 ## Licensing
 
 Every component below is open source and permissively licensed (MIT, BSD, or Apache-2.0);

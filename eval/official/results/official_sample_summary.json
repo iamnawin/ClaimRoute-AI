@@ -1,0 +1,92 @@
+{
+  "ambiguous_mappings": 4,
+  "architecture": "v1.2 locked plus monochrome official-input adapter",
+  "benchmark": "official organiser sample (separate from frozen synthetic)",
+  "combined_result": null,
+  "combined_result_reason": "withheld because at least one expected-record linkage abstained",
+  "containers_processed": 30,
+  "dataset_root_committed": false,
+  "deterministic_mappings": 26,
+  "external_provider_calls": 0,
+  "external_provider_spend_usd": 0.0,
+  "human_review_rate": 0.0,
+  "human_review_rate_interpretation": "governor terminal HUMAN_REVIEW only; unresolved RETRY/ESCALATE fields are not counted because the official run disabled retry and external escalation",
+  "measured_local_cost_per_input_page_usd": 2.9137850746268652e-05,
+  "pages_processed": 67,
+  "per_tier": {
+    "A": {
+      "ambiguous_or_unmatched": 1,
+      "containers": 12,
+      "correct_fields": 0,
+      "deterministic_mappings": 11,
+      "evaluated_fields": 299,
+      "field_accuracy": 0.0,
+      "local_cost_usd": 0.0006787599999999999,
+      "pages": 12,
+      "present_field_rate": 0.705685618729097,
+      "records_parsed": 12
+    },
+    "B": {
+      "ambiguous_or_unmatched": 1,
+      "attachment_rejection": {
+        "accuracy": 1.0,
+        "correct": 15,
+        "expected_attachments": 15
+      },
+      "claim_page_identification": {
+        "accuracy": 1.0,
+        "correct": 4,
+        "evaluable": 4
+      },
+      "containers": 5,
+      "correct_fields": 0,
+      "deterministic_mappings": 4,
+      "evaluated_fields": 121,
+      "field_accuracy": 0.0,
+      "local_cost_usd": 0.000594989,
+      "pages": 21,
+      "present_field_rate": 0.7933884297520661,
+      "records_parsed": 5
+    },
+    "C": {
+      "ambiguous_or_unmatched": 1,
+      "containers": 6,
+      "correct_fields": 0,
+      "deterministic_mappings": 5,
+      "evaluated_fields": 105,
+      "field_accuracy": 0.0,
+      "local_cost_usd": 0.000214811,
+      "pages": 6,
+      "present_field_rate": 0.3142857142857143,
+      "records_parsed": 6
+    },
+    "D": {
+      "ambiguous_or_unmatched": 1,
+      "containers": 7,
+      "correct_fields": 1,
+      "deterministic_mappings": 6,
+      "evaluated_fields": 168,
+      "field_accuracy": 0.005952380952380952,
+      "local_cost_usd": 0.000463676,
+      "pages": 28,
+      "present_field_rate": 0.03571428571428571,
+      "records_parsed": 7
+    }
+  },
+  "phi_controls": [
+    "local-only OCR",
+    "read-only source access",
+    "no values in reports",
+    "opaque source IDs",
+    "aggregate correctness only"
+  ],
+  "records_parsed": {
+    "A": 12,
+    "B": 5,
+    "C": 6,
+    "D": 7
+  },
+  "source_files_modified": false,
+  "throughput_input_pages_per_minute": 28.324911910739328,
+  "tier_b_cost_denominator": "all organiser input pages, including rejected attachments"
+}

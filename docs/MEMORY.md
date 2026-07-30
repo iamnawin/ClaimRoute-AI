@@ -1,6 +1,27 @@
 
 # ClaimRoute project memory
 
+## Official organiser sample adapter - 30 Jul 2026
+
+- The correct local dataset root is `D:\AI-Workspace\hackathon 2026\Images & Output`.
+- Implemented `eval/official/` for read-only multipage TIFF ingestion, NSF 320 and UB 192 parsing,
+  record linkage with abstention, ClaimRoute field mapping, normalization, Tier-B filtering,
+  conservative Tier-D extraction, and PHI-safe aggregate evaluation.
+- Full local run decoded 30 containers / 67 pages and parsed 30 records. Linkage was deterministic
+  for 26 and abstained for four; no combined official score is valid.
+- Tier B measured 4/4 claim-page selection and 15/15 attachment rejection on linked,
+  page-evaluable items. All 21 input pages remain in its cost denominator.
+- Exact official results were A 0/299, B 0/121, C 0/105, D 1/168. This exposes a real layout
+  incompatibility: frozen synthetic templates use red-grid coordinates while official scans are
+  1-bit legacy layouts. Never substitute the 99.716% frozen synthetic result.
+- Local run was approximately $0.0000291/input page at the configured vCPU price and 28.32
+  pages/minute; external calls/spend remained zero.
+- Repository reports contain no OCR/expected values: only opaque source IDs, field names,
+  booleans, counts, and timings. Source dataset is neither copied nor committed.
+- Before authoritative scoring, obtain organiser crosswalk, Tier-D required fields, Tier-B page
+  labels, blank-field rules, and UB Type-80 semantics; then declare a calibration/evaluation split
+  before creating organiser-layout templates.
+
 ## Day 11 frozen submission audit - 30 Jul 2026
 
 - Frozen anchor: `8324d600fa61ad7c6a57f7c70e3126232bd4e602`; architecture v1.2 and runtime
