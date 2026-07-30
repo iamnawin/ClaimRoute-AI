@@ -51,3 +51,27 @@
    composite deltas are NOT the claim. Tier-0 improvement claims rest on direct measurables
    (skew residual, white-point restoration) and, definitively, on the OCR-accuracy ablation
    with preprocessing on/off (Day 4+). (Day 3.)
+
+11. **The bbox-ink guardrail tests geometry, not legibility — so it measures contrast
+   relative to each crop's own background.** It originally used an absolute cutoff
+   (`pixel < 128`), which conflates "is the box still on its ink?" with "is the ink still
+   dark?". Photometric tiers and Tier-0 `illumination_flatten` legitimately lighten the page:
+   after preprocessing an ugly UB-04 the darkest pixel anywhere on the image is ~114, so all
+   34 correctly-placed bboxes reported "no ink" at once. That pattern — *everything* failing,
+   including the tier that provably never moves a coordinate (`noisy` returns
+   `dict(bboxes)` unchanged) — is the tell that the guardrail, not the geometry, was wrong.
+   Now each crop is compared against its own 90th-percentile background. Verified to retain
+   detection power: zero false alarms on correct bboxes across all three tiers, while injected
+   drift of 25–60px still fails 18–24 of 34 fields. **Never "fix" this by lowering the absolute
+   threshold** — that would pass today's images and silently lose drift detection on any page
+   with darker paper. (Day 7 audit.)
+
+12. **A field crop is one box, not a page: the retry rung asks Tesseract for PSM 6.** Tesseract's
+   default PSM 3 ("fully automatic page segmentation") assumes prose and discards an isolated
+   glyph sitting alone in a small box — it returns *nothing* for `patient_sex`, `line*_units`
+   and `line*_diagnosis_pointer`. The retry rung could therefore not rescue precisely the
+   fields it exists for: all seven went primary → RETRY → ESCALATE unresolved, and would have
+   been billed to a multimodal model for want of a one-line config. With PSM 6 the clean-page
+   spine goes 37/44 → 44/44 with every one of the seven resolved at the *local-compute* rung.
+   The default is left unchanged on the adapter so the Day-4 full-page bake-off path is
+   untouched. (Day 7 audit.)
