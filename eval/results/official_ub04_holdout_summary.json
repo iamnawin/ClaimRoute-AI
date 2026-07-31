@@ -1,0 +1,575 @@
+{
+  "result_label": "Provisional denominator policy due to unavailable organiser clarification.",
+  "split_id": "tier_c_official_v1",
+  "documents": 3,
+  "primary_denominator": 42,
+  "primary_correct": 36,
+  "extended_denominator": 63,
+  "extended_correct": 36,
+  "excluded_predictions_counted_correct": 0,
+  "conditional_fields_confirmed_visible": [],
+  "external_provider_calls": 0,
+  "rows": [
+    {
+      "source_id": "489a4d9762c4",
+      "primary_denominator": 14,
+      "primary_correct": 12,
+      "extended_denominator": 21,
+      "extended_correct": 12,
+      "primary_field_results": [
+        {
+          "field_name": "provider_name",
+          "correct": true,
+          "present": true
+        },
+        {
+          "field_name": "patient_control_no",
+          "correct": true,
+          "present": true
+        },
+        {
+          "field_name": "patient_name",
+          "correct": true,
+          "present": true
+        },
+        {
+          "field_name": "patient_sex",
+          "correct": true,
+          "present": true
+        },
+        {
+          "field_name": "patient_dob",
+          "correct": true,
+          "present": true
+        },
+        {
+          "field_name": "admission_date",
+          "correct": true,
+          "present": true
+        },
+        {
+          "field_name": "statement_from",
+          "correct": false,
+          "present": true
+        },
+        {
+          "field_name": "statement_to",
+          "correct": false,
+          "present": true
+        },
+        {
+          "field_name": "type_of_bill",
+          "correct": true,
+          "present": true
+        },
+        {
+          "field_name": "principal_dx",
+          "correct": true,
+          "present": true
+        },
+        {
+          "field_name": "total_charges",
+          "correct": true,
+          "present": true
+        },
+        {
+          "field_name": "line1_rev_code",
+          "correct": true,
+          "present": true
+        },
+        {
+          "field_name": "line1_charges",
+          "correct": true,
+          "present": true
+        },
+        {
+          "field_name": "line1_units",
+          "correct": true,
+          "present": true
+        }
+      ],
+      "extended_field_results": [
+        {
+          "field_name": "federal_tax_no",
+          "correct": false,
+          "present": false
+        },
+        {
+          "field_name": "provider_name",
+          "correct": true,
+          "present": true
+        },
+        {
+          "field_name": "patient_control_no",
+          "correct": true,
+          "present": true
+        },
+        {
+          "field_name": "patient_name",
+          "correct": true,
+          "present": true
+        },
+        {
+          "field_name": "patient_sex",
+          "correct": true,
+          "present": true
+        },
+        {
+          "field_name": "patient_dob",
+          "correct": true,
+          "present": true
+        },
+        {
+          "field_name": "admission_date",
+          "correct": true,
+          "present": true
+        },
+        {
+          "field_name": "statement_from",
+          "correct": false,
+          "present": true
+        },
+        {
+          "field_name": "statement_to",
+          "correct": false,
+          "present": true
+        },
+        {
+          "field_name": "type_of_bill",
+          "correct": true,
+          "present": true
+        },
+        {
+          "field_name": "principal_dx",
+          "correct": true,
+          "present": true
+        },
+        {
+          "field_name": "total_charges",
+          "correct": true,
+          "present": true
+        },
+        {
+          "field_name": "line1_rev_code",
+          "correct": true,
+          "present": true
+        },
+        {
+          "field_name": "line1_charges",
+          "correct": true,
+          "present": true
+        },
+        {
+          "field_name": "line1_units",
+          "correct": true,
+          "present": true
+        },
+        {
+          "field_name": "line2_rev_code",
+          "correct": false,
+          "present": false
+        },
+        {
+          "field_name": "line2_charges",
+          "correct": false,
+          "present": true
+        },
+        {
+          "field_name": "line2_units",
+          "correct": false,
+          "present": false
+        },
+        {
+          "field_name": "line3_rev_code",
+          "correct": false,
+          "present": false
+        },
+        {
+          "field_name": "line3_charges",
+          "correct": false,
+          "present": false
+        },
+        {
+          "field_name": "line3_units",
+          "correct": false,
+          "present": false
+        }
+      ],
+      "latency_ms": 2407.646
+    },
+    {
+      "source_id": "d9f50034efd1",
+      "primary_denominator": 14,
+      "primary_correct": 12,
+      "extended_denominator": 21,
+      "extended_correct": 12,
+      "primary_field_results": [
+        {
+          "field_name": "provider_name",
+          "correct": true,
+          "present": true
+        },
+        {
+          "field_name": "patient_control_no",
+          "correct": true,
+          "present": true
+        },
+        {
+          "field_name": "patient_name",
+          "correct": false,
+          "present": true
+        },
+        {
+          "field_name": "patient_sex",
+          "correct": true,
+          "present": true
+        },
+        {
+          "field_name": "patient_dob",
+          "correct": true,
+          "present": true
+        },
+        {
+          "field_name": "admission_date",
+          "correct": true,
+          "present": true
+        },
+        {
+          "field_name": "statement_from",
+          "correct": true,
+          "present": true
+        },
+        {
+          "field_name": "statement_to",
+          "correct": true,
+          "present": true
+        },
+        {
+          "field_name": "type_of_bill",
+          "correct": true,
+          "present": true
+        },
+        {
+          "field_name": "principal_dx",
+          "correct": true,
+          "present": true
+        },
+        {
+          "field_name": "total_charges",
+          "correct": true,
+          "present": true
+        },
+        {
+          "field_name": "line1_rev_code",
+          "correct": true,
+          "present": true
+        },
+        {
+          "field_name": "line1_charges",
+          "correct": true,
+          "present": true
+        },
+        {
+          "field_name": "line1_units",
+          "correct": false,
+          "present": true
+        }
+      ],
+      "extended_field_results": [
+        {
+          "field_name": "federal_tax_no",
+          "correct": false,
+          "present": true
+        },
+        {
+          "field_name": "provider_name",
+          "correct": true,
+          "present": true
+        },
+        {
+          "field_name": "patient_control_no",
+          "correct": true,
+          "present": true
+        },
+        {
+          "field_name": "patient_name",
+          "correct": false,
+          "present": true
+        },
+        {
+          "field_name": "patient_sex",
+          "correct": true,
+          "present": true
+        },
+        {
+          "field_name": "patient_dob",
+          "correct": true,
+          "present": true
+        },
+        {
+          "field_name": "admission_date",
+          "correct": true,
+          "present": true
+        },
+        {
+          "field_name": "statement_from",
+          "correct": true,
+          "present": true
+        },
+        {
+          "field_name": "statement_to",
+          "correct": true,
+          "present": true
+        },
+        {
+          "field_name": "type_of_bill",
+          "correct": true,
+          "present": true
+        },
+        {
+          "field_name": "principal_dx",
+          "correct": true,
+          "present": true
+        },
+        {
+          "field_name": "total_charges",
+          "correct": true,
+          "present": true
+        },
+        {
+          "field_name": "line1_rev_code",
+          "correct": true,
+          "present": true
+        },
+        {
+          "field_name": "line1_charges",
+          "correct": true,
+          "present": true
+        },
+        {
+          "field_name": "line1_units",
+          "correct": false,
+          "present": true
+        },
+        {
+          "field_name": "line2_rev_code",
+          "correct": false,
+          "present": false
+        },
+        {
+          "field_name": "line2_charges",
+          "correct": false,
+          "present": false
+        },
+        {
+          "field_name": "line2_units",
+          "correct": false,
+          "present": false
+        },
+        {
+          "field_name": "line3_rev_code",
+          "correct": false,
+          "present": false
+        },
+        {
+          "field_name": "line3_charges",
+          "correct": false,
+          "present": false
+        },
+        {
+          "field_name": "line3_units",
+          "correct": false,
+          "present": false
+        }
+      ],
+      "latency_ms": 1652.086
+    },
+    {
+      "source_id": "de1c51d516c7",
+      "primary_denominator": 14,
+      "primary_correct": 12,
+      "extended_denominator": 21,
+      "extended_correct": 12,
+      "primary_field_results": [
+        {
+          "field_name": "provider_name",
+          "correct": false,
+          "present": true
+        },
+        {
+          "field_name": "patient_control_no",
+          "correct": true,
+          "present": true
+        },
+        {
+          "field_name": "patient_name",
+          "correct": false,
+          "present": true
+        },
+        {
+          "field_name": "patient_sex",
+          "correct": true,
+          "present": true
+        },
+        {
+          "field_name": "patient_dob",
+          "correct": true,
+          "present": true
+        },
+        {
+          "field_name": "admission_date",
+          "correct": true,
+          "present": true
+        },
+        {
+          "field_name": "statement_from",
+          "correct": true,
+          "present": true
+        },
+        {
+          "field_name": "statement_to",
+          "correct": true,
+          "present": true
+        },
+        {
+          "field_name": "type_of_bill",
+          "correct": true,
+          "present": true
+        },
+        {
+          "field_name": "principal_dx",
+          "correct": true,
+          "present": true
+        },
+        {
+          "field_name": "total_charges",
+          "correct": true,
+          "present": true
+        },
+        {
+          "field_name": "line1_rev_code",
+          "correct": true,
+          "present": true
+        },
+        {
+          "field_name": "line1_charges",
+          "correct": true,
+          "present": true
+        },
+        {
+          "field_name": "line1_units",
+          "correct": true,
+          "present": true
+        }
+      ],
+      "extended_field_results": [
+        {
+          "field_name": "federal_tax_no",
+          "correct": false,
+          "present": false
+        },
+        {
+          "field_name": "provider_name",
+          "correct": false,
+          "present": true
+        },
+        {
+          "field_name": "patient_control_no",
+          "correct": true,
+          "present": true
+        },
+        {
+          "field_name": "patient_name",
+          "correct": false,
+          "present": true
+        },
+        {
+          "field_name": "patient_sex",
+          "correct": true,
+          "present": true
+        },
+        {
+          "field_name": "patient_dob",
+          "correct": true,
+          "present": true
+        },
+        {
+          "field_name": "admission_date",
+          "correct": true,
+          "present": true
+        },
+        {
+          "field_name": "statement_from",
+          "correct": true,
+          "present": true
+        },
+        {
+          "field_name": "statement_to",
+          "correct": true,
+          "present": true
+        },
+        {
+          "field_name": "type_of_bill",
+          "correct": true,
+          "present": true
+        },
+        {
+          "field_name": "principal_dx",
+          "correct": true,
+          "present": true
+        },
+        {
+          "field_name": "total_charges",
+          "correct": true,
+          "present": true
+        },
+        {
+          "field_name": "line1_rev_code",
+          "correct": true,
+          "present": true
+        },
+        {
+          "field_name": "line1_charges",
+          "correct": true,
+          "present": true
+        },
+        {
+          "field_name": "line1_units",
+          "correct": true,
+          "present": true
+        },
+        {
+          "field_name": "line2_rev_code",
+          "correct": false,
+          "present": false
+        },
+        {
+          "field_name": "line2_charges",
+          "correct": false,
+          "present": false
+        },
+        {
+          "field_name": "line2_units",
+          "correct": false,
+          "present": false
+        },
+        {
+          "field_name": "line3_rev_code",
+          "correct": false,
+          "present": false
+        },
+        {
+          "field_name": "line3_charges",
+          "correct": false,
+          "present": false
+        },
+        {
+          "field_name": "line3_units",
+          "correct": false,
+          "present": false
+        }
+      ],
+      "latency_ms": 1443.67
+    }
+  ]
+}
