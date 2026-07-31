@@ -191,8 +191,9 @@ def load_official_template() -> dict:
     return yaml.safe_load(TEMPLATE_PATH.read_text(encoding="utf-8"))
 
 
-def official_field_region(image: Image.Image, field_name: str) -> list[float] | None:
-    registration = register_official_cms1500(image)
+def official_field_region(image: Image.Image, field_name: str,
+                          registration: FormRegistration | None = None) -> list[float] | None:
+    registration = registration or register_official_cms1500(image)
     field = load_official_template()["fields"].get(field_name)
     if registration is None or field is None:
         return None
@@ -218,9 +219,10 @@ def official_field_region(image: Image.Image, field_name: str) -> list[float] | 
             min(image.height, region_bottom + bottom)]
 
 
-def official_mark_regions(image: Image.Image, field_name: str) -> dict[str, list[float]]:
+def official_mark_regions(image: Image.Image, field_name: str,
+                          registration: FormRegistration | None = None) -> dict[str, list[float]]:
     """Return absolute checkbox interiors declared by the official template."""
-    registration = register_official_cms1500(image)
+    registration = registration or register_official_cms1500(image)
     field = load_official_template()["fields"].get(field_name, {})
     if registration is None or not field.get("mark_options"):
         return {}

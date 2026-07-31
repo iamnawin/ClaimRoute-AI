@@ -88,6 +88,7 @@ def test_registration_and_extraction_never_lookup_expected_values():
     text = "\n".join(Path(path).read_text(encoding="utf-8") for path in (
         "engine/layout/official_cms1500_registration.py",
         "eval/official/extraction.py",
+        "eval/official/ocr_retry.py",
     ))
     assert "expected_value" not in text and "organiser_value" not in text
 

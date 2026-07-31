@@ -103,9 +103,10 @@ def test_official_retry_reenters_validation_and_governor(monkeypatch):
     page.decisions[field.field_name] = [("RETRY", "fixture")]
     monkeypatch.setattr(
         "eval.official.extraction.official_retry_candidate",
-        lambda image, name: {"value": "1", "confidence": .99,
+        lambda image, name, **kwargs: {"value": "1", "confidence": .99,
                              "n_spans": 1, "latency_ms": 1.0,
-                             "mode": "isolated-quantity"},
+                             "mode": "isolated-quantity", "source": "crop_paddle",
+                             "attempts_used": 1},
     )
     receipts = retry_official_page(page, _form())
     assert receipts[0]["mode"] == "isolated-quantity"

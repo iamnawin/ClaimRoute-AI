@@ -1,0 +1,44 @@
+version: 1
+shared_page:
+  engine: paddle
+  scale: 1
+  threshold: none
+  contrast_normalization: false
+  remove_lines: false
+  border_trim: 0
+  invert: false
+
+field_families:
+  date:
+    max_attempts: 1
+    attempts:
+      - {engine: paddle, scale: 1, threshold: none, contrast_normalization: true, remove_lines: false, border_trim: 0, invert: false}
+  money:
+    max_attempts: 1
+    attempts:
+      - {engine: paddle, scale: 1, threshold: none, contrast_normalization: true, remove_lines: false, border_trim: 0, invert: false}
+  quantity:
+    max_attempts: 1
+    attempts:
+      - {engine: paddle, scale: 1, threshold: otsu, contrast_normalization: true, remove_lines: true, border_trim: 0, invert: false}
+  identifier:
+    max_attempts: 1
+    attempts:
+      - {engine: paddle, scale: 2, threshold: none, contrast_normalization: true, remove_lines: false, border_trim: 0, invert: false}
+  diagnosis_code:
+    max_attempts: 1
+    attempts:
+      - {engine: paddle, scale: 1, threshold: none, contrast_normalization: true, remove_lines: false, border_trim: 0, invert: false}
+  procedure_code:
+    max_attempts: 1
+    attempts:
+      - {engine: paddle, scale: 1, threshold: none, contrast_normalization: true, remove_lines: false, border_trim: 0, invert: false}
+  code:
+    max_attempts: 1
+    attempts:
+      - {engine: paddle, scale: 1, threshold: none, contrast_normalization: true, remove_lines: false, border_trim: 0, invert: false}
+  text:
+    max_attempts: 2
+    attempts:
+      - {engine: paddle, scale: 1, threshold: none, contrast_normalization: true, remove_lines: false, border_trim: 0, invert: false}
+      - {engine: paddle, scale: 2, threshold: none, contrast_normalization: true, remove_lines: false, border_trim: 0, invert: false}

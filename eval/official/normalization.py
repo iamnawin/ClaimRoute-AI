@@ -47,6 +47,11 @@ def normalize_value(field_name: str, value: object) -> str:
     family = classify_field(field_name)
     if family == "date":
         digits = re.sub(r"\D", "", text)
+        if len(digits) == 6:
+            try:
+                return datetime.strptime(digits, "%m%d%y").strftime("%Y%m%d")
+            except ValueError:
+                return digits
         if len(digits) == 8:
             for fmt in ("%Y%m%d", "%m%d%Y"):
                 try:
@@ -67,4 +72,3 @@ def normalize_value(field_name: str, value: object) -> str:
         except InvalidOperation:
             return re.sub(r"[^A-Z0-9]", "", text)
     return re.sub(r"[^A-Z0-9]", "", text)
-

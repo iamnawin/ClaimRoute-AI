@@ -10,6 +10,8 @@ FREEZE_FILES = (
     "engine/layout/official_cms1500_registration.py",
     "eval/official/extraction.py",
     "eval/official/normalization.py",
+    "eval/official/ocr_retry.py",
+    "eval/official/ocr_retry_profiles.yaml",
     "eval/official/cms1500_field_map.yaml",
     "configs/field_policy.yaml",
     "configs/pipeline.yaml",
