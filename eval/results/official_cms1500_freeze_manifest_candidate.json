@@ -14,11 +14,11 @@
     },
     {
       "path": "eval/official/extraction.py",
-      "sha256": "5e37ebfd8e8bcc40675c042707bc91628962fb887fd48cd6433c1de8b5b762af"
+      "sha256": "68df8a715e8199d088fa59c3e1ae3361b2b2f3f0bbd2f66682ca7a8b2e633108"
     },
     {
       "path": "eval/official/normalization.py",
-      "sha256": "8618783f5d052a0220e5414e7fbac61665f1f949bc19f772b694bef222aae4a6"
+      "sha256": "d6e155c7fc188d40c47f1645529cd682afe7c28d0d6996158fc67010c13e330e"
     },
     {
       "path": "eval/official/ocr_retry.py",
@@ -46,7 +46,7 @@
     },
     {
       "path": "engine/validators/registry.py",
-      "sha256": "2799503be91e5a7dc36022dea62b069919d863b58020f799ba57a1e6fb29ed67"
+      "sha256": "dcb64ac0f37b6a95fe68d17b6cc7f172d72021803c9f86b6828ba7185f0b3a7c"
     },
     {
       "path": "engine/governor.py",
