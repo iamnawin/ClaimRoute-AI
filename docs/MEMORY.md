@@ -1,6 +1,20 @@
 
 # ClaimRoute project memory
 
+## Official CMS-1500 five-field development proof - 31 Jul 2026
+
+- Official CMS-1500 (02-12) registration is separate from synthetic red-grid registration.
+- Long horizontal rules establish vertical bounds and semantic row bands; vertical segments are
+  detected inside those bands for horizontal bounds. Edge-touching scanner stripes are rejected.
+- Only the three frozen Tier A development items were opened; holdout access remained zero.
+- Boxes 3, 24F line 1, 24G line 1, 25, and 33a achieved 15/15 correct geometry, 15/15 visible
+  values, and 15/15 normalized matches after 12 field-specific local retries.
+- Primary accuracy was 4/15. Frozen governor results were 12 ACCEPT and 3 ESCALATE even though all
+  normalized values matched; do not weaken governor thresholds to turn those into accepts.
+- Measured proof latency was 55,691.535 ms, local cost $0.000773493, external calls zero.
+- Repository evidence remains PHI-safe; local crops, overlays, OCR text, and organiser values stay
+  under the ignored diagnostics path.
+
 ## Official organiser sample adapter - 30 Jul 2026
 
 - The correct local dataset root is `D:\AI-Workspace\hackathon 2026\Images & Output`.
