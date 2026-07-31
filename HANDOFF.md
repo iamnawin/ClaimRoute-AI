@@ -22,7 +22,12 @@ OCR text, crops, overlays, TIFFs, organiser filenames, or PHI. Focused tests: 43
 142 passed in 80.81 seconds. PHI/organiser-value/holdout-ID staged-diff scan: clean. Code commit:
 `b86a814`. Evidence commit: `7d82743`.
 
-Next exact command: `git push origin main`.
+Push status: commits `b86a814`, `7d82743`, and `e9c3eb3` reached `origin/main`; local and remote
+were synchronized after push. Development-proof blockers: none. Three correctly normalized fields
+remain conservatively escalated under the frozen governor. Do not open the holdout without a new,
+explicit frozen-scoring task.
+
+Next exact command: `.\.venv\Scripts\python.exe -m pytest tests\ -q`.
 
 ## Session log - 31 Jul 2026 (official CMS-1500 field mapping)
 
