@@ -9,7 +9,7 @@ from PIL import Image
 from eval.official.adapter import read_tiff_pages
 from eval.official.evaluator import compare_fields, phi_safe_document_row
 from eval.official.linker import link_record
-from eval.official.normalization import normalize_value
+from eval.official.normalization import classify_field, normalize_value
 from eval.official.pages import select_claim_pages
 from eval.official.parsers import parse_nsf_bytes, parse_ub_bytes
 
@@ -100,6 +100,68 @@ def test_normalization_is_field_aware():
     assert normalize_value("patient_dob", "01/02/2001") == "20010102"
     assert normalize_value("total_charge", "$1,234.50") == "1234.50"
     assert normalize_value("diagnosis_1", "A12.3456") == "A123456"
+
+
+def test_aliased_line_item_names_reach_their_typed_branch():
+    """``claimroute_expected`` generates line{n}_* names; they must still classify.
+
+    Regression guard for the defect where suffix-generated names fell through to
+    the text branch and scored incorrect even when OCR was perfect.
+    """
+    assert classify_field("line1_date_from") == "date"
+    assert classify_field("line3_date_to") == "date"
+    assert classify_field("line2_charges") == "money"
+    assert classify_field("line1_units") == "quantity"
+    assert classify_field("line1_cpt_code") == "text"
+
+
+def test_date_routing_survives_printed_component_order():
+    # Records store YYYYMMDD; the form prints MM DD YYYY in separate boxes.
+    assert normalize_value("line1_date_from", "20240315") == \
+        normalize_value("line1_date_from", "03 15 2024")
+    assert normalize_value("line4_date_to", "20241201") == \
+        normalize_value("line4_date_to", "12/01/2024")
+
+
+def test_date_routing_still_separates_different_days():
+    assert normalize_value("line1_date_from", "20240315") != \
+        normalize_value("line1_date_from", "03 16 2024")
+
+
+def test_charge_routing_aligns_decimals_rather_than_stripping_them():
+    # Stripping punctuation alone makes "1500" and "1500.00" disagree; the money
+    # branch must compare decimal value, including when cents are not printed.
+    assert normalize_value("line1_charges", "1500.00") == \
+        normalize_value("line1_charges", "$1,500.00")
+    assert normalize_value("line1_charges", "1500.00") == \
+        normalize_value("line1_charges", "1500")
+    assert normalize_value("line2_charges", "75.50") != \
+        normalize_value("line2_charges", "75.05")
+
+
+def test_quantity_routing_ignores_parser_decimal_scaling():
+    # The NSF parser scales units to one decimal; the form prints an integer.
+    assert normalize_value("line1_units", "1.0") == normalize_value("line1_units", "1")
+    assert normalize_value("line1_units", "100.0") == normalize_value("line1_units", "100")
+    assert normalize_value("line1_units", "2.0") != normalize_value("line1_units", "3")
+
+
+def test_identifier_routing_normalizes_punctuation_but_not_digits():
+    for field in ("billing_provider_npi", "referring_provider_npi"):
+        assert normalize_value(field, "1234567893") == normalize_value(field, "1234-567 893")
+        assert normalize_value(field, "1234567893") != normalize_value(field, "1234567894")
+    assert normalize_value("diagnosis_code_a", "A123456") == \
+        normalize_value("diagnosis_code_a", "a12.3456")
+    assert normalize_value("line1_cpt_code", "99213") != \
+        normalize_value("line1_cpt_code", "99214")
+
+
+def test_unknown_fields_fall_through_to_text_rather_than_a_typed_branch():
+    for unknown in ("mystery_field", "", "line1_", "date_from_prefix_only"):
+        assert classify_field(unknown) == "text"
+    # A bare 8-digit string in an unclassified field must not be reordered as a date.
+    assert normalize_value("mystery_field", "03152024") == "03152024"
+    assert normalize_value("mystery_field", None) == ""
 
 
 def test_tier_b_selection_separates_claim_and_attachments():
