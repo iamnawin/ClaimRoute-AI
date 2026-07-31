@@ -1,0 +1,1117 @@
+{
+  "summary": {
+    "proof_id": "official_ub04_development_expansion_v1",
+    "split_id": "tier_c_official_v1",
+    "development_documents": 2,
+    "template_regions": 25,
+    "new_regions_since_five_field_proof": 20,
+    "supported_regions": 14,
+    "instances": 28,
+    "geometry_instances": 50,
+    "geometry_correct": 50,
+    "primary_ocr_correct": 8,
+    "retry_attempted": 26,
+    "retry_correct": 26,
+    "normalized_correct": 27,
+    "validator_correct": 27,
+    "final_governed_correct": 27,
+    "governor_outcomes": {
+      "ACCEPT": 28
+    },
+    "stage_latency_ms": {
+      "tiff_decode": 127.92,
+      "preprocessing": 1902.577,
+      "registration": 529.892,
+      "crop_generation": 14.406,
+      "primary_ocr": 4374.166,
+      "retry_ocr": 46485.417,
+      "normalization": 2.323,
+      "validation": 1.705,
+      "governor": 0.809,
+      "reporting": 0.463
+    },
+    "wall_latency_ms": 53446.639,
+    "local_cost_usd": 0.000742314,
+    "external_provider_calls": 0,
+    "external_provider_cost_usd": 0.0,
+    "holdout_access_count": 0,
+    "documents": [
+      {
+        "source_id": "251f79e97f77",
+        "registration_confidence": 0.933,
+        "wall_latency_ms": 32589.611,
+        "stage_latency_ms": {
+          "tiff_decode": 101.912,
+          "preprocessing": 1011.236,
+          "registration": 294.031,
+          "crop_generation": 7.844,
+          "primary_ocr": 2570.976,
+          "retry_ocr": 28597.292,
+          "normalization": 1.32,
+          "validation": 1.342,
+          "governor": 0.449,
+          "reporting": 0.232
+        },
+        "local_cost_usd": 0.000452633
+      },
+      {
+        "source_id": "751e44752221",
+        "registration_confidence": 0.935,
+        "wall_latency_ms": 20857.028,
+        "stage_latency_ms": {
+          "tiff_decode": 26.008,
+          "preprocessing": 891.341,
+          "registration": 235.861,
+          "crop_generation": 6.562,
+          "primary_ocr": 1803.19,
+          "retry_ocr": 17888.125,
+          "normalization": 1.003,
+          "validation": 0.363,
+          "governor": 0.36,
+          "reporting": 0.232
+        },
+        "local_cost_usd": 0.000289681
+      }
+    ]
+  },
+  "field_rows": [
+    {
+      "source_id": "251f79e97f77",
+      "field_name": "admission_date",
+      "ub04_locator": "12",
+      "primary_ocr_correct": false,
+      "retry_attempted": true,
+      "retry_correct": true,
+      "normalized_correct": true,
+      "validator_correct": true,
+      "governor_outcome": "ACCEPT",
+      "final_governed_correct": true
+    },
+    {
+      "source_id": "251f79e97f77",
+      "field_name": "line1_charges",
+      "ub04_locator": "47 row 1",
+      "primary_ocr_correct": false,
+      "retry_attempted": true,
+      "retry_correct": true,
+      "normalized_correct": true,
+      "validator_correct": true,
+      "governor_outcome": "ACCEPT",
+      "final_governed_correct": true
+    },
+    {
+      "source_id": "251f79e97f77",
+      "field_name": "line1_rev_code",
+      "ub04_locator": "42 row 1",
+      "primary_ocr_correct": true,
+      "retry_attempted": true,
+      "retry_correct": true,
+      "normalized_correct": true,
+      "validator_correct": true,
+      "governor_outcome": "ACCEPT",
+      "final_governed_correct": true
+    },
+    {
+      "source_id": "251f79e97f77",
+      "field_name": "line1_units",
+      "ub04_locator": "46 row 1",
+      "primary_ocr_correct": false,
+      "retry_attempted": true,
+      "retry_correct": true,
+      "normalized_correct": true,
+      "validator_correct": true,
+      "governor_outcome": "ACCEPT",
+      "final_governed_correct": true
+    },
+    {
+      "source_id": "251f79e97f77",
+      "field_name": "patient_control_no",
+      "ub04_locator": "3a",
+      "primary_ocr_correct": true,
+      "retry_attempted": true,
+      "retry_correct": true,
+      "normalized_correct": true,
+      "validator_correct": true,
+      "governor_outcome": "ACCEPT",
+      "final_governed_correct": true
+    },
+    {
+      "source_id": "251f79e97f77",
+      "field_name": "patient_dob",
+      "ub04_locator": "10",
+      "primary_ocr_correct": false,
+      "retry_attempted": false,
+      "retry_correct": null,
+      "normalized_correct": false,
+      "validator_correct": false,
+      "governor_outcome": "ACCEPT",
+      "final_governed_correct": false
+    },
+    {
+      "source_id": "251f79e97f77",
+      "field_name": "patient_name",
+      "ub04_locator": "8b",
+      "primary_ocr_correct": false,
+      "retry_attempted": true,
+      "retry_correct": true,
+      "normalized_correct": true,
+      "validator_correct": true,
+      "governor_outcome": "ACCEPT",
+      "final_governed_correct": true
+    },
+    {
+      "source_id": "251f79e97f77",
+      "field_name": "patient_sex",
+      "ub04_locator": "11",
+      "primary_ocr_correct": false,
+      "retry_attempted": true,
+      "retry_correct": true,
+      "normalized_correct": true,
+      "validator_correct": true,
+      "governor_outcome": "ACCEPT",
+      "final_governed_correct": true
+    },
+    {
+      "source_id": "251f79e97f77",
+      "field_name": "principal_dx",
+      "ub04_locator": "67",
+      "primary_ocr_correct": false,
+      "retry_attempted": true,
+      "retry_correct": true,
+      "normalized_correct": true,
+      "validator_correct": true,
+      "governor_outcome": "ACCEPT",
+      "final_governed_correct": true
+    },
+    {
+      "source_id": "251f79e97f77",
+      "field_name": "provider_name",
+      "ub04_locator": "1",
+      "primary_ocr_correct": true,
+      "retry_attempted": true,
+      "retry_correct": true,
+      "normalized_correct": true,
+      "validator_correct": true,
+      "governor_outcome": "ACCEPT",
+      "final_governed_correct": true
+    },
+    {
+      "source_id": "251f79e97f77",
+      "field_name": "statement_from",
+      "ub04_locator": "6 From",
+      "primary_ocr_correct": false,
+      "retry_attempted": true,
+      "retry_correct": true,
+      "normalized_correct": true,
+      "validator_correct": true,
+      "governor_outcome": "ACCEPT",
+      "final_governed_correct": true
+    },
+    {
+      "source_id": "251f79e97f77",
+      "field_name": "statement_to",
+      "ub04_locator": "6 Through",
+      "primary_ocr_correct": false,
+      "retry_attempted": true,
+      "retry_correct": true,
+      "normalized_correct": true,
+      "validator_correct": true,
+      "governor_outcome": "ACCEPT",
+      "final_governed_correct": true
+    },
+    {
+      "source_id": "251f79e97f77",
+      "field_name": "total_charges",
+      "ub04_locator": "47 Totals",
+      "primary_ocr_correct": false,
+      "retry_attempted": true,
+      "retry_correct": true,
+      "normalized_correct": true,
+      "validator_correct": true,
+      "governor_outcome": "ACCEPT",
+      "final_governed_correct": true
+    },
+    {
+      "source_id": "251f79e97f77",
+      "field_name": "type_of_bill",
+      "ub04_locator": "4",
+      "primary_ocr_correct": false,
+      "retry_attempted": true,
+      "retry_correct": true,
+      "normalized_correct": true,
+      "validator_correct": true,
+      "governor_outcome": "ACCEPT",
+      "final_governed_correct": true
+    },
+    {
+      "source_id": "751e44752221",
+      "field_name": "admission_date",
+      "ub04_locator": "12",
+      "primary_ocr_correct": true,
+      "retry_attempted": true,
+      "retry_correct": true,
+      "normalized_correct": true,
+      "validator_correct": true,
+      "governor_outcome": "ACCEPT",
+      "final_governed_correct": true
+    },
+    {
+      "source_id": "751e44752221",
+      "field_name": "line1_charges",
+      "ub04_locator": "47 row 1",
+      "primary_ocr_correct": false,
+      "retry_attempted": true,
+      "retry_correct": true,
+      "normalized_correct": true,
+      "validator_correct": true,
+      "governor_outcome": "ACCEPT",
+      "final_governed_correct": true
+    },
+    {
+      "source_id": "751e44752221",
+      "field_name": "line1_rev_code",
+      "ub04_locator": "42 row 1",
+      "primary_ocr_correct": true,
+      "retry_attempted": true,
+      "retry_correct": true,
+      "normalized_correct": true,
+      "validator_correct": true,
+      "governor_outcome": "ACCEPT",
+      "final_governed_correct": true
+    },
+    {
+      "source_id": "751e44752221",
+      "field_name": "line1_units",
+      "ub04_locator": "46 row 1",
+      "primary_ocr_correct": true,
+      "retry_attempted": false,
+      "retry_correct": null,
+      "normalized_correct": true,
+      "validator_correct": true,
+      "governor_outcome": "ACCEPT",
+      "final_governed_correct": true
+    },
+    {
+      "source_id": "751e44752221",
+      "field_name": "patient_control_no",
+      "ub04_locator": "3a",
+      "primary_ocr_correct": true,
+      "retry_attempted": true,
+      "retry_correct": true,
+      "normalized_correct": true,
+      "validator_correct": true,
+      "governor_outcome": "ACCEPT",
+      "final_governed_correct": true
+    },
+    {
+      "source_id": "751e44752221",
+      "field_name": "patient_dob",
+      "ub04_locator": "10",
+      "primary_ocr_correct": false,
+      "retry_attempted": true,
+      "retry_correct": true,
+      "normalized_correct": true,
+      "validator_correct": true,
+      "governor_outcome": "ACCEPT",
+      "final_governed_correct": true
+    },
+    {
+      "source_id": "751e44752221",
+      "field_name": "patient_name",
+      "ub04_locator": "8b",
+      "primary_ocr_correct": false,
+      "retry_attempted": true,
+      "retry_correct": true,
+      "normalized_correct": true,
+      "validator_correct": true,
+      "governor_outcome": "ACCEPT",
+      "final_governed_correct": true
+    },
+    {
+      "source_id": "751e44752221",
+      "field_name": "patient_sex",
+      "ub04_locator": "11",
+      "primary_ocr_correct": false,
+      "retry_attempted": true,
+      "retry_correct": true,
+      "normalized_correct": true,
+      "validator_correct": true,
+      "governor_outcome": "ACCEPT",
+      "final_governed_correct": true
+    },
+    {
+      "source_id": "751e44752221",
+      "field_name": "principal_dx",
+      "ub04_locator": "67",
+      "primary_ocr_correct": false,
+      "retry_attempted": true,
+      "retry_correct": true,
+      "normalized_correct": true,
+      "validator_correct": true,
+      "governor_outcome": "ACCEPT",
+      "final_governed_correct": true
+    },
+    {
+      "source_id": "751e44752221",
+      "field_name": "provider_name",
+      "ub04_locator": "1",
+      "primary_ocr_correct": true,
+      "retry_attempted": true,
+      "retry_correct": true,
+      "normalized_correct": true,
+      "validator_correct": true,
+      "governor_outcome": "ACCEPT",
+      "final_governed_correct": true
+    },
+    {
+      "source_id": "751e44752221",
+      "field_name": "statement_from",
+      "ub04_locator": "6 From",
+      "primary_ocr_correct": false,
+      "retry_attempted": true,
+      "retry_correct": true,
+      "normalized_correct": true,
+      "validator_correct": true,
+      "governor_outcome": "ACCEPT",
+      "final_governed_correct": true
+    },
+    {
+      "source_id": "751e44752221",
+      "field_name": "statement_to",
+      "ub04_locator": "6 Through",
+      "primary_ocr_correct": false,
+      "retry_attempted": true,
+      "retry_correct": true,
+      "normalized_correct": true,
+      "validator_correct": true,
+      "governor_outcome": "ACCEPT",
+      "final_governed_correct": true
+    },
+    {
+      "source_id": "751e44752221",
+      "field_name": "total_charges",
+      "ub04_locator": "47 Totals",
+      "primary_ocr_correct": false,
+      "retry_attempted": true,
+      "retry_correct": true,
+      "normalized_correct": true,
+      "validator_correct": true,
+      "governor_outcome": "ACCEPT",
+      "final_governed_correct": true
+    },
+    {
+      "source_id": "751e44752221",
+      "field_name": "type_of_bill",
+      "ub04_locator": "4",
+      "primary_ocr_correct": false,
+      "retry_attempted": true,
+      "retry_correct": true,
+      "normalized_correct": true,
+      "validator_correct": true,
+      "governor_outcome": "ACCEPT",
+      "final_governed_correct": true
+    }
+  ],
+  "geometry_rows": [
+    {
+      "source_id": "251f79e97f77",
+      "field_name": "provider_name",
+      "ub04_locator": "1",
+      "crop_region": [
+        54,
+        34,
+        522,
+        60
+      ],
+      "crop_correct": true,
+      "support_status": "supported",
+      "evaluator_populated": true
+    },
+    {
+      "source_id": "251f79e97f77",
+      "field_name": "patient_control_no",
+      "ub04_locator": "3a",
+      "crop_region": [
+        1078,
+        34,
+        1562,
+        58
+      ],
+      "crop_correct": true,
+      "support_status": "supported",
+      "evaluator_populated": true
+    },
+    {
+      "source_id": "251f79e97f77",
+      "field_name": "medical_record_no",
+      "ub04_locator": "3b",
+      "crop_region": [
+        1078,
+        64,
+        1562,
+        95
+      ],
+      "crop_correct": true,
+      "support_status": "excluded_from_denominator_pending_organiser_confirmation",
+      "evaluator_populated": false
+    },
+    {
+      "source_id": "251f79e97f77",
+      "field_name": "type_of_bill",
+      "ub04_locator": "4",
+      "crop_region": [
+        1560,
+        64,
+        1649,
+        95
+      ],
+      "crop_correct": true,
+      "support_status": "supported",
+      "evaluator_populated": true
+    },
+    {
+      "source_id": "251f79e97f77",
+      "field_name": "federal_tax_no",
+      "ub04_locator": "5",
+      "crop_region": [
+        1038,
+        112,
+        1228,
+        148
+      ],
+      "crop_correct": true,
+      "support_status": "excluded_from_denominator_pending_organiser_confirmation",
+      "evaluator_populated": true
+    },
+    {
+      "source_id": "251f79e97f77",
+      "field_name": "statement_from",
+      "ub04_locator": "6 From",
+      "crop_region": [
+        1216,
+        112,
+        1366,
+        148
+      ],
+      "crop_correct": true,
+      "support_status": "supported",
+      "evaluator_populated": true
+    },
+    {
+      "source_id": "251f79e97f77",
+      "field_name": "statement_to",
+      "ub04_locator": "6 Through",
+      "crop_region": [
+        1354,
+        112,
+        1562,
+        148
+      ],
+      "crop_correct": true,
+      "support_status": "supported",
+      "evaluator_populated": true
+    },
+    {
+      "source_id": "251f79e97f77",
+      "field_name": "patient_name",
+      "ub04_locator": "8b",
+      "crop_region": [
+        54,
+        194,
+        619,
+        231
+      ],
+      "crop_correct": true,
+      "support_status": "supported",
+      "evaluator_populated": true
+    },
+    {
+      "source_id": "251f79e97f77",
+      "field_name": "patient_dob",
+      "ub04_locator": "10",
+      "crop_region": [
+        30,
+        244,
+        205,
+        282
+      ],
+      "crop_correct": true,
+      "support_status": "supported",
+      "evaluator_populated": true
+    },
+    {
+      "source_id": "251f79e97f77",
+      "field_name": "patient_sex",
+      "ub04_locator": "11",
+      "crop_region": [
+        195,
+        244,
+        263,
+        282
+      ],
+      "crop_correct": true,
+      "support_status": "supported",
+      "evaluator_populated": true
+    },
+    {
+      "source_id": "251f79e97f77",
+      "field_name": "admission_date",
+      "ub04_locator": "12",
+      "crop_region": [
+        253,
+        244,
+        383,
+        282
+      ],
+      "crop_correct": true,
+      "support_status": "supported",
+      "evaluator_populated": true
+    },
+    {
+      "source_id": "251f79e97f77",
+      "field_name": "line1_rev_code",
+      "ub04_locator": "42 row 1",
+      "crop_region": [
+        47,
+        566,
+        122,
+        609
+      ],
+      "crop_correct": true,
+      "support_status": "supported",
+      "evaluator_populated": true
+    },
+    {
+      "source_id": "251f79e97f77",
+      "field_name": "line1_hcpcs",
+      "ub04_locator": "44 row 1",
+      "crop_region": [
+        608,
+        566,
+        919,
+        609
+      ],
+      "crop_correct": true,
+      "support_status": "blank_but_valid",
+      "evaluator_populated": false
+    },
+    {
+      "source_id": "251f79e97f77",
+      "field_name": "line1_units",
+      "ub04_locator": "46 row 1",
+      "crop_region": [
+        1135,
+        566,
+        1212,
+        609
+      ],
+      "crop_correct": true,
+      "support_status": "supported",
+      "evaluator_populated": true
+    },
+    {
+      "source_id": "251f79e97f77",
+      "field_name": "line1_charges",
+      "ub04_locator": "47 row 1",
+      "crop_region": [
+        1200,
+        566,
+        1415,
+        609
+      ],
+      "crop_correct": true,
+      "support_status": "supported",
+      "evaluator_populated": true
+    },
+    {
+      "source_id": "251f79e97f77",
+      "field_name": "line2_rev_code",
+      "ub04_locator": "42 row 2",
+      "crop_region": [
+        47,
+        602,
+        122,
+        638
+      ],
+      "crop_correct": true,
+      "support_status": "not_printed",
+      "evaluator_populated": true
+    },
+    {
+      "source_id": "251f79e97f77",
+      "field_name": "line2_hcpcs",
+      "ub04_locator": "44 row 2",
+      "crop_region": [
+        608,
+        602,
+        919,
+        638
+      ],
+      "crop_correct": true,
+      "support_status": "blank_but_valid",
+      "evaluator_populated": false
+    },
+    {
+      "source_id": "251f79e97f77",
+      "field_name": "line2_units",
+      "ub04_locator": "46 row 2",
+      "crop_region": [
+        1135,
+        602,
+        1212,
+        638
+      ],
+      "crop_correct": true,
+      "support_status": "not_printed",
+      "evaluator_populated": true
+    },
+    {
+      "source_id": "251f79e97f77",
+      "field_name": "line2_charges",
+      "ub04_locator": "47 row 2",
+      "crop_region": [
+        1200,
+        602,
+        1415,
+        638
+      ],
+      "crop_correct": true,
+      "support_status": "not_printed",
+      "evaluator_populated": true
+    },
+    {
+      "source_id": "251f79e97f77",
+      "field_name": "line3_rev_code",
+      "ub04_locator": "42 row 3",
+      "crop_region": [
+        47,
+        632,
+        122,
+        668
+      ],
+      "crop_correct": true,
+      "support_status": "not_printed",
+      "evaluator_populated": true
+    },
+    {
+      "source_id": "251f79e97f77",
+      "field_name": "line3_hcpcs",
+      "ub04_locator": "44 row 3",
+      "crop_region": [
+        608,
+        632,
+        919,
+        668
+      ],
+      "crop_correct": true,
+      "support_status": "blank_but_valid",
+      "evaluator_populated": false
+    },
+    {
+      "source_id": "251f79e97f77",
+      "field_name": "line3_units",
+      "ub04_locator": "46 row 3",
+      "crop_region": [
+        1135,
+        632,
+        1212,
+        668
+      ],
+      "crop_correct": true,
+      "support_status": "not_printed",
+      "evaluator_populated": true
+    },
+    {
+      "source_id": "251f79e97f77",
+      "field_name": "line3_charges",
+      "ub04_locator": "47 row 3",
+      "crop_region": [
+        1200,
+        632,
+        1415,
+        668
+      ],
+      "crop_correct": true,
+      "support_status": "not_printed",
+      "evaluator_populated": true
+    },
+    {
+      "source_id": "251f79e97f77",
+      "field_name": "total_charges",
+      "ub04_locator": "47 Totals",
+      "crop_region": [
+        1200,
+        1272,
+        1415,
+        1314
+      ],
+      "crop_correct": true,
+      "support_status": "supported",
+      "evaluator_populated": true
+    },
+    {
+      "source_id": "251f79e97f77",
+      "field_name": "principal_dx",
+      "ub04_locator": "67",
+      "crop_region": [
+        54,
+        1688,
+        216,
+        1728
+      ],
+      "crop_correct": true,
+      "support_status": "supported",
+      "evaluator_populated": true
+    },
+    {
+      "source_id": "751e44752221",
+      "field_name": "provider_name",
+      "ub04_locator": "1",
+      "crop_region": [
+        56,
+        34,
+        523,
+        60
+      ],
+      "crop_correct": true,
+      "support_status": "supported",
+      "evaluator_populated": true
+    },
+    {
+      "source_id": "751e44752221",
+      "field_name": "patient_control_no",
+      "ub04_locator": "3a",
+      "crop_region": [
+        1080,
+        34,
+        1563,
+        58
+      ],
+      "crop_correct": true,
+      "support_status": "supported",
+      "evaluator_populated": true
+    },
+    {
+      "source_id": "751e44752221",
+      "field_name": "medical_record_no",
+      "ub04_locator": "3b",
+      "crop_region": [
+        1080,
+        64,
+        1563,
+        95
+      ],
+      "crop_correct": true,
+      "support_status": "excluded_from_denominator_pending_organiser_confirmation",
+      "evaluator_populated": false
+    },
+    {
+      "source_id": "751e44752221",
+      "field_name": "type_of_bill",
+      "ub04_locator": "4",
+      "crop_region": [
+        1562,
+        64,
+        1651,
+        95
+      ],
+      "crop_correct": true,
+      "support_status": "supported",
+      "evaluator_populated": true
+    },
+    {
+      "source_id": "751e44752221",
+      "field_name": "federal_tax_no",
+      "ub04_locator": "5",
+      "crop_region": [
+        1039,
+        112,
+        1230,
+        148
+      ],
+      "crop_correct": true,
+      "support_status": "excluded_from_denominator_pending_organiser_confirmation",
+      "evaluator_populated": true
+    },
+    {
+      "source_id": "751e44752221",
+      "field_name": "statement_from",
+      "ub04_locator": "6 From",
+      "crop_region": [
+        1218,
+        112,
+        1368,
+        148
+      ],
+      "crop_correct": true,
+      "support_status": "supported",
+      "evaluator_populated": true
+    },
+    {
+      "source_id": "751e44752221",
+      "field_name": "statement_to",
+      "ub04_locator": "6 Through",
+      "crop_region": [
+        1356,
+        112,
+        1563,
+        148
+      ],
+      "crop_correct": true,
+      "support_status": "supported",
+      "evaluator_populated": true
+    },
+    {
+      "source_id": "751e44752221",
+      "field_name": "patient_name",
+      "ub04_locator": "8b",
+      "crop_region": [
+        56,
+        194,
+        620,
+        231
+      ],
+      "crop_correct": true,
+      "support_status": "supported",
+      "evaluator_populated": true
+    },
+    {
+      "source_id": "751e44752221",
+      "field_name": "patient_dob",
+      "ub04_locator": "10",
+      "crop_region": [
+        31,
+        244,
+        206,
+        282
+      ],
+      "crop_correct": true,
+      "support_status": "supported",
+      "evaluator_populated": true
+    },
+    {
+      "source_id": "751e44752221",
+      "field_name": "patient_sex",
+      "ub04_locator": "11",
+      "crop_region": [
+        196,
+        244,
+        264,
+        282
+      ],
+      "crop_correct": true,
+      "support_status": "supported",
+      "evaluator_populated": true
+    },
+    {
+      "source_id": "751e44752221",
+      "field_name": "admission_date",
+      "ub04_locator": "12",
+      "crop_region": [
+        254,
+        244,
+        385,
+        282
+      ],
+      "crop_correct": true,
+      "support_status": "supported",
+      "evaluator_populated": true
+    },
+    {
+      "source_id": "751e44752221",
+      "field_name": "line1_rev_code",
+      "ub04_locator": "42 row 1",
+      "crop_region": [
+        48,
+        566,
+        123,
+        609
+      ],
+      "crop_correct": true,
+      "support_status": "supported",
+      "evaluator_populated": true
+    },
+    {
+      "source_id": "751e44752221",
+      "field_name": "line1_hcpcs",
+      "ub04_locator": "44 row 1",
+      "crop_region": [
+        609,
+        566,
+        920,
+        609
+      ],
+      "crop_correct": true,
+      "support_status": "blank_but_valid",
+      "evaluator_populated": false
+    },
+    {
+      "source_id": "751e44752221",
+      "field_name": "line1_units",
+      "ub04_locator": "46 row 1",
+      "crop_region": [
+        1137,
+        566,
+        1214,
+        609
+      ],
+      "crop_correct": true,
+      "support_status": "supported",
+      "evaluator_populated": true
+    },
+    {
+      "source_id": "751e44752221",
+      "field_name": "line1_charges",
+      "ub04_locator": "47 row 1",
+      "crop_region": [
+        1202,
+        566,
+        1417,
+        609
+      ],
+      "crop_correct": true,
+      "support_status": "supported",
+      "evaluator_populated": true
+    },
+    {
+      "source_id": "751e44752221",
+      "field_name": "line2_rev_code",
+      "ub04_locator": "42 row 2",
+      "crop_region": [
+        48,
+        602,
+        123,
+        638
+      ],
+      "crop_correct": true,
+      "support_status": "not_printed",
+      "evaluator_populated": true
+    },
+    {
+      "source_id": "751e44752221",
+      "field_name": "line2_hcpcs",
+      "ub04_locator": "44 row 2",
+      "crop_region": [
+        609,
+        602,
+        920,
+        638
+      ],
+      "crop_correct": true,
+      "support_status": "blank_but_valid",
+      "evaluator_populated": false
+    },
+    {
+      "source_id": "751e44752221",
+      "field_name": "line2_units",
+      "ub04_locator": "46 row 2",
+      "crop_region": [
+        1137,
+        602,
+        1214,
+        638
+      ],
+      "crop_correct": true,
+      "support_status": "not_printed",
+      "evaluator_populated": true
+    },
+    {
+      "source_id": "751e44752221",
+      "field_name": "line2_charges",
+      "ub04_locator": "47 row 2",
+      "crop_region": [
+        1202,
+        602,
+        1417,
+        638
+      ],
+      "crop_correct": true,
+      "support_status": "not_printed",
+      "evaluator_populated": true
+    },
+    {
+      "source_id": "751e44752221",
+      "field_name": "line3_rev_code",
+      "ub04_locator": "42 row 3",
+      "crop_region": [
+        48,
+        632,
+        123,
+        668
+      ],
+      "crop_correct": true,
+      "support_status": "not_printed",
+      "evaluator_populated": true
+    },
+    {
+      "source_id": "751e44752221",
+      "field_name": "line3_hcpcs",
+      "ub04_locator": "44 row 3",
+      "crop_region": [
+        609,
+        632,
+        920,
+        668
+      ],
+      "crop_correct": true,
+      "support_status": "blank_but_valid",
+      "evaluator_populated": false
+    },
+    {
+      "source_id": "751e44752221",
+      "field_name": "line3_units",
+      "ub04_locator": "46 row 3",
+      "crop_region": [
+        1137,
+        632,
+        1214,
+        668
+      ],
+      "crop_correct": true,
+      "support_status": "not_printed",
+      "evaluator_populated": true
+    },
+    {
+      "source_id": "751e44752221",
+      "field_name": "line3_charges",
+      "ub04_locator": "47 row 3",
+      "crop_region": [
+        1202,
+        632,
+        1417,
+        668
+      ],
+      "crop_correct": true,
+      "support_status": "not_printed",
+      "evaluator_populated": true
+    },
+    {
+      "source_id": "751e44752221",
+      "field_name": "total_charges",
+      "ub04_locator": "47 Totals",
+      "crop_region": [
+        1202,
+        1272,
+        1417,
+        1314
+      ],
+      "crop_correct": true,
+      "support_status": "supported",
+      "evaluator_populated": true
+    },
+    {
+      "source_id": "751e44752221",
+      "field_name": "principal_dx",
+      "ub04_locator": "67",
+      "crop_region": [
+        56,
+        1688,
+        217,
+        1728
+      ],
+      "crop_correct": true,
+      "support_status": "supported",
+      "evaluator_populated": true
+    }
+  ]
+}

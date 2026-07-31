@@ -34,3 +34,12 @@ scored, supported, unambiguous, and populated in both development records. Toget
 text, date, quantity, money, and code normalization across the top, service grid, total row, and
 lower diagnosis section. Coordinates must be fixed from form structure before expected values are
 used for evaluation.
+
+## Expanded development template
+
+The template now holds 25 concrete regions, including the evaluator's three-row service cap.
+Fourteen regions are score-eligible on both development documents. Optional HCPCS rows are
+`blank_but_valid`; six repeated row-2/3 values are `not_printed`; FL 3b and FL 5 are
+`excluded_from_denominator_pending_organiser_confirmation`. Patient address remains ambiguous,
+and attending/provider/service-date/payer concepts remain outside the template or denominator for
+the reasons recorded in the machine-readable map.
