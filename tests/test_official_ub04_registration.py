@@ -183,3 +183,19 @@ def test_dynamic_holdout_guard_no_expected_value_registration_and_synthetic_regr
         "engine/layout/templates/ub04_v3.json"
     ).read_bytes()).hexdigest()
     assert digest == "b6714b96eb6b13a5670b523228366449263236d294e47fb931779bfcfdaca506"
+
+
+def test_committed_proof_receipt_is_complete_and_contains_no_values():
+    receipt = json.loads(Path(
+        "eval/results/official_ub04_five_field_proof_summary.json"
+    ).read_text(encoding="utf-8"))
+    summary, rows = receipt["summary"], receipt["rows"]
+    assert summary["instances"] == len(rows) == 10
+    assert summary["geometry_correct"] == summary["normalized_correct"] == 10
+    assert summary["holdout_access_count"] == 0
+    assert summary["external_provider_calls"] == 0
+    forbidden_keys = {"value", "expected", "ocr_text", "organiser_value", "filename"}
+    assert all(not forbidden_keys.intersection(row) for row in rows)
+    split = json.loads(Path("eval/official/splits/tier_c_split_v1.json").read_text())
+    holdout = {row["source_id"] for row in split["holdout"] + split["excluded"]}
+    assert not holdout.intersection(row["source_id"] for row in rows)
