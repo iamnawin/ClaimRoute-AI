@@ -2,8 +2,8 @@
 
 ## Session log - 31 Jul 2026 (official CMS-1500 full development expansion)
 
-Starting commit `b48ddb9`; clean synchronized `main`. Implementation ending commit `5fa76da`;
-commits through that point were pushed to `origin/main`. The authoritative map produced
+Starting commit `b48ddb9`; clean synchronized `main`. Implementation/evidence ending commit
+`13f4b86`; commits through that point were pushed to `origin/main`. The authoritative map produced
 44 evaluated NSF-320 names, 41 eligible unambiguous names, and 41 authored coordinates. Exclusions:
 three evaluated ambiguous-box names, one unsupported-schema concept outside the denominator, four
 no-official-expected names outside the denominator, and 21 line 4-6 crops excluded by the evaluated
@@ -29,9 +29,9 @@ Full suite: 152 passed in 86.29 seconds. Staged PHI/organiser literal scan: clea
 OCR output, expected record, generated dataset, or frozen synthetic artifact was staged.
 
 Commits: `7981586` (template/extraction), `2511a59` (tests and deterministic candidate hashing),
-`95c149d` (development evidence and freeze-readiness reports), `2e48d1c` (memory/handoff), and
-`5fa76da` (remove redundant retry mapping). Push status: all five reached `origin/main`; the final
-refreshed evidence receipt follows separately.
+`95c149d` (development evidence and freeze-readiness reports), `2e48d1c` (memory/handoff),
+`5fa76da` (remove redundant retry mapping), and `13f4b86` (refreshed measured evidence). Push
+status: all six reached `origin/main`; this update is the final handoff receipt.
 
 Next exact command: `.\.venv\Scripts\python.exe -m pytest tests\ -q`.
 
