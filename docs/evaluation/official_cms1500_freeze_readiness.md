@@ -2,8 +2,8 @@
 
 ## Decision
 
-**DO NOT FREEZE.** Coordinate authoring is complete, but the development extraction system is
-not accurate or fast enough for an honest Tier A holdout run.
+**DO NOT FREEZE.** OCR optimization materially improved development performance, but 31/77
+populated fields remain unresolved and six checkbox values remain confidently misclassified.
 
 ## Ready
 
@@ -15,16 +15,21 @@ not accurate or fast enough for an honest Tier A holdout run.
 - Retry evidence now re-enters fusion, validation, and the governor.
 - Candidate SHA-256 generation is deterministic.
 - Holdout access remains zero.
+- Field-family retry profiles, shared page OCR, typed candidate ranking, and validated early stop
+  are deterministic and covered by synthetic tests.
+- Development normalized accuracy improved from 32/77 to 46/77; critical accuracy improved from
+  17/41 to 26/41.
+- Latency fell from 119,186.826 to 63,523.322 ms/page and local cost fell from $0.001655373 to
+  $0.000882268/page.
 
 ## Blocking freeze
 
-- Normalized development accuracy is 32/77 (41.5584%).
-- Critical-field accuracy is 17/41 (41.4634%).
-- Retry resolves 23/60 attempts (38.3333%).
-- 45 populated instances remain unresolved.
-- Full local processing takes 119.187 seconds/page and $0.001655/page.
-- Checkbox extraction, dates, diagnosis codes, identifiers, and multi-word provider fields need
-  measured field-policy/OCR work on the same three development pages.
+- Normalized development accuracy is 46/77 (59.7403%).
+- Critical-field accuracy is 26/41 (63.4146%).
+- Retry resolves 37/60 attempts (61.6667%).
+- 31 populated instances remain unresolved.
+- Full local processing still takes 63.523 seconds/page and $0.000882/page.
+- Checkbox marks, diagnosis codes, insured IDs, dates, and label-heavy text remain blockers.
 - Two correctly normalized retry cases remain below the unchanged Balanced accept threshold;
   retain them as calibration questions until extraction confidence is improved.
 
@@ -37,6 +42,5 @@ The hashes define what would be reviewed later; they do not authorize or execute
 
 ## Required next gate
 
-Improve the measured OCR/normalization clusters using only the three development documents,
-rerun the development report, review the resulting accuracy and latency, then create a separate
-freeze commit. Do not open the holdout before that commit is approved.
+Review the remaining development clusters and the refreshed candidate hashes before any separate
+freeze decision. Do not open the holdout until a freeze commit is explicitly approved.

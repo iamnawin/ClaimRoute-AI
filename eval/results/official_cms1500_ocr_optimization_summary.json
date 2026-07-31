@@ -1,0 +1,75 @@
+{
+  "report_id": "official_cms1500_ocr_optimization_v1",
+  "status": "development_improved_not_frozen",
+  "safe_scope": {
+    "development_documents": 3,
+    "holdout_documents_opened": 0,
+    "external_provider_calls": 0,
+    "organiser_values_emitted": 0
+  },
+  "before": {
+    "geometry": "123/123",
+    "primary_ocr": "18/77",
+    "retry_resolution": "23/60",
+    "normalized_accuracy": "32/77",
+    "critical_accuracy": "17/41",
+    "validator_passes": "46/77",
+    "governor_states": {
+      "ACCEPT": 22,
+      "ACCEPT_WITH_FLAG": 14,
+      "ESCALATE": 41
+    },
+    "latency_ms_per_page": 119186.826,
+    "local_cost_usd_per_page": 0.001655373
+  },
+  "after": {
+    "geometry": "123/123",
+    "primary_ocr": "22/77",
+    "retry_resolution": "37/60",
+    "normalized_accuracy": "46/77",
+    "critical_accuracy": "26/41",
+    "validator_passes": "50/77",
+    "governor_states": {
+      "ACCEPT": 29,
+      "ESCALATE": 35,
+      "ACCEPT_WITH_FLAG": 13
+    },
+    "latency_ms_per_page": 63523.322,
+    "local_cost_usd_per_page": 0.000882268,
+    "failures_by_field_family": {
+      "checkbox": 3,
+      "checkbox_group": 3,
+      "code": 2,
+      "date": 6,
+      "diagnosis_code": 6,
+      "identifier": 1,
+      "money": 3,
+      "text": 7
+    }
+  },
+  "delta": {
+    "primary_correct": 4,
+    "retry_resolved": 14,
+    "normalized_correct": 14,
+    "critical_correct": 9,
+    "latency_ms_per_page": -55663.504,
+    "latency_reduction_fraction": 0.467027,
+    "local_cost_usd_per_page": -0.000773105
+  },
+  "fixes": [
+    "six-digit date normalization aligned with existing date validator semantics",
+    "one shared Paddle page pass reused across retry fields",
+    "field-family bounded retry profiles with cheapest likely attempt first",
+    "typed candidate generation and validator/confidence/agreement ranking",
+    "validated early stop and OCR engine reuse",
+    "one registration reused across each mapping pass"
+  ],
+  "unchanged": [
+    "template coordinates",
+    "governor thresholds",
+    "frozen synthetic results",
+    "official holdout",
+    "external provider policy"
+  ],
+  "freeze_recommendation": "DO_NOT_FREEZE"
+}
