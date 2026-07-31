@@ -9,9 +9,11 @@ import numpy as np
 from PIL import Image
 
 from engine.layout.official_cms1500_registration import load_official_template
+from engine.layout.official_cms1500_registration import official_mark_regions
 from engine.ocr.base import OcrWord
 from eval.official.extraction import (
-    _npi_check_digit, _typed_retry_value, map_monochrome_fields, retry_official_page,
+    _npi_check_digit, _typed_retry_value, map_monochrome_fields,
+    official_retry_mode, retry_official_page,
 )
 from engine.schemas import FieldResult, FieldState, PageResult
 
@@ -28,9 +30,10 @@ def _form() -> Image.Image:
     return Image.fromarray(page)
 
 
-def test_official_mapper_returns_only_the_fixed_five_fields():
+def test_official_mapper_returns_the_full_evaluated_template():
     mapped = map_monochrome_fields([], _form(), "cms1500")
     assert set(mapped) == set(load_official_template()["fields"])
+    assert len(mapped) == 41
     assert all(row["bbox"] is not None for row in mapped.values())
 
 
@@ -42,6 +45,18 @@ def test_official_mapper_uses_overlap_inside_registered_regions():
     mapped = map_monochrome_fields([word], image, "cms1500")
     assert mapped["line1_units"]["value"] == "1"
     assert all(mapped[name]["value"] == "" for name in mapped if name != "line1_units")
+
+
+def test_checkbox_policy_selects_the_marked_synthetic_option():
+    image = _form().convert("L")
+    marks = official_mark_regions(image, "patient_sex")
+    target = marks["M"]
+    array = np.asarray(image).copy()
+    x0, y0, x1, y1 = [round(value) for value in target]
+    cv2.line(array, (x0 + 2, y0 + 2), (x1 - 2, y1 - 2), 0, 3)
+    cv2.line(array, (x1 - 2, y0 + 2), (x0 + 2, y1 - 2), 0, 3)
+    mapped = map_monochrome_fields([], Image.fromarray(array), "cms1500")
+    assert mapped["patient_sex"]["value"] == "M"
 
 
 def test_holdout_guard_remains_dynamic_and_no_expected_values_enter_registration():
@@ -65,6 +80,10 @@ def test_field_specific_retry_normalization_is_deterministic():
     assert _typed_retry_value("line1_charges", "250") == "250.00"
     assert _typed_retry_value("line1_units", "T") == "1"
     assert _typed_retry_value("federal_tax_id", "12-3456789") == "123456789"
+    assert _typed_retry_value("line2_date_from", "03/15/2024") == "03152024"
+    assert _typed_retry_value("total_charge", "$1,250.00") == "1250.00"
+    assert official_retry_mode("line3_cpt_code") == "procedure-code"
+    assert official_retry_mode("patient_relationship") == "checkbox-mark-detection"
 
 
 def test_npi_retry_repairs_only_the_check_digit():
@@ -77,7 +96,7 @@ def test_npi_retry_repairs_only_the_check_digit():
 
 
 def test_official_retry_reenters_validation_and_governor(monkeypatch):
-    page = PageResult("safe-dev", "p1", "cms1500")
+    page = PageResult("safe-dev", "p1", "cms1500", quality_score=.95)
     field = FieldResult("safe-dev", "p1", "line1_units", None, confidence=0.0)
     field.set_state(FieldState.RETRY)
     page.fields[field.field_name] = field
@@ -85,9 +104,11 @@ def test_official_retry_reenters_validation_and_governor(monkeypatch):
     monkeypatch.setattr(
         "eval.official.extraction.official_retry_candidate",
         lambda image, name: {"value": "1", "confidence": .99,
-                             "latency_ms": 1.0, "mode": "isolated-glyph"},
+                             "n_spans": 1, "latency_ms": 1.0,
+                             "mode": "isolated-quantity"},
     )
     receipts = retry_official_page(page, _form())
-    assert receipts[0]["mode"] == "isolated-glyph"
+    assert receipts[0]["mode"] == "isolated-quantity"
     assert field.value == "1" and field.attempts[-1].rung == "retry_ocr"
+    assert field.attempts[-1].confidence == field.confidence
     assert field.state == FieldState.ACCEPT

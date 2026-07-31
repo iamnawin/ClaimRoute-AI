@@ -63,18 +63,14 @@ def test_official_template_is_separate_from_synthetic_red_extent():
     assert register_official_cms1500(page) is not None
 
 
-def test_five_regions_are_bounded_and_have_explicit_padding():
+def test_official_regions_are_bounded_and_have_explicit_padding():
     template = load_official_template()
-    assert set(template["fields"]) == {
-        "patient_dob", "line1_charges", "line1_units",
-        "federal_tax_id", "billing_provider_npi",
-    }
+    assert len(template["fields"]) == 41
     for name, field in template["fields"].items():
         assert len(field["padding_px"]) == 4 and all(p >= 0 for p in field["padding_px"])
         assert all(0 <= value <= 1 for value in field["x_region"])
-        assert all(0 <= value <= 1 for value in field["y_fraction"])
-        assert field["row_band"] in {
-            "patient_row", "service_line1", "footer_upper", "footer_lower"
-        }
+        assert all(0 <= value <= 1 for value in field["y_region"])
+        assert field["x_region"][0] < field["x_region"][1]
+        assert field["y_region"][0] < field["y_region"][1]
         x0, y0, x1, y1 = official_field_region(_form(), name)
         assert 0 <= x0 < x1 <= 850 and 0 <= y0 < y1 <= 1100
