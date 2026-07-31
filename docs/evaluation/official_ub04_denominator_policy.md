@@ -1,21 +1,37 @@
-# Official UB-04 candidate denominator policy
+# Official UB-04 provisional denominator policy
 
-Status: **candidate only; organiser confirmation required; holdout not authorized**.
+Status: **provisionally frozen; holdout not accessed**.
 
-The machine-readable contract is `eval/official/ub04_denominator_policy.yaml`. Every mapped Tier C
-field has exactly one policy. The current development denominator includes 14 concrete fields per
-page (28 comparisons): required claim fields plus visibly printed/nonblank first revenue-row values.
+The organiser clarification requested before the deadline was unavailable. ClaimRoute therefore
+uses a conservative, reproducible policy rather than inferring organiser intent. Every Tier C result
+must carry this label: **“Provisional denominator policy due to unavailable organiser
+clarification.”**
 
-Excluded categories are deliberate:
+## Primary benchmark denominator
 
-- FL 3b is printed but absent from the development expected record.
-- FL 5 has a ten-character UB-192 slice but a nine-digit printed EIN.
-- Rows 2–3 revenue, units, and charges exist in the expected record but are not printed.
-- Blank HCPCS boxes are valid but excluded because the evaluator omits empty expected values.
-- Patient address spans several printed subfields and remains ambiguous.
-- Provider NPI, service date, and payer name have no current authoritative expected-output path.
-- Attending NPI remains conditional on organiser confirmation of qualifier semantics; the qualifier
-  itself is unsupported as a scored ClaimRoute field.
+The primary score includes only fields supported by the current evaluator and schema that have an
+unambiguous locator, are visibly printed and nonblank, and are deterministically comparable.
+`primary_scored` fields enter when present in the organiser expected record. A
+`conditional_scored` field enters only when it is also independently confirmed visibly populated
+and unambiguous. The development reference set is 14 fields per page (28 comparisons across two
+pages). Holdout counts are unknown until the authorized one-time run.
 
-These exclusions must remain unchanged until the organiser answers the exact questions recorded in
-the YAML. No absence or record-only value may be silently converted into a scored comparison.
+## Extended coverage denominator
+
+The extended denominator contains every nonblank organiser-expected field, including fields outside
+the primary policy. It is reported separately as coverage analysis and must never be presented as
+the primary accuracy score. The development reference is 21 fields per page (42 comparisons).
+
+## Exclusions
+
+- `excluded_ambiguous`: FL 3b, FL 5, and the composite patient address.
+- `excluded_not_printed`: repeated row 2–3 values present only in organiser records.
+- `excluded_blank_valid`: blank HCPCS regions without an official blank-scoring rule.
+- `excluded_unsupported`: attending qualifier, provider NPI, payer name, and service dates without
+  a complete current schema/parser/expected-output path.
+- `conditional_scored`: attending NPI only when visibly populated, unambiguous, and expected.
+
+An excluded comparison is neither correct nor incorrect and cannot increase primary accuracy. The
+report must show primary numerator/denominator, extended coverage numerator/denominator, exclusions
+by category, and the provisional-policy label. Organiser clarification may create a new policy
+version; it must not retroactively rewrite this frozen receipt.
