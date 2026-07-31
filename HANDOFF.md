@@ -1,5 +1,63 @@
 # Handoff — claims-engine (Day 11 frozen evidence verified)
 
+## Session log - 31 Jul 2026 (normalization routing fix, pre-template)
+
+Commits `9e10665` (split manifest) and `9c47fe2` (routing fix) both pushed; `main`
+synchronized with `origin/main`. Tests **99 passed** (was 92; +7 new). Holdout unopened.
+
+### Root cause
+
+`eval/official/evaluator.py:claimroute_expected` renames spec fields to the ClaimRoute
+schema and builds line-item names **dynamically** as `f"line{n}_{target}"`.
+`eval/official/normalization.py` keyed `DATE_FIELDS` / `MONEY_FIELDS` / `CODE_FIELDS` on the
+**spec** names, so every generated name fell through to the text branch. A set-membership
+test cannot cover a generated name space, so the fix is a `classify_field()` function using
+field-family **suffix rules** alongside the existing sets, which still receive un-aliased
+spec names on the UB-04 path (only NSF320 triggers the `provider_npi` rename).
+
+### Measured scope, corrected
+
+Enumerated the real name space rather than estimating: **44 NSF320 / 27 UB192** names reach
+`compare_fields`, of which only **3** previously reached a typed branch. My earlier estimate
+of "up to 6 of ~35 fields" understated the routing breadth and overstated the harm, because
+most text-branch routings are correct. Three families were genuinely mis-scoring:
+
+| Family | Symptom | Status before fix |
+|---|---|---|
+| `line*_date_from` / `_date_to` | `20240315` vs `03152024`; wrong **with perfect OCR**. Up to 6 fields/doc | live defect |
+| `line*_units` | NSF parser scales to `1.0`, form prints `1`, compared as `10` vs `1`. Up to 3 fields/doc | live defect (not previously reported) |
+| `line*_charges` | Matched only because the decimal point was stripped from both sides; breaks when cents are not printed | latent |
+
+Identifier and code families (`billing_provider_npi`, `referring_provider_npi`,
+`line*_cpt_code`, `diagnosis_code_*`, `line*_rev_code`, `line*_hcpcs`) were verified to
+already compare correctly under the text branch and are **deliberately unchanged**.
+
+### Tests
+
+7 added to `tests/test_official_dataset.py`, synthetic values only: alias classification,
+date component-order, date negative case, charge decimal alignment, quantity scaling,
+identifier punctuation with a differing-digit negative, and unknown-field fallback.
+Verified as **genuine regression guards** by re-running against the pre-fix routing: the
+date, charge and quantity tests fail with exactly the predicted mismatches. Noted limitation
+— the classification test imports `classify_field` directly, so that one test alone does not
+detect the old behaviour under monkeypatch; the other three exercise routing through
+`normalize_value` and do.
+
+### Evidence impact
+
+**None.** Recorded Tier A correctness is 0/299 because registration fails upstream, so this
+fix neither inflates nor invalidates any published accuracy number.
+
+### Commands run
+
+`git push origin main` (twice) - `.\.venv\Scripts\python.exe -m pytest tests/ -q` (99 passed)
+
+### Next exact task
+
+Build the official-output -> ClaimRoute field -> CMS-1500 box -> normalization -> validator ->
+criticality mapping table, using the three development documents only. Do not invent mappings;
+use the repository's real names (`billing_provider_npi`, not `provider_npi`).
+
 ## Session log - 30 Jul 2026 (official Tier A template: split + normalization audit)
 
 Starting commit `34dfe8a` (pushed; `main` synchronized with `origin/main`).
