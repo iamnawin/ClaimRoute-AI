@@ -1,5 +1,40 @@
 # Handoff — claims-engine (Day 11 frozen evidence verified)
 
+## Session log - 31 Jul 2026 (official CMS-1500 full development expansion)
+
+Starting commit `b48ddb9`; clean synchronized `main`. Implementation/evidence ending commit
+`95c149d`; commits through that point were pushed to `origin/main`. The authoritative map produced
+44 evaluated NSF-320 names, 41 eligible unambiguous names, and 41 authored coordinates. Exclusions:
+three evaluated ambiguous-box names, one unsupported-schema concept outside the denominator, four
+no-official-expected names outside the denominator, and 21 line 4-6 crops excluded by the evaluated
+three-line cap.
+
+Only the three frozen development entries were used. Geometry was 123/123; no holdout TIFF was
+opened, rendered, registered, cropped, or OCRed. The populated development denominator was 77.
+Primary OCR was 18/77; 60 retries resolved 23; final normalized accuracy was 32/77 and critical
+accuracy 17/41. Validator pass rate was 46/77. Governor outcomes: 22 ACCEPT, 14 ACCEPT_WITH_FLAG,
+41 ESCALATE. Automated resolution was 36/77. Measured latency was 795,223.988 ms total / 265,074.663
+ms per page. Local cost was $0.011044778 total / $0.003681593 per page. External calls/cost: zero.
+
+The three prior correct-but-ESCALATE cases were audited. Retry confidence was incorrectly propagated
+as raw OCR confidence instead of fused confidence. After the narrow fix, one NPI reaches 0.8885 and
+ACCEPTs. The other NPI remains 0.8093 and units remains 0.8272; both stay conservatively ESCALATE
+under the unchanged Balanced 0.88 threshold. Record those two as later calibration questions, not
+threshold defects.
+
+Failure clusters: 39 OCR character confusions and 6 OCR segmentation failures; registration and
+coordinate failures zero. Freeze recommendation: **DO NOT FREEZE**. Candidate hashes are committed
+as `candidate_only_not_frozen`; they do not authorize holdout scoring. Focused tests: 68 passed.
+Full suite: 152 passed in 82.01 seconds. Staged PHI/organiser literal scan: clean; the `.011` substring
+reported by a coarse scan was the local cost `$0.011044778`, not a filename. No TIFF, crop, overlay,
+OCR output, expected record, generated dataset, or frozen synthetic artifact was staged.
+
+Commits: `7981586` (template/extraction), `2511a59` (tests and deterministic candidate hashing),
+`95c149d` (development evidence and freeze-readiness reports). Push status: all three reached
+`origin/main`; final handoff receipt follows separately.
+
+Next exact command: `.\.venv\Scripts\python.exe -m pytest tests\ -q`.
+
 ## Session log - 31 Jul 2026 (official CMS-1500 five-field crop proof)
 
 Starting commit `2e05052`. Official CMS-1500 (02-12) registration now uses long horizontal

@@ -1,6 +1,24 @@
 
 # ClaimRoute project memory
 
+## Official CMS-1500 full development expansion - 31 Jul 2026
+
+- The authoritative 44-name NSF-320 denominator mechanically yields 41 scored,
+  schema-supported, geometrically unambiguous crop names. Three evaluated names remain excluded
+  for box ambiguity; unsupported/no-expected concepts and service lines 4-6 remain un-authored.
+- All 41 coordinates use the existing structural official registration. Development geometry is
+  123/123 across the same three approved pages; holdout access remains zero.
+- Populated development extraction is not freeze-ready: primary 18/77, retry 23/60 resolved,
+  normalized 32/77, critical 17/41. Governor: 22 ACCEPT, 14 ACCEPT_WITH_FLAG, 41 ESCALATE.
+- Full local processing measured 265,074.663 ms/page and $0.003681593/page; external calls zero.
+  Failures cluster in OCR character confusion (39) and segmentation (6), not registration.
+- Retry attempts had been passing raw OCR confidence to the governor instead of fused confidence.
+  The fix turns one prior NPI escalation into ACCEPT; two other prior cases remain correctly
+  conservative below Balanced's unchanged 0.88 threshold.
+- `official_cms1500_freeze_manifest_candidate.json` is deterministic but explicitly not frozen.
+  Do not open or score holdout until development OCR/latency improves and a separate freeze commit
+  is reviewed and approved.
+
 ## Official CMS-1500 five-field development proof - 31 Jul 2026
 
 - Official CMS-1500 (02-12) registration is separate from synthetic red-grid registration.
