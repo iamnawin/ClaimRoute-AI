@@ -1,5 +1,110 @@
 # Handoff — claims-engine (Day 11 frozen evidence verified)
 
+## Session log - 31 Jul 2026 (official CMS-1500 field mapping)
+
+Commit `366174f` pushed; `main` synchronized with `origin/main`. Tests **129 passed**
+(was 99; +31 new, one file). Holdout still unopened. No crop coordinate authored yet.
+
+### What was built
+
+`eval/official/cms1500_field_map.yaml` (machine-readable, authoritative) and
+`docs/evaluation/official_cms1500_mapping.md` (human-readable rendering), guarded by
+`tests/test_cms1500_field_map.py`.
+
+Rationale: a layout template maps a field **name** to a rectangle. A wrong name does not
+raise — `engine/governor.py:field_policy()` returns `defaults` and the field is governed
+with the wrong criticality, validators, and blank rule. It surfaces only as a slightly
+worse accuracy number, indistinguishable from a bad crop. So names are resolved and
+tested first.
+
+Every mechanical column is **generated from the code it maps**, not hand-typed:
+official names from `parsers.py`, ClaimRoute names from `claimroute_expected`,
+normalization from `classify_field`, criticality/validators/optional from `field_policy`.
+CMS-1500 box numbers are the only judgement column. Tests re-derive all of it in both
+directions (no evaluated name unmapped; no mapped name that is never evaluated).
+
+### Two axes, deliberately not collapsed
+
+- `status` — does the field reach `compare_fields`, and is blank legal?
+- `box_ambiguous` — is its printed location settled?
+
+A field can be fully scored and still sit in a contested box. My first draft marked
+`patient_account_no` as `ambiguous_spec`, and the completeness test rejected it as a
+scored-but-unmapped field. Corrected to `mapped_supported` + `box_ambiguous: true`.
+
+### Corrections the tests forced
+
+| Item | First draft | Corrected to | Why |
+|---|---|---|---|
+| `admission_date` | `may_be_blank: true`, `blank_but_valid` | `false`, `mapped_supported` | Domain intuition ("box 14 is routinely blank") contradicted `field_policy`, which says `optional: false`. The spec records what the system enforces, not what is clinically expected. Whether the policy *should* mark it optional is a separate decision, deliberately not taken. |
+| `patient_account_no` | `ambiguous_spec` | `mapped_supported` + `box_ambiguous` | Conflated scoreability with box certainty. |
+| 8 presence counts | estimated from the split summary | measured from the PHI-safe rows | `referring_provider_npi`, `insurance_plan_name`, `admission_date` are present in **zero** development documents, not 1–2 as I first wrote. Now cross-checked by test. |
+
+### Structural findings recorded (do not author crops for these)
+
+- **Service lines capped at 3** — `claimroute_expected` iterates `service_lines[:3]`; the
+  form prints 6 rows. Lines 4–6 are dropped from both expected and scored output.
+- **`modifiers` (box 24D)** — parsed at FA0 65–70 but has no alias and no policy entry, so
+  it never reaches scoring. `unsupported_schema`.
+- **`rendering_npi` (box 24J)** and **`amount_paid` (box 29)** — have policy entries but no
+  official expected value. Extractable, unscoreable. `ambiguous_spec`.
+- **Box 26 contention** — `patient_control_no` (CA0) and `patient_account_no` (EA0) both
+  target one printed region; at most one can win it.
+- `amount_paid` would classify as **text**, not money (matches neither `MONEY_FIELDS` nor
+  the `_charge`/`_charges` suffixes). Fix routing first if it ever becomes scoreable.
+
+### Naming compatibility (tested both directions)
+
+Format-conditional, NSF320 only: `provider_npi` → `billing_provider_npi`,
+`provider_name` → `billing_provider_name`. On the UB-04 path the names stay bare.
+**Use `billing_provider_npi` for every CMS-1500 crop** — `provider_npi` resolves to the
+UB-04 policy entry. The `total_charge` (CMS-1500 box 28) vs `total_charges` (UB-04 box 47)
+singular/plural split is intentional; unifying them breaks one form's policy lookup and
+the frozen UB-04 templates.
+
+### Five proof fields selected
+
+Eligibility was mechanical: present in **all three** development documents,
+`mapped_supported`, `box_ambiguous: false`. **18 of 44** qualified. Among those, selected
+**one field per normalization family** rather than the five most convenient — five `text`
+singletons would prove one code path five times, whereas one per family exercises every
+branch of `classify_field` on the first five crops.
+
+| Field | Box | Family | Why |
+|---|---|---|---|
+| `patient_dob` | 3 | date | Printed MM\|DD\|YYYY vs CCYYMMDD record: highest component-order risk. |
+| `line1_charges` | 24F | money | Decimal alignment (only latently correct before `9c47fe2`); first service-line crop, proves `line{n}_` policy resolution. |
+| `line1_units` | 24G | quantity | Carried a live defect (`1.0` vs `1`); isolated glyph, so also proves the PSM_BLOCK requirement (assumptions #12). |
+| `federal_tax_id` | 25 | code | The only NSF-320 field reaching the code branch. |
+| `billing_provider_npi` | 33a | text | Proves the format-conditional rename resolves to the CMS-1500 entry — the likeliest naming mistake in the remaining 41 boxes. Backed by `npi_checksum`. |
+
+Excluded: `patient_account_no` / `patient_control_no` (contested box), `diagnosis_code_b`
+(`blank_but_valid`, so an absent value ACCEPTs and proves nothing), `patient_name`
+(text branch already covered by a field that also proves the rename).
+
+### Safety
+
+Holdout untouched — the guard test reads holdout IDs from the frozen split manifest
+(so adding an item auto-extends it) and asserts none appear in the spec or the doc.
+Presence counts derive from the existing aggregate PHI-safe rows (field names + booleans,
+no values). PHI scan of all three new files: clean (no SSN/NPI/EIN/date/money/ICD/CPT
+literals, no organiser path or filename). `scratchpad/impact.py` and
+`scratchpad/prove_regression.py` verified **not tracked and not present in the repo** —
+they exist only in the session scratchpad, which is correct: they encode a transient
+"the old code failed here" claim that becomes false once the fix lands. Permanent proof
+lives in `tests/`.
+
+### Commands run
+
+`git pull --ff-only` · `.\.venv\Scripts\python.exe -m pytest tests/ -q` (129 passed, 96 s) ·
+`git push origin main`
+
+### Next exact task
+
+Author crop coordinates for the **five proof fields only** against the three development
+documents, then measure. Do not author all 46 boxes, do not open the holdout, do not
+integrate multimodal AI.
+
 ## Session log - 31 Jul 2026 (normalization routing fix, pre-template)
 
 Commits `9e10665` (split manifest) and `9c47fe2` (routing fix) both pushed; `main`
