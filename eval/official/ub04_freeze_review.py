@@ -21,6 +21,8 @@ FREEZE_FILES = (
     "configs/pipeline.yaml",
     "eval/official/extraction.py",
     "eval/official/evaluator.py",
+    "eval/official/ub04_freeze_review.py",
+    "eval/official/ub04_holdout.py",
     "eval/official/splits/tier_c_split_v1.json",
 )
 
@@ -31,17 +33,38 @@ def stable_sha256(path: Path) -> str:
     return sha256(text.encode("utf-8")).hexdigest()
 
 
-def candidate_manifest(root: Path = Path(".")) -> dict:
+def freeze_manifest(root: Path = Path(".")) -> dict:
     return {
-        "manifest_type": "candidate_only_not_frozen",
+        "manifest_type": "provisional_frozen",
         "split_id": "tier_c_official_v1",
         "form_revision": "UB-04 CMS-1450",
+        "policy_label": "Provisional denominator policy due to unavailable organiser clarification.",
         "hash_algorithm": "SHA-256 over UTF-8 with LF line endings",
         "files": [
             {"path": relative, "sha256": stable_sha256(root / relative)}
             for relative in FREEZE_FILES
         ],
     }
+
+
+# Backward-compatible name for the ignored local development receipt script.
+candidate_manifest = freeze_manifest
+
+
+def provisional_denominators(expected: dict[str, object], policy: dict,
+                             visibly_populated: set[str] | None = None) -> dict:
+    """Separate the frozen primary score from organiser-expected coverage."""
+    visible = visibly_populated or set()
+    extended = [name for name, value in expected.items() if value not in (None, "")]
+    unknown = set(extended) - set(policy["fields"])
+    if unknown:
+        raise ValueError(f"Tier C denominator policy is missing fields: {sorted(unknown)}")
+    primary = [
+        name for name in extended
+        if policy["fields"][name]["status"] == "primary_scored"
+        or (policy["fields"][name]["status"] == "conditional_scored" and name in visible)
+    ]
+    return {"primary": primary, "extended": extended}
 
 
 def retry_funnel(rows: list[dict]) -> dict:

@@ -1,7 +1,18 @@
-# Official Tier C UB-04 freeze-readiness review
+# Official Tier C UB-04 provisional freeze review
 
-Recommendation: **DO NOT FREEZE**. Development correctness is complete, but denominator semantics
-still require organiser confirmation. The three holdout documents remain untouched.
+Recommendation: **PROVISIONAL FREEZE AUTHORIZED**. Organiser clarification was unavailable before
+the deadline, so the documented visible-and-supported policy is frozen without claiming it is the
+organiser's official policy. The three holdout documents remain untouched.
+
+## Frozen denominator contract
+
+Primary results use only `primary_scored` organiser-expected fields plus `conditional_scored`
+fields independently confirmed visibly populated and unambiguous. The development reference is
+14 fields per page / 28 comparisons. Extended coverage reports every nonblank organiser-expected
+field separately (21 per development page / 42 comparisons). Ambiguous, record-only/unprinted,
+blank-valid, and unsupported fields are excluded from primary accuracy and are never counted as
+correct predictions. Every result must say: **“Provisional denominator policy due to unavailable
+organiser clarification.”**
 
 ## Accepted-wrong regression
 
@@ -31,12 +42,14 @@ recovery resolved that field. Seven correct primaries were retried without chang
 Do not remove these paths before a broader frozen regression proves behavior preservation; the former
 DOB miss shows that validator-clean primary OCR is not sufficient evidence.
 
-## ICD and candidate hashes
+## ICD and frozen hashes
 
 The curated validator subset is frozen against CMS FY 2026 ICD-10-CM, effective 2025-10-01. Decimal
 punctuation is optional for canonical membership; valid-shape unknown codes still fail. Dictionary
 hash: `3afcae74f6bf65b02908031580e8ce0b3b67a2758923845fb05a268aadd13311`. Source:
 [CMS ICD-10 files](https://www.cms.gov/medicare/coding-billing/icd-10-codes).
 
-The candidate manifest is `eval/results/official_ub04_freeze_manifest_candidate.json`; hashes are
-UTF-8/LF stable. It records reproducibility inputs but does not authorize holdout scoring.
+The manifest is `eval/results/official_ub04_freeze_manifest.json`; hashes are UTF-8/LF stable. The
+one-time runner verifies exact manifest equality before touching the dataset, refuses to overwrite
+an existing result, processes only immutable split holdouts, and emits field names, booleans, safe
+IDs, and aggregates—never values or OCR text. The holdout run remains a separate explicit command.

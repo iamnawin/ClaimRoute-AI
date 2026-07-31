@@ -1,5 +1,26 @@
 # Handoff — claims-engine (Day 11 frozen evidence verified)
 
+## Session log - 31 Jul 2026 (official Tier C provisional freeze)
+
+Started from clean synchronized `main` at `2809713`. Organiser clarification was unavailable before
+the deadline, so the conservative visible-and-supported denominator is provisionally frozen. No
+Tier C holdout image, expected record, crop, OCR value, or score was accessed in this session.
+
+Primary scoring contains only the 14 static development fields per page marked `primary_scored`,
+plus a `conditional_scored` field only when independently confirmed visibly populated and
+unambiguous. Extended coverage contains every nonblank organiser-expected field and is reported
+separately. Ambiguous FL 3b/FL 5/address, unprinted record-only rows, blank-valid HCPCS, and
+unsupported fields remain outside primary accuracy; exclusions never count as correct.
+
+Policy commit: `0d97ea2`. The freeze commit is the commit containing this entry. The final stable
+manifest is `eval/results/official_ub04_freeze_manifest.json`. Its one-time runner verifies the
+manifest before dataset access, selects only immutable Tier C holdouts, refuses overwrite, makes no
+external calls, and emits PHI-safe results.
+
+Run once in a separate session/commit:
+
+`.\.venv\Scripts\python.exe -m eval.official.ub04_holdout --dataset-root "..\Images & Output" --confirm RUN_TIER_C_HOLDOUT_ONCE`
+
 ## Session log - 31 Jul 2026 (official Tier C freeze-readiness review)
 
 Started from clean synchronized `main` at `d0f9ee2`. Only development IDs `251f79e97f77` and

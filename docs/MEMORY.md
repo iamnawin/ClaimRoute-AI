@@ -1,6 +1,25 @@
 
 # ClaimRoute project memory
 
+## Official Tier C provisional freeze - 31 Jul 2026
+
+- Started from clean synchronized `main` at `2809713`; no Tier C holdout document was opened,
+  rendered, OCRed, or scored.
+- Organiser clarification was unavailable before the deadline. Policy
+  `tier_c_ub04_provisional_frozen_v1` conservatively freezes 14 primary fields per development page
+  and reports all nonblank organiser-expected fields in a separate extended coverage denominator.
+- FL 3b, FL 5, and address are ambiguous; record-only row 2–3 values are not printed; blank HCPCS
+  is blank-valid; provider NPI, payer, service dates, and attending qualifier are unsupported.
+  Attending NPI is conditional on independent visible-population confirmation.
+- Exclusions are neither correct nor incorrect and cannot increase primary accuracy. Every Tier C
+  result carries the provisional-policy label.
+- The stable manifest moved to `eval/results/official_ub04_freeze_manifest.json` and freezes 18
+  implementation/configuration inputs. The one-time runner verifies it before dataset access and
+  refuses to overwrite a prior receipt.
+- Policy commit: `0d97ea2`. Freeze implementation/docs are in the commit containing this entry.
+- Next exact command (run once, separately):
+  `.\.venv\Scripts\python.exe -m eval.official.ub04_holdout --dataset-root "..\Images & Output" --confirm RUN_TIER_C_HOLDOUT_ONCE`.
+
 ## Official Tier C freeze-readiness review - 31 Jul 2026
 
 - Started from synchronized `main` at `d0f9ee2`; three Tier C holdout documents remained untouched.

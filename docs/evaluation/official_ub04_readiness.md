@@ -1,6 +1,20 @@
 # Official Tier C UB-04 readiness
 
-Recommendation: **DO NOT FREEZE TIER C**.
+Recommendation: **PROVISIONAL FREEZE AUTHORIZED; HOLDOUT NOT YET RUN**.
+
+## Provisional freeze update
+
+Organiser denominator clarification was unavailable before the deadline. The versioned policy now
+scores only the 14 visible, supported, unambiguous development fields per page; conditional fields
+enter only with independent visible-population confirmation. Every nonblank organiser-expected
+field remains in a separate extended coverage denominator. Exclusions never count as correct.
+
+The UTF-8/LF-stable frozen manifest is
+`eval/results/official_ub04_freeze_manifest.json`. It covers the field map, official template,
+registration, normalization, denominator policy, ICD dictionary/version, retry implementation and
+profiles, validators/policies, governor/pipeline configuration, extraction/evaluation, one-time
+holdout runner, and immutable development/holdout split. The three holdout documents remain
+untouched. The freeze authorizes the separately invoked one-time run; it is not a holdout result.
 
 ## Freeze-review update
 
