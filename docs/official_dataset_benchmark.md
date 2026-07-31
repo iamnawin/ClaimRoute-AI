@@ -1,10 +1,20 @@
 # Official organiser sample benchmark
 
-Status: **processed locally; benchmark not yet authoritative** (30 Jul 2026).
+Status: **Tier C frozen holdout completed under a provisional denominator policy** (31 Jul 2026).
 
 This evidence is separate from `eval/frozen/`, which remains the unchanged synthetic benchmark.
 The organiser directory is read-only input and is not tracked by Git. No source image, fixed-width
 record, parsed value, OCR text, or PHI-bearing artifact is written to this repository.
+
+## Tier C frozen holdout update
+
+**Official Tier C UB-04 holdout result under the provisional visible-and-supported denominator
+policy.** The one-time frozen run evaluated three linked documents/pages: primary normalized
+accuracy 36/42 (85.714%), extended nonblank-field coverage 36/63 (57.143%), and critical normalized
+accuracy 16/18 (88.889%). Registration succeeded on 3/3 pages; external calls and measured external
+cost were zero. The result uses the policy label **Provisional denominator policy due to unavailable
+organiser clarification.** It is not a universal UB-04 benchmark and does not replace the frozen
+synthetic benchmark. Full limitations are in `docs/evaluation/official_ub04_holdout.md`.
 
 ## What was implemented
 

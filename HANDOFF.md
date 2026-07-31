@@ -1,5 +1,28 @@
 # Handoff — claims-engine (Day 11 frozen evidence verified)
 
+## Session log - 31 Jul 2026 (official Tier C frozen holdout)
+
+Started from clean synchronized `main` at `cf34b8b`. The frozen manifest SHA-256 was
+`888935e498744b1d1971fd02519057e55027ed26bda09e1f7c172f93a2308f88`; all 18 frozen inputs matched,
+the full pre-run suite passed 202 tests, no prior receipt existed, and the local-only runner had no
+external-provider path or configured credential in the process.
+
+The authorized holdout command ran exactly once and completed, so the run is consumed. **Official
+Tier C UB-04 holdout result under the provisional visible-and-supported denominator policy:** three
+documents/pages, three linked records, zero abstentions; primary normalized 36/42 (85.714%);
+extended nonblank-field coverage 36/63 (57.143%); critical normalized 16/18 (88.889%); registration
+3/3; external calls/cost zero. This is not a universal UB-04 benchmark.
+
+The six primary failures were patient name (2), provider name (1), statement from (1), statement
+through (1), and line 1 units (1). The frozen receipt did not persist raw exact comparisons,
+primary/retry funnel telemetry, validator correctness, terminal governor outcomes, or end-to-end
+stage cost. Do not rerun the holdout to reconstruct these metrics. No denominator, template,
+registration, normalization, dictionary, retry profile, validator, governor, evaluator, split,
+manifest, or other frozen input may be changed in response to the result.
+
+Next exact Tier C task: review and publish `docs/evaluation/official_ub04_holdout.md`, seek organiser
+denominator clarification, and preserve this result as the immutable provisional-policy receipt.
+
 ## Session log - 31 Jul 2026 (official Tier C provisional freeze)
 
 Started from clean synchronized `main` at `2809713`. Organiser clarification was unavailable before

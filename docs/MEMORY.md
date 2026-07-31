@@ -1,6 +1,22 @@
 
 # ClaimRoute project memory
 
+## Official Tier C frozen holdout - 31 Jul 2026
+
+- Started from clean synchronized `main` at `cf34b8b`; manifest SHA-256
+  `888935e498744b1d1971fd02519057e55027ed26bda09e1f7c172f93a2308f88` verified 18/18 inputs.
+- The authorized command ran exactly once and completed. Receipt overwrite protection now makes the
+  run consumed. Three holdout documents/pages linked; zero abstentions and zero external calls/cost.
+- Official Tier C UB-04 holdout result under the provisional visible-and-supported denominator
+  policy: primary normalized 36/42 (85.714%), extended coverage 36/63 (57.143%), critical
+  normalized 16/18 (88.889%), and registration 3/3.
+- Six primary misses: patient name 2; provider name, statement from, statement through, and line 1
+  units 1 each. Excluded coverage was 0/21 correct and 2/21 present.
+- The frozen runner did not retain raw exact comparison, primary/retry funnel, validators, terminal
+  governor outcomes, or end-to-end stage timing. Do not rerun to reconstruct them and do not retune.
+- No frozen input changed. Next exact Tier C task: publish/review the PHI-safe limitations and seek
+  organiser denominator clarification without altering this frozen receipt.
+
 ## Official Tier C provisional freeze - 31 Jul 2026
 
 - Started from clean synchronized `main` at `2809713`; no Tier C holdout document was opened,

@@ -1,6 +1,15 @@
 # Official Tier C UB-04 readiness
 
-Recommendation: **PROVISIONAL FREEZE AUTHORIZED; HOLDOUT NOT YET RUN**.
+Recommendation: **FROZEN HOLDOUT COMPLETE; PRESERVE RESULT WITHOUT RETUNING**.
+
+## Frozen holdout result
+
+**Official Tier C UB-04 holdout result under the provisional visible-and-supported denominator
+policy.** Three immutable holdout documents/pages were linked and scored once. Primary normalized
+accuracy is 36/42 (85.714%), extended nonblank-field coverage is 36/63 (57.143%), and critical
+normalized accuracy is 16/18 (88.889%). Structural registration succeeded on 3/3 pages. External
+calls and spend remained zero. See `docs/evaluation/official_ub04_holdout.md` for the PHI-safe
+receipt boundary and unavailable telemetry. This is not a universal UB-04 benchmark.
 
 ## Provisional freeze update
 
