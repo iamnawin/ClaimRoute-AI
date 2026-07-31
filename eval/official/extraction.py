@@ -162,8 +162,8 @@ def official_retry_candidate(image: Image.Image, field_name: str) -> dict | None
     engine = get_engine("paddle")
     mode = official_retry_mode(field_name)
 
-    marked = map_monochrome_fields([], image, "cms1500").get(field_name)
     if mode == "checkbox-mark-detection":
+        marked = map_monochrome_fields([], image, "cms1500")[field_name]
         return {"value": marked["value"] or None, "confidence": marked["conf"],
                 "n_spans": marked["n_spans"],
                 "latency_ms": (time.perf_counter() - started) * 1000, "mode": mode}
