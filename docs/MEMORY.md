@@ -1,6 +1,28 @@
 
 # ClaimRoute project memory
 
+## Official UB-04 five-field development proof - 31 Jul 2026
+
+- Froze `tier_c_official_v1` before template authoring: six items, five deterministic links,
+  two development, three untouched holdout, and one ambiguous exclusion. Holdout access is zero.
+- Added the authoritative UB-192 crosswalk: 28 possible evaluator names, 19 scored/supported
+  source families, one potentially scored unsupported qualifier, two supported concepts absent
+  from parser output, and one policy-only field.
+- Official monochrome CMS-1450 registration is separate from synthetic UB-04 templates. It uses
+  horizontal rules, the 23-line revenue grid, stable endpoints, cardinal orientation correction,
+  border-artifact rejection, confidence, normalized coordinates, and abstention.
+- Fixed five fields across two development pages: FL 3a, 12, 46, 47 Totals, and 67. Geometry and
+  visible population are 10/10; primary OCR is 4/10; nine local retries resolve 9/9; final
+  normalized accuracy is 10/10 and critical accuracy is 4/4.
+- Validator pass is 8/10 and governor outcomes are 8 ACCEPT / 2 ESCALATE. Both escalations are
+  correctly extracted diagnosis codes rejected by the existing ICD dictionary; thresholds remain
+  unchanged. Do not describe them as OCR failures.
+- Measured development proof latency is 49,583.060 ms total / 24,791.530 ms per page. Local cost is
+  $0.000688650 total / $0.000344325 per page. External calls and cost are zero.
+- Freeze recommendation is **DO NOT FREEZE**: only five field families have official coordinates,
+  primary OCR remains retry-heavy, and parser/evaluator gaps remain for provider NPI, service date,
+  and attending qualifier policy.
+
 ## Official CMS-1500 OCR optimization - 31 Jul 2026
 
 - Kept all 41 official coordinates and governor thresholds unchanged; geometry remains 123/123.

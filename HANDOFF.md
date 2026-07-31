@@ -1,5 +1,49 @@
 # Handoff — claims-engine (Day 11 frozen evidence verified)
 
+## Session log - 31 Jul 2026 (official Tier C UB-04 five-field proof)
+
+Started from clean synchronized `main` at `9006b37`. Ending implementation/evidence commit is
+`557c56e`; the final memory/handoff receipt is the commit containing this entry. Bhavya's branch
+was not merged and no file under `engine/escalation/` or `configs/multimodal_providers.yaml` was
+modified.
+
+Tier C population: six items, five deterministic links, one ambiguous link, zero no-match.
+Development IDs are `251f79e97f77` and `751e44752221`. Untouched holdout IDs are
+`489a4d9762c4`, `d9f50034efd1`, and `de1c51d516c7`. Excluded ambiguous ID is `f7f409c40487`.
+The immutable split was frozen before any Tier C page was opened; holdout access remained zero.
+
+The UB-192 map represents 28 possible evaluator names: 19 scored/supported source families
+(27 expanded ClaimRoute names), one potentially scored but unsupported `attending_qualifier`, two
+supported concepts absent from current parser output, and one policy-only field. Official
+CMS-1450 registration is separate from synthetic UB-04 templates and records revision, structural
+anchors, normalized coordinates, confidence, orientation correction, edge-artifact rejection, and
+abstention.
+
+Five proof fields: `patient_control_no` (FL 3a), `admission_date` (FL 12), `line1_units` (FL 46),
+`total_charges` (FL 47 Totals), and `principal_dx` (FL 67). Across two development pages,
+registration confidence was 0.933-0.935; geometry and visible population were 10/10. Primary OCR
+was 4/10; nine justified local retries resolved 9/9; final normalized accuracy was 10/10 and
+critical accuracy 4/4. Validator pass was 8/10. Governor outcomes were 8 ACCEPT and 2 ESCALATE.
+Both escalations are normalized-correct diagnosis values rejected by the existing ICD dictionary;
+governor thresholds were not changed.
+
+Measured latency: 49,583.060 ms total / 24,791.530 ms per page. Measured local compute cost:
+$0.000688650 total / $0.000344325 per page. External calls and cost were zero. Repository-safe
+evidence contains safe IDs, field names, coordinates, booleans, validator/governor states, latency,
+and cost only. No organiser value, OCR text, filename, page pixel, crop, overlay, local path, or PHI
+is committed. Synthetic UB-04 templates and frozen benchmark artifacts remain unchanged.
+
+Tests: 180 passed in 94.38 seconds. Freeze recommendation: **DO NOT FREEZE**. Remaining blockers:
+only five field families have coordinates; primary OCR is retry-heavy; the ICD dictionary rejects
+two correct development codes; and provider NPI, service date, and qualifier policy still need an
+explicit parser/evaluator decision.
+
+Commits: `f2e54ba` (split/map), `b93a873` (registration/retry), `b7adc3b` (proof tests/evidence),
+`557c56e` (readiness docs), plus the final candidate-hash and handoff receipt. Push status is
+recorded in the final session response.
+
+Next exact command: `.\.venv\Scripts\python.exe -m pytest tests\ -q`.
+
 ## Session log - 31 Jul 2026 (official CMS-1500 OCR optimization)
 
 Started from synchronized `main` at `a9c7551`. The 41-field official geometry and governor
