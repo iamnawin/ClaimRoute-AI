@@ -17,7 +17,7 @@ from engine.fusion import fuse
 from engine.governor import apply
 from engine.layout.mapper import load_template
 from engine.layout.official_cms1500_registration import (
-    load_official_template, official_field_region,
+    load_official_template, official_field_region, official_mark_regions,
 )
 from engine.ocr import get_engine
 from engine.ocr.base import OcrWord
@@ -25,6 +25,7 @@ from engine.preprocess import preprocess_page
 from engine.schemas import Attempt, FieldResult, FieldState, PageResult
 from engine.validators import run_validators
 from engine.validators import validate_field
+from eval.official.normalization import classify_field
 
 
 def local_ocr(image: Image.Image) -> tuple[list[OcrWord], str, float]:
@@ -83,6 +84,23 @@ def map_monochrome_fields(words: list[OcrWord], image: Image.Image, form: str,
             "bbox": [x0, y0, x1, y1],
             "n_spans": len(hits),
         }
+    if form == "cms1500":
+        for name, field in load_official_template()["fields"].items():
+            if not field.get("mark_options") or name not in output:
+                continue
+            scores = {}
+            for value, region in official_mark_regions(image, name).items():
+                crop = np.asarray(image.crop([round(v) for v in region]).convert("L"))
+                if crop.size:
+                    inner = crop[max(1, crop.shape[0] // 5):-max(1, crop.shape[0] // 5),
+                                 max(1, crop.shape[1] // 5):-max(1, crop.shape[1] // 5)]
+                    scores[value] = float((inner < 160).mean()) if inner.size else 0.0
+            if scores:
+                ranked = sorted(scores.items(), key=lambda row: row[1], reverse=True)
+                value, score = ranked[0]
+                margin = score - (ranked[1][1] if len(ranked) > 1 else 0.0)
+                output[name].update(value=value if margin >= .03 else "",
+                                    conf=min(.99, .70 + margin), n_spans=1)
     return output
 
 
@@ -101,20 +119,40 @@ def _npi_check_digit(first_nine: str) -> str:
 
 def _typed_retry_value(field_name: str, text: str) -> str:
     digits = "".join(char for char in text if char.isascii() and char.isdigit())
-    if field_name == "patient_dob":
+    family = classify_field(field_name)
+    if family == "date":
         return digits[-8:]
-    if field_name == "line1_charges":
-        groups = [re.sub(r"\D", "", group) for group in text.replace(",", " ").split()]
-        groups = [group for group in groups if group]
+    if family == "money":
+        groups = re.findall(r"\d+", text.replace(",", ""))
         return f"{groups[0]}.{groups[-1][-2:]}" if len(groups) >= 2 else (
             f"{digits}.00" if digits else "")
-    if field_name == "line1_units":
-        return digits[-1:] or ("1" if "T" in text.upper() else "")
-    return digits[:10] if field_name == "billing_provider_npi" else digits
+    if family == "quantity":
+        return digits or ("1" if "T" in text.upper() else "")
+    if field_name in {"billing_provider_npi", "referring_provider_npi"}:
+        return digits[:10]
+    if field_name == "federal_tax_id":
+        return digits[:9]
+    return text.strip()
+
+
+def official_retry_mode(field_name: str) -> str:
+    field = load_official_template()["fields"][field_name]
+    if field.get("mark_options"):
+        return "checkbox-mark-detection"
+    return {
+        "date": "date-digits-x-order",
+        "money": "money-decimal-preserving",
+        "quantity": "isolated-quantity",
+        "identifier": "identifier-digits",
+        "diagnosis_code": "diagnosis-code",
+        "procedure_code": "procedure-code",
+        "code": "isolated-code",
+        "text": "field-text",
+    }[field["field_type"]]
 
 
 def official_retry_candidate(image: Image.Image, field_name: str) -> dict | None:
-    """Field-specific local crop retry for the five official proof fields."""
+    """Field-aware local crop retry for official evaluated fields."""
     region = official_field_region(image, field_name)
     if region is None:
         return None
@@ -122,15 +160,15 @@ def official_retry_candidate(image: Image.Image, field_name: str) -> dict | None
     crop = image.crop(box)
     started = time.perf_counter()
     engine = get_engine("paddle")
-    mode = {
-        "patient_dob": "date-digits-x-order",
-        "line1_charges": "money-decimal-preserving",
-        "line1_units": "isolated-glyph",
-        "federal_tax_id": "identifier-digits",
-        "billing_provider_npi": "npi-digits-checksum",
-    }[field_name]
+    mode = official_retry_mode(field_name)
 
-    if field_name == "line1_units":
+    marked = map_monochrome_fields([], image, "cms1500").get(field_name)
+    if mode == "checkbox-mark-detection":
+        return {"value": marked["value"] or None, "confidence": marked["conf"],
+                "n_spans": marked["n_spans"],
+                "latency_ms": (time.perf_counter() - started) * 1000, "mode": mode}
+
+    if classify_field(field_name) == "quantity":
         words = sorted(engine.extract(crop), key=lambda word: word.bbox[0])
         value = _typed_retry_value(field_name, " ".join(word.text for word in words))
         confidence = sum(word.conf for word in words) / len(words) if words else 0.0
@@ -147,11 +185,12 @@ def official_retry_candidate(image: Image.Image, field_name: str) -> dict | None
             if narrow:
                 value, confidence = "1", .70
         return {"value": value or None, "confidence": confidence,
+                "n_spans": len(words),
                 "latency_ms": (time.perf_counter() - started) * 1000, "mode": mode}
 
     scaled = crop.resize((crop.width * 2, crop.height * 2))
-    variants = [scaled, crop] if field_name == "billing_provider_npi" else [crop, scaled]
-    if field_name == "billing_provider_npi" and crop.width > 20:
+    variants = [scaled, crop] if field_name.endswith("provider_npi") else [crop, scaled]
+    if field_name.endswith("provider_npi") and crop.width > 20:
         trimmed = crop.crop((8, 0, crop.width - 10, crop.height))
         variants += [trimmed.resize((trimmed.width * 2, trimmed.height * 2)), trimmed]
     candidates = []
@@ -160,22 +199,22 @@ def official_retry_candidate(image: Image.Image, field_name: str) -> dict | None
         value = _typed_retry_value(field_name, " ".join(word.text for word in words))
         confidence = sum(word.conf for word in words) / len(words) if words else 0.0
         if value:
-            candidates.append((value, confidence))
+            candidates.append((value, confidence, len(words)))
     if not candidates:
-        return {"value": None, "confidence": 0.0,
+        return {"value": None, "confidence": 0.0, "n_spans": 0,
                 "latency_ms": (time.perf_counter() - started) * 1000, "mode": mode}
-    valid = [(value, confidence) for value, confidence in candidates
+    valid = [(value, confidence, spans) for value, confidence, spans in candidates
              if not any(stamp.verdict.value == "FAIL"
                         for stamp in validate_field(field_name, value, {field_name: value}))]
     if valid:
-        value, confidence = valid[0]
-    elif field_name == "billing_provider_npi":
-        value, confidence = candidates[0]
+        value, confidence, spans = valid[0]
+    elif field_name.endswith("provider_npi"):
+        value, confidence, spans = candidates[0]
         if len(value) == 10:
             value = value[:9] + _npi_check_digit(value[:9])
     else:
-        value, confidence = max(candidates, key=lambda row: row[1])
-    return {"value": value, "confidence": confidence,
+        value, confidence, spans = max(candidates, key=lambda row: row[1])
+    return {"value": value, "confidence": confidence, "n_spans": spans,
             "latency_ms": (time.perf_counter() - started) * 1000, "mode": mode}
 
 
@@ -217,12 +256,15 @@ def retry_official_page(page: PageResult, image: Image.Image,
         value = candidate["value"]
         context = {**values, name: value}
         stamps = validate_field(name, value, context)
+        confidence = fuse(candidate["confidence"], page.quality_score,
+                          candidate["n_spans"], value or "",
+                          [stamp.validator for stamp in stamps])
         field.attempts.append(Attempt(
-            "retry_ocr", "rapidocr", value, candidate["confidence"],
+            "retry_ocr", "rapidocr", value, confidence,
             latency_ms=candidate["latency_ms"],
         ))
         if not any(stamp.verdict.value == "FAIL" for stamp in stamps):
-            field.value, field.confidence, field.stamps = value, candidate["confidence"], stamps
+            field.value, field.confidence, field.stamps = value, confidence, stamps
             values[name] = value
         state, reason = apply(field, preset)
         page.decisions[name].append((state.value, reason))

@@ -196,17 +196,38 @@ def official_field_region(image: Image.Image, field_name: str) -> list[float] | 
     field = load_official_template()["fields"].get(field_name)
     if registration is None or field is None:
         return None
-    binary = _binary(image)
-    bands = _semantic_bands(binary, registration) if binary is not None else None
-    if bands is None or field["row_band"] not in bands:
-        return None
     x0, y0, x1, y1 = registration.extent
-    width = x1 - x0
+    width, height = x1 - x0, y1 - y0
     nx0, nx1 = field["x_region"]
-    band_top, band_bottom = bands[field["row_band"]]
-    fy0, fy1 = field["y_fraction"]
+    if "y_region" in field:
+        ny0, ny1 = field["y_region"]
+        region_top, region_bottom = y0 + ny0 * height, y0 + ny1 * height
+    else:
+        binary = _binary(image)
+        bands = _semantic_bands(binary, registration) if binary is not None else None
+        if bands is None or field["row_band"] not in bands:
+            return None
+        band_top, band_bottom = bands[field["row_band"]]
+        fy0, fy1 = field["y_fraction"]
+        region_top = band_top + fy0 * (band_bottom - band_top)
+        region_bottom = band_top + fy1 * (band_bottom - band_top)
     left, top, right, bottom = field["padding_px"]
     return [max(0, x0 + nx0 * width - left),
-            max(0, band_top + fy0 * (band_bottom - band_top) - top),
+            max(0, region_top - top),
             min(image.width, x0 + nx1 * width + right),
-            min(image.height, band_top + fy1 * (band_bottom - band_top) + bottom)]
+            min(image.height, region_bottom + bottom)]
+
+
+def official_mark_regions(image: Image.Image, field_name: str) -> dict[str, list[float]]:
+    """Return absolute checkbox interiors declared by the official template."""
+    registration = register_official_cms1500(image)
+    field = load_official_template()["fields"].get(field_name, {})
+    if registration is None or not field.get("mark_options"):
+        return {}
+    x0, y0, x1, y1 = registration.extent
+    width, height = x1 - x0, y1 - y0
+    return {
+        str(value): [x0 + nx0 * width, y0 + ny0 * height,
+                     x0 + nx1 * width, y0 + ny1 * height]
+        for value, (nx0, nx1, ny0, ny1) in field["mark_options"].items()
+    }
