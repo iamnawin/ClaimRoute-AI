@@ -1,0 +1,54 @@
+{
+  "split_id": "tier_c_official_v1",
+  "created": "2026-07-31",
+  "created_at_commit": "9006b37",
+  "tier": "C",
+  "form_revision": "UB-04 CMS-1450",
+  "purpose": "Separate the organiser Tier C items used to author the official UB-04 template from the items reserved for one untouched scoring run.",
+  "selection_basis": "Safe published linkage metadata from eval/official/results/official_sample_rows.jsonl. No page pixels, crops, OCR values, or expected values were read to select the split.",
+  "selection_rule": "Use the two deterministic items with the highest linkage margin as development; preserve every other deterministic item as holdout.",
+  "immutable": true,
+  "immutability_note": "Items must never move between development and holdout. Any change invalidates later holdout results and requires a new split_id.",
+  "counts": {
+    "total_tier_c_items": 6,
+    "deterministic_links": 5,
+    "ambiguous_links": 1,
+    "no_match": 0,
+    "development": 2,
+    "holdout": 3,
+    "excluded": 1
+  },
+  "development": [
+    {
+      "source_id": "251f79e97f77",
+      "record_ordinal": 2,
+      "linkage_status": "deterministic",
+      "linkage_score": 10,
+      "linkage_margin": 9,
+      "evaluated_fields": 21,
+      "rationale": "Joint-highest deterministic linkage margin in Tier C."
+    },
+    {
+      "source_id": "751e44752221",
+      "record_ordinal": 4,
+      "linkage_status": "deterministic",
+      "linkage_score": 10,
+      "linkage_margin": 9,
+      "evaluated_fields": 21,
+      "rationale": "Joint-highest deterministic linkage margin in Tier C."
+    }
+  ],
+  "holdout": [
+    {"source_id": "489a4d9762c4", "record_ordinal": 5, "linkage_margin": 3},
+    {"source_id": "d9f50034efd1", "record_ordinal": 6, "linkage_margin": 6},
+    {"source_id": "de1c51d516c7", "record_ordinal": 3, "linkage_margin": 3}
+  ],
+  "excluded": [
+    {
+      "source_id": "f7f409c40487",
+      "record_ordinal": null,
+      "linkage_status": "ambiguous",
+      "reason": "Linkage tied with margin 0; excluded from development, holdout, and every accuracy denominator."
+    }
+  ]
+}
