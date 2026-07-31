@@ -1,0 +1,20 @@
+{
+  "manifest_type": "candidate_only_not_frozen",
+  "split_id": "tier_a_official_v1",
+  "form_revision": "CMS-1500 (02-12)",
+  "hash_algorithm": "SHA-256",
+  "files": [
+    {"path": "engine/layout/templates/official/cms1500_02_12.yaml", "sha256": "7504ce773ef1e37056ef1670ad2f44d59707083218d767659ba84e0305530ab5"},
+    {"path": "engine/layout/official_cms1500_registration.py", "sha256": "a74549f9e4575f27e21b6ef03376ea029218e64a29759775e71a09e33adb9e82"},
+    {"path": "eval/official/extraction.py", "sha256": "1caeff25fec631eea5722996b39dbda52770dbb8e1e0321fc68b9a934f3b210b"},
+    {"path": "eval/official/normalization.py", "sha256": "ba7cea1f1f5fa7a09e57ba3f603df7285820760b829675b97fc487cdf623bcb5"},
+    {"path": "eval/official/cms1500_field_map.yaml", "sha256": "7d2f05fa9531880142faac8c2157b8205e8ee7e709c236cbd786ddda5d902bc2"},
+    {"path": "configs/field_policy.yaml", "sha256": "f08543f7f07c97a46c1c171960578d46e4f87d98114ad224353beb94c86244bd"},
+    {"path": "configs/pipeline.yaml", "sha256": "dfb8afaef089ee08720d96d37b6c92717874320d184a9c90d67957058ddb4811"},
+    {"path": "configs/prices.yaml", "sha256": "96d1ab0695597d37450e1dbad670df0c00a956be23228490ed1912d42f69a8c1"},
+    {"path": "engine/validators/registry.py", "sha256": "2799503be91e5a7dc36022dea62b069919d863b58020f799ba57a1e6fb29ed67"},
+    {"path": "engine/governor.py", "sha256": "04ad46057364f79beadcccea9423f50bfa578ad3655c3b2296a02c6edd52e1b2"},
+    {"path": "eval/official/evaluator.py", "sha256": "5d94535a6305ad8b24b7ea48e464c8ea746be65074af25121a560847021d1d3d"},
+    {"path": "eval/official/splits/tier_a_split_v1.json", "sha256": "e5653fba8ac9051ed8921783cd3b930ed74d538f6211754417d586ef12f3d972"}
+  ]
+}

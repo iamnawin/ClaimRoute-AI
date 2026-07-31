@@ -1,0 +1,127 @@
+{
+  "report_id": "official_cms1500_full_development_v1",
+  "form_revision": "CMS-1500 (02-12)",
+  "split_id": "tier_a_official_v1",
+  "status": "development_complete_not_freeze_ready",
+  "candidate_selection": {
+    "evaluated_names": 44,
+    "scored_names": 44,
+    "schema_supported_names": 44,
+    "unambiguous_names": 41,
+    "eligible_for_crop_authoring": 41,
+    "excluded_evaluated_box_ambiguous": 3,
+    "outside_denominator_unsupported_schema_concepts": 1,
+    "outside_denominator_no_official_expected_names": 4,
+    "unsupported_service_line_4_to_6_crops": 21
+  },
+  "template": {
+    "authored_coordinates": 41,
+    "service_line_cap": 3,
+    "geometry_instances": 123,
+    "geometry_correct": 123,
+    "presence_classifications_correct": 123
+  },
+  "extraction": {
+    "populated_denominator": 77,
+    "primary_correct": 18,
+    "primary_accuracy": 0.233766,
+    "retries_attempted": 60,
+    "retry_rate": 0.779221,
+    "retry_resolved": 23,
+    "retry_resolution_rate": 0.383333,
+    "normalized_correct": 32,
+    "normalized_accuracy": 0.415584,
+    "critical_denominator": 41,
+    "critical_correct": 17,
+    "critical_accuracy": 0.414634,
+    "validator_passes": 46,
+    "validator_pass_rate": 0.597403,
+    "governor_states": {
+      "ACCEPT": 22,
+      "ACCEPT_WITH_FLAG": 14,
+      "ESCALATE": 41
+    },
+    "automated_resolved": 36,
+    "automated_resolution_rate": 0.467532,
+    "escalation_or_review": 41,
+    "escalation_or_review_rate": 0.532468
+  },
+  "failure_classification": {
+    "ocr_character_confusion": 39,
+    "ocr_segmentation": 6,
+    "registration": 0,
+    "coordinate_geometry": 0,
+    "field_assignment": 0,
+    "governor_evidence_propagation": 1,
+    "governor_calibration_questions": 2
+  },
+  "prior_escalation_analysis": [
+    {
+      "safe_case": "development_case_1",
+      "field_name": "billing_provider_npi",
+      "retry_candidate_correct": true,
+      "primary_fused_confidence": 0.4327,
+      "retry_raw_ocr_confidence": 0.6669,
+      "retry_fused_confidence": 0.8093,
+      "registration_confidence": 0.993,
+      "assignment_span_sanity": 1.0,
+      "quality_score": 0.95,
+      "validator_evidence": "npi_checksum PASS",
+      "criticality": "high",
+      "policy_rule": "confidence below 0.88 accept threshold after retry budget exhausted",
+      "conclusion": "expected conservative escalation after evidence propagation fix"
+    },
+    {
+      "safe_case": "development_case_2",
+      "field_name": "line1_units",
+      "retry_candidate_correct": true,
+      "primary_fused_confidence": 0.5232,
+      "retry_raw_ocr_confidence": 0.7,
+      "retry_fused_confidence": 0.8272,
+      "registration_confidence": 0.994,
+      "assignment_span_sanity": 1.0,
+      "quality_score": 0.948,
+      "validator_evidence": "numeric_format PASS",
+      "criticality": "med",
+      "policy_rule": "confidence below 0.88 accept threshold and field policy does not allow flagged acceptance",
+      "conclusion": "expected conservative escalation; later calibration question"
+    },
+    {
+      "safe_case": "development_case_3",
+      "field_name": "billing_provider_npi",
+      "retry_candidate_correct": true,
+      "primary_fused_confidence": 0.6292,
+      "retry_raw_ocr_confidence": 0.8115,
+      "retry_fused_confidence": 0.8885,
+      "registration_confidence": 0.994,
+      "assignment_span_sanity": 1.0,
+      "quality_score": 0.948,
+      "validator_evidence": "npi_checksum PASS",
+      "criticality": "high",
+      "policy_rule": "raw OCR confidence was incorrectly supplied instead of fused retry confidence",
+      "conclusion": "implementation defect fixed; corrected governor outcome ACCEPT"
+    }
+  ],
+  "performance": {
+    "latency_ms_total": 795223.988,
+    "latency_ms_per_page": 265074.663,
+    "local_cost_usd_total": 0.011044778,
+    "local_cost_usd_per_page": 0.003681593,
+    "external_provider_calls": 0,
+    "external_cost_usd": 0.0
+  },
+  "safety": {
+    "development_documents": 3,
+    "holdout_documents_opened": 0,
+    "expected_values_used_for_coordinates": false,
+    "organiser_values_emitted": 0,
+    "local_diagnostics_git_ignored": true
+  },
+  "freeze_recommendation": "DO_NOT_FREEZE",
+  "freeze_blockers": [
+    "normalized development accuracy is 32/77",
+    "critical-field accuracy is 17/41",
+    "generic local retry latency is 265074.663 ms/page",
+    "45 populated fields remain unresolved after normalization"
+  ]
+}
