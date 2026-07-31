@@ -1,0 +1,38 @@
+form_type: ub04
+revision: CMS-1450
+layout_family: official_monochrome_ub04
+coordinate_frame: registered_form_grid
+synthetic_template_family: false
+registration_method: horizontal-rule-grid+revenue-band
+minimum_registration_confidence: 0.70
+fields:
+  patient_control_no:
+    ub04_locator: "3a"
+    field_type: text
+    x_region: [0.650, 0.940]
+    y_region: [0.004, 0.014]
+    padding_px: [6, 2, 6, 2]
+  admission_date:
+    ub04_locator: "12"
+    field_type: date
+    x_region: [0.142, 0.215]
+    y_region: [0.109, 0.124]
+    padding_px: [6, 4, 6, 4]
+  line1_units:
+    ub04_locator: "46"
+    field_type: quantity
+    x_region: [0.685, 0.725]
+    y_region: [0.269, 0.286]
+    padding_px: [6, 4, 6, 4]
+  total_charges:
+    ub04_locator: "47 Totals"
+    field_type: money
+    x_region: [0.725, 0.850]
+    y_region: [0.619, 0.636]
+    padding_px: [6, 4, 6, 4]
+  principal_dx:
+    ub04_locator: "67"
+    field_type: diagnosis_code
+    x_region: [0.020, 0.112]
+    y_region: [0.825, 0.841]
+    padding_px: [6, 4, 6, 4]

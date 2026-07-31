@@ -20,6 +20,10 @@ from engine.layout.official_cms1500_registration import (
     load_official_template, official_field_region, official_mark_regions,
     register_official_cms1500,
 )
+from engine.layout.official_ub04_registration import (
+    load_official_ub04_template, official_ub04_field_region,
+    register_official_ub04,
+)
 from engine.ocr import get_engine
 from engine.ocr.base import OcrWord
 from engine.preprocess import preprocess_page
@@ -73,6 +77,12 @@ def map_monochrome_fields(words: list[OcrWord], image: Image.Image, form: str,
         registration = register_official_cms1500(image)
         for name in load_official_template()["fields"]:
             region = official_field_region(image, name, registration)
+            if region is not None:
+                regions[name] = region
+    elif form == "ub04":
+        registration = register_official_ub04(image)
+        for name in load_official_ub04_template()["fields"]:
+            region = official_ub04_field_region(image, name, registration)
             if region is not None:
                 regions[name] = region
     else:
@@ -147,8 +157,18 @@ def _typed_retry_value(field_name: str, text: str) -> str:
     return text.strip()
 
 
-def official_retry_mode(field_name: str) -> str:
-    field = load_official_template()["fields"][field_name]
+def _official_template(form: str) -> dict:
+    return (load_official_ub04_template() if form == "ub04"
+            else load_official_template())
+
+
+def _official_region(image: Image.Image, field_name: str, form: str) -> list[float] | None:
+    return (official_ub04_field_region(image, field_name) if form == "ub04"
+            else official_field_region(image, field_name))
+
+
+def official_retry_mode(field_name: str, form: str = "cms1500") -> str:
+    field = _official_template(form)["fields"][field_name]
     if field.get("mark_options"):
         return "checkbox-mark-detection"
     return {
@@ -163,26 +183,65 @@ def official_retry_mode(field_name: str) -> str:
     }[field["field_type"]]
 
 
+def _quantity_component_candidates(field_name: str, crop: Image.Image,
+                                   attempt_index: int) -> list[RetryCandidate]:
+    """Read a right-aligned digit even when it touches the printed box rule."""
+    gray = np.asarray(crop.convert("L"))
+    ink = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)[1]
+    height, width = ink.shape
+    horizontal = cv2.morphologyEx(
+        ink, cv2.MORPH_OPEN,
+        cv2.getStructuringElement(cv2.MORPH_RECT, (max(10, width // 2), 1)),
+    )
+    vertical = cv2.morphologyEx(
+        ink, cv2.MORPH_OPEN,
+        cv2.getStructuringElement(cv2.MORPH_RECT, (1, max(10, height // 2))),
+    )
+    clean = ink.copy()
+    clean[cv2.bitwise_or(horizontal, vertical) > 0] = 0
+    count, _, stats, _ = cv2.connectedComponentsWithStats(
+        (clean > 0).astype(np.uint8), 8
+    )
+    parts = [row for row in stats[1:count] if row[4] >= 3 and row[3] >= height * .15]
+    if not parts:
+        return []
+    x0, y0 = min(row[0] for row in parts), min(row[1] for row in parts)
+    x1 = max(row[0] + row[2] for row in parts)
+    y1 = max(row[1] + row[3] for row in parts)
+    pad = 2
+    tight = Image.fromarray(255 - clean[
+        max(0, y0 - pad):min(height, y1 + pad),
+        max(0, x0 - pad):min(width, x1 + pad),
+    ])
+    tight = tight.resize((tight.width * 8, tight.height * 8), Image.Resampling.LANCZOS)
+    words = get_engine("tesseract").extract(tight, psm=13)
+    return candidate_values(
+        field_name, words, source="component_tesseract",
+        attempt_index=attempt_index,
+    )
+
+
 def official_retry_candidate(image: Image.Image, field_name: str,
                              shared_words: list[OcrWord] | None = None,
-                             region: list[float] | None = None) -> dict | None:
+                             region: list[float] | None = None,
+                             form: str = "cms1500") -> dict | None:
     """Field-aware local crop retry for official evaluated fields."""
-    region = region or official_field_region(image, field_name)
+    region = region or _official_region(image, field_name, form)
     if region is None:
         return None
     box = [round(value) for value in region]
     crop = image.crop(box)
     started = time.perf_counter()
-    mode = official_retry_mode(field_name)
+    mode = official_retry_mode(field_name, form)
 
     if mode == "checkbox-mark-detection":
-        marked = map_monochrome_fields([], image, "cms1500")[field_name]
+        marked = map_monochrome_fields([], image, form)[field_name]
         return {"value": marked["value"] or None, "confidence": marked["conf"],
                 "n_spans": marked["n_spans"],
                 "latency_ms": (time.perf_counter() - started) * 1000, "mode": mode}
 
     profiles = load_retry_profiles()
-    family = load_official_template()["fields"][field_name]["field_type"]
+    family = _official_template(form)["fields"][field_name]["field_type"]
     family_profile = profiles["field_families"].get(
         family, profiles["field_families"]["text"]
     )
@@ -211,6 +270,10 @@ def official_retry_candidate(image: Image.Image, field_name: str,
             ranked = select_best_candidate(field_name, candidates, {})
             if should_stop_retry(ranked, .50):
                 break
+
+    if classify_field(field_name) == "quantity" and not candidates:
+        candidates.extend(_quantity_component_candidates(field_name, crop, attempts_used))
+        ranked = select_best_candidate(field_name, candidates, {})
 
     if classify_field(field_name) == "quantity" and not candidates:
         gray = np.asarray(crop.convert("L"))
@@ -255,7 +318,7 @@ def structured_page(image: Image.Image, words: list[OcrWord], form: str,
         state, reason = apply(field, preset)
         page.fields[name] = field
         page.decisions[name] = [(state.value, reason)]
-    if run_retry and form == "cms1500":
+    if run_retry and form in {"cms1500", "ub04"}:
         retry_official_page(page, image, preset)
     return page
 
@@ -276,6 +339,7 @@ def retry_official_page(page: PageResult, image: Image.Image,
         candidate = official_retry_candidate(
             image, name, shared_words=shared_words,
             region=list(field.bbox) if field.bbox else None,
+            form=page.doc_type,
         )
         if candidate is None:
             continue

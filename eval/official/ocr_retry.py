@@ -113,7 +113,9 @@ def candidate_values(field_name: str, words: list[OcrWord], *, source: str = "cr
         groups = re.findall(r"\d+", joined.replace(",", ""))
         if groups:
             value = f"{groups[0]}.{groups[-1][-2:]}" if len(groups) >= 2 else f"{groups[0]}.00"
-            raw.append((value, mean, len(spans)))
+            # Prefer the typed representation before normalized-key deduplication;
+            # keeping raw "6" over equivalent "6.00" makes currency validation fail.
+            raw.insert(0, (value, mean, len(spans)))
     elif family == "quantity":
         digits = re.sub(r"\D", "", joined)
         if digits:
@@ -128,7 +130,7 @@ def candidate_values(field_name: str, words: list[OcrWord], *, source: str = "cr
         digits = re.sub(r"\D", "", joined)
         raw.extend((digits[index:index + 9], mean, len(spans))
                    for index in range(max(0, len(digits) - 8)))
-    elif field_name.startswith("diagnosis_code_"):
+    elif field_name.startswith("diagnosis_code_") or field_name == "principal_dx":
         raw.extend((match, mean, len(spans)) for match in re.findall(
             r"[A-TV-Z]\d[0-9A-Z](?:\.[0-9A-Z]{1,4})?", joined.upper()
         ))
