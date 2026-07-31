@@ -1,6 +1,25 @@
 
 # ClaimRoute project memory
 
+## Official UB-04 development template expansion - 31 Jul 2026
+
+- Starting commit `6688dc2`; Tier C holdout access remained zero.
+- Official CMS-1450 template expanded from 5 to 25 concrete regions. Twenty are new; 14 are
+  score-eligible, with blank/not-printed/pending-organiser categories explicit.
+- Geometry 50/50. Development denominator 28: primary 8/28, retry 26/26, normalized 27/28,
+  validator 27/28, final governed 27/28. Governor: 28 ACCEPT. External calls/cost: zero.
+- One plausible wrong DOB passes current validators and remains a freeze blocker. FL 5's 10-char
+  record versus nine-digit print, FL 3b presence, and unprinted repeated rows remain excluded.
+- Diagnosis false negatives were an incomplete 20-code allowlist plus punctuation-sensitive
+  membership. A CMS-verified dictionary entry and canonical membership fix both without weakening
+  the shape validator; a synthetic unknown sibling still fails.
+- Stage latency: decode 127.920 ms, preprocessing 1,902.577, registration 529.892, crops 14.406,
+  primary OCR 4,374.166, retry OCR 46,485.417, normalization 2.323, validation 1.705, governor
+  0.809, reporting 0.463. Wall 53,446.639 ms / 26,723.320 ms per page. Local cost
+  $0.000742314 / $0.000371157 per page. No latency optimization performed.
+- Freeze recommendation remains **DO NOT FREEZE**. Next task is a separate freeze review; do not
+  access Tier C holdout in the development-expansion session.
+
 ## Official UB-04 five-field development proof - 31 Jul 2026
 
 - Froze `tier_c_official_v1` before template authoring: six items, five deterministic links,

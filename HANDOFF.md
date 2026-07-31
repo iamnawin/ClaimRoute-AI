@@ -1,5 +1,34 @@
 # Handoff — claims-engine (Day 11 frozen evidence verified)
 
+## Session log - 31 Jul 2026 (official Tier C UB-04 development expansion)
+
+Started from synchronized `main` at `6688dc2`. The official CMS-1450 template expanded from five
+to 25 concrete regions; 20 are new. Fourteen regions form the legitimate development scoring set.
+Blank-valid, not-printed, ambiguous, unsupported, and pending-organiser categories remain explicit.
+Patient address, conditional attending semantics, FL 3b/FL 5 conflicts, and unprinted repeated
+record rows were not converted into accuracy claims.
+
+Only development IDs `251f79e97f77` and `751e44752221` were decoded, rendered, registered, cropped,
+OCRed, or scored. Holdout access: zero. Geometry: 50/50. On 28 score-eligible instances, primary
+OCR was 8/28, retry was 26/26, normalized accuracy 27/28, validator correctness 27/28, and final
+governed correctness 27/28. Governor outcomes: 28 ACCEPT. One plausible wrong DOB passes current
+date validation and blocks freezing.
+
+The two prior diagnosis escalations were caused by a 20-code unversioned ICD allowlist and exact
+punctuation membership. A CMS-verified dictionary addition plus punctuation-insensitive canonical
+membership resolves both; the shape validator and governor thresholds are unchanged, and a
+synthetic unknown sibling code still fails.
+
+Stage latency (two pages): TIFF decode 127.920 ms; preprocessing 1,902.577; registration 529.892;
+crop generation 14.406; primary OCR 4,374.166; retry OCR 46,485.417; normalization 2.323;
+validation 1.705; governor 0.809; reporting 0.463. Wall latency was 53,446.639 ms total /
+26,723.320 ms per page. Local cost was $0.000742314 total / $0.000371157 per page. External calls
+and cost remained zero. Retry OCR is dominant; no optimization was attempted.
+
+Freeze recommendation: **DO NOT FREEZE**. Next exact task: perform a separate Tier C freeze review
+that resolves the DOB validator false positive and organiser semantics, then freezes the template,
+denominator, ICD dictionary version, and stage receipt before any holdout authorization.
+
 ## Session log - 31 Jul 2026 (official Tier C UB-04 five-field proof)
 
 Started from clean synchronized `main` at `9006b37`. Ending implementation/evidence commit is
