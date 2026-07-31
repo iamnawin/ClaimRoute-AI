@@ -26,6 +26,7 @@ def _load_dict(name: str) -> set:
 
 _CPT = _load_dict("cpt")
 _ICD10 = _load_dict("icd10")
+_ICD10_CANONICAL = {re.sub(r"[^A-Z0-9]", "", code.upper()) for code in _ICD10}
 _REV = _load_dict("revenue_codes")
 
 
@@ -94,7 +95,10 @@ def icd10_format(v, ctx):
 
 
 def icd10_dictionary(v, ctx):
-    ok = str(v).strip().upper() in _ICD10
+    # UB-192 omits the printed decimal. Dictionary membership is semantic, so
+    # compare the same canonical code for both fixed-width and printed forms.
+    code = re.sub(r"[^A-Z0-9]", "", str(v).strip().upper())
+    ok = code in _ICD10_CANONICAL
     return (Verdict.PASS, "") if ok else (Verdict.FAIL, "unknown ICD-10")
 
 

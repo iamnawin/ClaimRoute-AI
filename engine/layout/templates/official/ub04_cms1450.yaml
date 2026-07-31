@@ -6,33 +6,30 @@ synthetic_template_family: false
 registration_method: horizontal-rule-grid+revenue-band
 minimum_registration_confidence: 0.70
 fields:
-  patient_control_no:
-    ub04_locator: "3a"
-    field_type: text
-    x_region: [0.650, 0.940]
-    y_region: [0.004, 0.014]
-    padding_px: [6, 2, 6, 2]
-  admission_date:
-    ub04_locator: "12"
-    field_type: date
-    x_region: [0.142, 0.215]
-    y_region: [0.109, 0.124]
-    padding_px: [6, 4, 6, 4]
-  line1_units:
-    ub04_locator: "46"
-    field_type: quantity
-    x_region: [0.685, 0.725]
-    y_region: [0.269, 0.286]
-    padding_px: [6, 4, 6, 4]
-  total_charges:
-    ub04_locator: "47 Totals"
-    field_type: money
-    x_region: [0.725, 0.850]
-    y_region: [0.619, 0.636]
-    padding_px: [6, 4, 6, 4]
-  principal_dx:
-    ub04_locator: "67"
-    field_type: diagnosis_code
-    x_region: [0.020, 0.112]
-    y_region: [0.825, 0.841]
-    padding_px: [6, 4, 6, 4]
+  provider_name: {ub04_locator: "1", canonical_field: provider_name, normalization: text, field_type: text, x_region: [0.020, 0.300], y_region: [0.004, 0.015], padding_px: [6, 2, 6, 2], validators: [org_name_format], criticality: med, blank_policy: required, repeatable_row: false, support_status: supported}
+  patient_control_no: {ub04_locator: "3a", canonical_field: patient_control_no, normalization: text, field_type: text, x_region: [0.650, 0.940], y_region: [0.004, 0.014], padding_px: [6, 2, 6, 2], validators: [], criticality: med, blank_policy: required, repeatable_row: false, support_status: supported}
+  medical_record_no: {ub04_locator: "3b", canonical_field: medical_record_no, normalization: text, field_type: text, x_region: [0.650, 0.940], y_region: [0.019, 0.032], padding_px: [6, 2, 6, 2], validators: [], criticality: med, blank_policy: required, repeatable_row: false, support_status: excluded_from_denominator_pending_organiser_confirmation}
+  type_of_bill: {ub04_locator: "4", canonical_field: type_of_bill, normalization: text, field_type: text, x_region: [0.945, 0.995], y_region: [0.019, 0.032], padding_px: [4, 2, 4, 2], validators: [numeric_format], criticality: med, blank_policy: required, repeatable_row: false, support_status: supported}
+  federal_tax_no: {ub04_locator: "5", canonical_field: federal_tax_no, normalization: code, field_type: code, x_region: [0.625, 0.735], y_region: [0.043, 0.058], padding_px: [6, 3, 6, 3], validators: [tax_id_format], criticality: high, blank_policy: required, repeatable_row: false, support_status: excluded_from_denominator_pending_organiser_confirmation}
+  statement_from: {ub04_locator: "6 From", canonical_field: statement_from, normalization: date, field_type: date, x_region: [0.735, 0.820], y_region: [0.043, 0.058], padding_px: [6, 3, 6, 3], validators: [date_valid], criticality: med, blank_policy: required, repeatable_row: false, support_status: supported}
+  statement_to: {ub04_locator: "6 Through", canonical_field: statement_to, normalization: date, field_type: date, x_region: [0.820, 0.940], y_region: [0.043, 0.058], padding_px: [6, 3, 6, 3], validators: [date_valid], criticality: med, blank_policy: required, repeatable_row: false, support_status: supported}
+  patient_name: {ub04_locator: "8b", canonical_field: patient_name, normalization: text, field_type: text, x_region: [0.020, 0.360], y_region: [0.084, 0.099], padding_px: [6, 3, 6, 3], validators: [name_format], criticality: high, blank_policy: required, repeatable_row: false, support_status: supported}
+  patient_dob: {ub04_locator: "10", canonical_field: patient_dob, normalization: date, field_type: date, x_region: [0.005, 0.105], y_region: [0.109, 0.124], padding_px: [6, 4, 6, 4], validators: [date_valid, dob_before_service], criticality: high, blank_policy: required, repeatable_row: false, support_status: supported}
+  patient_sex: {ub04_locator: "11", canonical_field: patient_sex, normalization: text, field_type: text, x_region: [0.105, 0.142], y_region: [0.109, 0.124], padding_px: [4, 4, 4, 4], validators: [], criticality: low, blank_policy: required, repeatable_row: false, support_status: supported}
+  admission_date: {ub04_locator: "12", canonical_field: admission_date, normalization: date, field_type: date, x_region: [0.142, 0.215], y_region: [0.109, 0.124], padding_px: [6, 4, 6, 4], validators: [date_valid], criticality: med, blank_policy: required, repeatable_row: false, support_status: supported}
+
+  line1_rev_code: {ub04_locator: "42 row 1", canonical_field: line1_rev_code, normalization: text, field_type: text, x_region: [0.015, 0.055], y_region: [0.269, 0.286], padding_px: [5, 4, 5, 4], validators: [revenue_code_format], criticality: high, blank_policy: required_when_row_printed, repeatable_row: {row: 1, cap: 3}, support_status: supported}
+  line1_hcpcs: {ub04_locator: "44 row 1", canonical_field: line1_hcpcs, normalization: text, field_type: procedure_code, x_region: [0.360, 0.545], y_region: [0.269, 0.286], padding_px: [5, 4, 5, 4], validators: [cpt_format], criticality: med, blank_policy: blank_valid, repeatable_row: {row: 1, cap: 3}, support_status: blank_but_valid}
+  line1_units: {ub04_locator: "46 row 1", canonical_field: line1_units, normalization: quantity, field_type: quantity, x_region: [0.685, 0.725], y_region: [0.269, 0.286], padding_px: [6, 4, 6, 4], validators: [numeric_format], criticality: med, blank_policy: required_when_row_printed, repeatable_row: {row: 1, cap: 3}, support_status: supported}
+  line1_charges: {ub04_locator: "47 row 1", canonical_field: line1_charges, normalization: money, field_type: money, x_region: [0.725, 0.850], y_region: [0.269, 0.286], padding_px: [6, 4, 6, 4], validators: [currency_format, claim_arithmetic], criticality: high, blank_policy: required_when_row_printed, repeatable_row: {row: 1, cap: 3}, support_status: supported}
+  line2_rev_code: {ub04_locator: "42 row 2", canonical_field: line2_rev_code, normalization: text, field_type: text, x_region: [0.015, 0.055], y_region: [0.286, 0.301], padding_px: [5, 3, 5, 3], validators: [revenue_code_format], criticality: high, blank_policy: required_when_row_printed, repeatable_row: {row: 2, cap: 3}, support_status: not_printed}
+  line2_hcpcs: {ub04_locator: "44 row 2", canonical_field: line2_hcpcs, normalization: text, field_type: procedure_code, x_region: [0.360, 0.545], y_region: [0.286, 0.301], padding_px: [5, 3, 5, 3], validators: [cpt_format], criticality: med, blank_policy: blank_valid, repeatable_row: {row: 2, cap: 3}, support_status: blank_but_valid}
+  line2_units: {ub04_locator: "46 row 2", canonical_field: line2_units, normalization: quantity, field_type: quantity, x_region: [0.685, 0.725], y_region: [0.286, 0.301], padding_px: [6, 3, 6, 3], validators: [numeric_format], criticality: med, blank_policy: required_when_row_printed, repeatable_row: {row: 2, cap: 3}, support_status: not_printed}
+  line2_charges: {ub04_locator: "47 row 2", canonical_field: line2_charges, normalization: money, field_type: money, x_region: [0.725, 0.850], y_region: [0.286, 0.301], padding_px: [6, 3, 6, 3], validators: [currency_format, claim_arithmetic], criticality: high, blank_policy: required_when_row_printed, repeatable_row: {row: 2, cap: 3}, support_status: not_printed}
+  line3_rev_code: {ub04_locator: "42 row 3", canonical_field: line3_rev_code, normalization: text, field_type: text, x_region: [0.015, 0.055], y_region: [0.301, 0.316], padding_px: [5, 3, 5, 3], validators: [revenue_code_format], criticality: high, blank_policy: required_when_row_printed, repeatable_row: {row: 3, cap: 3}, support_status: not_printed}
+  line3_hcpcs: {ub04_locator: "44 row 3", canonical_field: line3_hcpcs, normalization: text, field_type: procedure_code, x_region: [0.360, 0.545], y_region: [0.301, 0.316], padding_px: [5, 3, 5, 3], validators: [cpt_format], criticality: med, blank_policy: blank_valid, repeatable_row: {row: 3, cap: 3}, support_status: blank_but_valid}
+  line3_units: {ub04_locator: "46 row 3", canonical_field: line3_units, normalization: quantity, field_type: quantity, x_region: [0.685, 0.725], y_region: [0.301, 0.316], padding_px: [6, 3, 6, 3], validators: [numeric_format], criticality: med, blank_policy: required_when_row_printed, repeatable_row: {row: 3, cap: 3}, support_status: not_printed}
+  line3_charges: {ub04_locator: "47 row 3", canonical_field: line3_charges, normalization: money, field_type: money, x_region: [0.725, 0.850], y_region: [0.301, 0.316], padding_px: [6, 3, 6, 3], validators: [currency_format, claim_arithmetic], criticality: high, blank_policy: required_when_row_printed, repeatable_row: {row: 3, cap: 3}, support_status: not_printed}
+
+  total_charges: {ub04_locator: "47 Totals", canonical_field: total_charges, normalization: money, field_type: money, x_region: [0.725, 0.850], y_region: [0.619, 0.636], padding_px: [6, 4, 6, 4], validators: [currency_format, claim_arithmetic], criticality: high, blank_policy: required, repeatable_row: false, support_status: supported}
+  principal_dx: {ub04_locator: "67", canonical_field: principal_dx, normalization: code, field_type: diagnosis_code, x_region: [0.020, 0.112], y_region: [0.825, 0.841], padding_px: [6, 4, 6, 4], validators: [icd10_format, icd10_dictionary], criticality: high, blank_policy: required, repeatable_row: false, support_status: supported}

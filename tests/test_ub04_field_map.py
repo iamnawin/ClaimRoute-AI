@@ -8,6 +8,7 @@ import re
 import yaml
 
 from engine.governor import field_policy
+from engine.layout.official_ub04_registration import load_official_ub04_template
 from eval.official.evaluator import claimroute_expected
 from eval.official.normalization import classify_field
 from eval.official.parsers import OfficialRecord
@@ -74,6 +75,37 @@ def test_required_columns_statuses_and_known_families():
         "unsupported",
     }
     assert all(row["known_limitation"].strip() for row in rows)
+
+
+def test_expanded_field_map_uses_the_complete_coverage_taxonomy():
+    mapping = _mapping()
+    assert set(mapping["coverage_categories"]) == {
+        "supported", "blank_but_valid", "not_printed", "ambiguous",
+        "unsupported", "excluded_from_denominator_pending_organiser_confirmation",
+    }
+    template = load_official_ub04_template()["fields"]
+    expanded_supported = _expanded_scored_names(mapping["fields"])
+    assert set(template) <= expanded_supported
+    assert all(field["canonical_field"] in expanded_supported
+               for field in template.values())
+
+
+def test_every_development_evaluator_field_is_mapped_or_explicitly_excluded():
+    safe_rows = [json.loads(line) for line in Path(
+        "eval/official/results/official_sample_rows.jsonl"
+    ).read_text(encoding="utf-8").splitlines()]
+    dev_ids = set(_mapping()["meta"]["development_source_ids"])
+    evaluated = {
+        field["field_name"] for row in safe_rows if row["source_id"] in dev_ids
+        for field in row["field_results"]
+    }
+    template = load_official_ub04_template()["fields"]
+    assert evaluated <= set(template)
+    assert all(template[name]["support_status"] in {
+        "supported", "not_printed",
+        "excluded_from_denominator_pending_organiser_confirmation",
+    }
+               for name in evaluated)
 
 
 def test_supported_fields_resolve_to_real_policy_and_mechanical_columns():

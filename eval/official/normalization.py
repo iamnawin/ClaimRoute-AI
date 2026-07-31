@@ -44,6 +44,11 @@ def normalize_value(field_name: str, value: object) -> str:
     text = str(value or "").strip().upper()
     if not text:
         return ""
+    if field_name == "type_of_bill":
+        # UB-192 stores the three significant bill-type digits; CMS-1450
+        # prints the National Uniform Billing Committee's leading zero.
+        digits = re.sub(r"\D", "", text)
+        return digits[-3:]
     family = classify_field(field_name)
     if family == "date":
         digits = re.sub(r"\D", "", text)

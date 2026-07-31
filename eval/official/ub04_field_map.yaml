@@ -9,6 +9,19 @@ meta:
   evaluated_field_count: 28
   service_line_cap: 3
   proof_fields: [patient_control_no, admission_date, line1_units, total_charges, principal_dx]
+  supported_source_families: 19
+  unambiguous_source_families: 18
+
+# Coverage is an evaluation property, separate from whether a standard CMS-1450
+# box has a deterministic rectangle. Concrete statuses live beside each region
+# in the official template and are checked against this taxonomy.
+coverage_categories:
+  supported: "Evaluator-supported, unambiguous, and eligible when visibly populated."
+  blank_but_valid: "The form and field policy permit an empty value."
+  not_printed: "The organiser record expects a repeated value that is absent from the rendered development form."
+  ambiguous: "More than one official printed subfield could represent the organiser slice."
+  unsupported: "The evaluator can emit the name but ClaimRoute has no extraction policy."
+  excluded_from_denominator_pending_organiser_confirmation: "Standard geometry exists, but organiser record-to-print semantics are unresolved."
 
 # Mechanical columns are re-derived in tests from parsers.py, evaluator.py,
 # normalization.py, field_policy.yaml, and governor.py. Form locators come from

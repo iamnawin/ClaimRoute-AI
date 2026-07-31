@@ -37,6 +37,24 @@ from eval.official.ocr_retry import (
 )
 
 
+OFFICIAL_LATENCY_STAGES = (
+    "tiff_decode", "preprocessing", "registration", "crop_generation",
+    "primary_ocr", "retry_ocr", "normalization", "validation", "governor",
+    "reporting",
+)
+
+
+def new_stage_latency() -> dict[str, float]:
+    """Return a complete, zeroed stage ledger for one official document."""
+    return {stage: 0.0 for stage in OFFICIAL_LATENCY_STAGES}
+
+
+def record_stage(stage_latency: dict[str, float] | None, stage: str,
+                 started: float) -> None:
+    if stage_latency is not None:
+        stage_latency[stage] += (time.perf_counter() - started) * 1000
+
+
 def local_ocr(image: Image.Image) -> tuple[list[OcrWord], str, float]:
     start = time.perf_counter()
     words = get_engine("tesseract").extract(image)
@@ -71,16 +89,17 @@ def _words_in_region(words: list[OcrWord], region: list[float]) -> list[OcrWord]
 
 
 def map_monochrome_fields(words: list[OcrWord], image: Image.Image, form: str,
-                          variant: int = 3, pad: float = 8.0) -> dict[str, dict]:
+                          variant: int = 3, pad: float = 8.0,
+                          registration=None) -> dict[str, dict]:
     regions = {}
     if form == "cms1500":
-        registration = register_official_cms1500(image)
+        registration = registration or register_official_cms1500(image)
         for name in load_official_template()["fields"]:
             region = official_field_region(image, name, registration)
             if region is not None:
                 regions[name] = region
     elif form == "ub04":
-        registration = register_official_ub04(image)
+        registration = registration or register_official_ub04(image)
         for name in load_official_ub04_template()["fields"]:
             region = official_ub04_field_region(image, name, registration)
             if region is not None:
@@ -301,12 +320,24 @@ def official_retry_candidate(image: Image.Image, field_name: str,
 
 def structured_page(image: Image.Image, words: list[OcrWord], form: str,
                     doc_id: str, preset: str = "balanced",
-                    run_retry: bool = False) -> PageResult:
+                    run_retry: bool = False, registration=None,
+                    stage_latency: dict[str, float] | None = None) -> PageResult:
+    started = time.perf_counter()
     quality = preprocess_page(image)["quality_before"]["quality_score"]
+    record_stage(stage_latency, "preprocessing", started)
+    if registration is None and form in {"cms1500", "ub04"}:
+        started = time.perf_counter()
+        registration = (register_official_ub04(image) if form == "ub04"
+                        else register_official_cms1500(image))
+        record_stage(stage_latency, "registration", started)
     page = PageResult(doc_id, "p1", form, quality_score=quality)
-    mapped = map_monochrome_fields(words, image, form)
+    started = time.perf_counter()
+    mapped = map_monochrome_fields(words, image, form, registration=registration)
+    record_stage(stage_latency, "crop_generation", started)
     raw_values = {name: row["value"] for name, row in mapped.items()}
+    started = time.perf_counter()
     stamps = run_validators(raw_values)
+    record_stage(stage_latency, "validation", started)
     for name, row in mapped.items():
         vnames = [stamp.validator for stamp in stamps.get(name, [])]
         confidence = fuse(row["conf"], quality, row["n_spans"], row["value"], vnames)
@@ -315,16 +346,19 @@ def structured_page(image: Image.Image, words: list[OcrWord], form: str,
                             bbox=tuple(row["bbox"]) if row["bbox"] else None)
         field.stamps = stamps.get(name, [])
         field.attempts = [Attempt("primary_ocr", "tesseract", field.value, confidence)]
+        started = time.perf_counter()
         state, reason = apply(field, preset)
+        record_stage(stage_latency, "governor", started)
         page.fields[name] = field
         page.decisions[name] = [(state.value, reason)]
     if run_retry and form in {"cms1500", "ub04"}:
-        retry_official_page(page, image, preset)
+        retry_official_page(page, image, preset, stage_latency=stage_latency)
     return page
 
 
 def retry_official_page(page: PageResult, image: Image.Image,
-                        preset: str = "balanced") -> list[dict]:
+                        preset: str = "balanced",
+                        stage_latency: dict[str, float] | None = None) -> list[dict]:
     """Run one governed local retry for unresolved official proof fields."""
     receipts = []
     values = {name: field.value for name, field in page.fields.items()}
@@ -333,19 +367,25 @@ def retry_official_page(page: PageResult, image: Image.Image,
     shared_started = time.perf_counter()
     shared_words = extract_profile(image, load_retry_profiles()["shared_page"])
     shared_latency_ms = (time.perf_counter() - shared_started) * 1000
+    if stage_latency is not None:
+        stage_latency["retry_ocr"] += shared_latency_ms
     for name, field in page.fields.items():
         if field.state != FieldState.RETRY:
             continue
+        started = time.perf_counter()
         candidate = official_retry_candidate(
             image, name, shared_words=shared_words,
             region=list(field.bbox) if field.bbox else None,
             form=page.doc_type,
         )
+        record_stage(stage_latency, "retry_ocr", started)
         if candidate is None:
             continue
         value = candidate["value"]
         context = {**values, name: value}
+        started = time.perf_counter()
         stamps = validate_field(name, value, context)
+        record_stage(stage_latency, "validation", started)
         confidence = fuse(candidate["confidence"], page.quality_score,
                           candidate["n_spans"], value or "",
                           [stamp.validator for stamp in stamps])
@@ -360,11 +400,15 @@ def retry_official_page(page: PageResult, image: Image.Image,
             value or "", candidate["confidence"], candidate["n_spans"],
             candidate.get("source", "retry"), 0,
         )
+        started = time.perf_counter()
         selected = select_best_candidate(name, [primary, retry], values)
+        record_stage(stage_latency, "normalization", started)
         if selected and selected.candidate.source != "primary":
             field.value, field.confidence, field.stamps = value, confidence, stamps
             values[name] = value
+        started = time.perf_counter()
         state, reason = apply(field, preset)
+        record_stage(stage_latency, "governor", started)
         page.decisions[name].append((state.value, reason))
         receipts.append({"field_name": name, "mode": candidate["mode"],
                          "source": candidate.get("source"),

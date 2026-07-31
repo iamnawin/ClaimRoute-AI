@@ -17,8 +17,11 @@ from engine.layout.official_ub04_registration import (
 )
 from engine.ocr.base import OcrWord
 from engine.schemas import FieldResult, FieldState, PageResult
+from engine.schemas import Verdict
+from engine.validators.registry import icd10_dictionary
 from eval.official.extraction import (
-    _quantity_component_candidates, map_monochrome_fields, retry_official_page,
+    OFFICIAL_LATENCY_STAGES, _quantity_component_candidates,
+    map_monochrome_fields, new_stage_latency, retry_official_page,
 )
 from eval.official.normalization import classify_field
 from eval.official.ocr_retry import candidate_values
@@ -27,6 +30,17 @@ from eval.official.ocr_retry import candidate_values
 PROOF_FIELDS = {
     "patient_control_no", "admission_date", "line1_units", "total_charges",
     "principal_dx",
+}
+SUPPORTED_FIELDS = {
+    "provider_name", "patient_control_no", "type_of_bill",
+    "statement_from", "statement_to", "patient_name", "patient_dob",
+    "patient_sex", "admission_date", "line1_rev_code", "line1_units",
+    "line1_charges", "total_charges", "principal_dx",
+}
+TEMPLATE_FIELDS = SUPPORTED_FIELDS | {
+    "federal_tax_no", "medical_record_no", "line1_hcpcs",
+    *(f"line{row}_{field}" for row in (2, 3)
+      for field in ("rev_code", "hcpcs", "units", "charges")),
 }
 
 
@@ -56,8 +70,25 @@ def test_official_template_is_separate_from_synthetic_ub04_family():
     assert TEMPLATE_PATH.name == "ub04_cms1450.yaml"
     assert official["layout_family"] == "official_monochrome_ub04"
     assert official["synthetic_template_family"] is False
-    assert set(official["fields"]) == PROOF_FIELDS
-    assert set(synthetic["fields"]) != PROOF_FIELDS
+    assert set(official["fields"]) == TEMPLATE_FIELDS
+    assert set(synthetic["fields"]) != TEMPLATE_FIELDS
+
+
+def test_expanded_template_records_complete_policy_and_support_metadata():
+    required = {
+        "ub04_locator", "canonical_field", "x_region", "y_region",
+        "normalization", "validators", "criticality", "blank_policy",
+        "repeatable_row", "support_status",
+    }
+    fields = load_official_ub04_template()["fields"]
+    assert all(required <= set(field) for field in fields.values())
+    assert {name for name, field in fields.items()
+            if field["support_status"] == "supported"} == SUPPORTED_FIELDS
+    assert {field["support_status"] for field in fields.values()} == {
+        "supported", "blank_but_valid", "not_printed",
+        "excluded_from_denominator_pending_organiser_confirmation",
+    }
+    assert all(field["canonical_field"] == name for name, field in fields.items())
 
 
 def test_registration_metadata_confidence_and_normalized_coordinate_bounds():
@@ -91,13 +122,13 @@ def test_border_artifact_is_rejected_without_changing_registered_extent():
 def test_five_proof_fields_map_by_overlap_with_bounded_padding():
     image = _form()
     empty = map_monochrome_fields([], image, "ub04")
-    assert set(empty) == PROOF_FIELDS
+    assert set(empty) == TEMPLATE_FIELDS
     target = empty["line1_units"]["bbox"]
     word = OcrWord("1", [target[0] + 2, target[1] + 2,
                          target[2] - 2, target[3] - 2], .98)
     mapped = map_monochrome_fields([word], image, "ub04")
     assert mapped["line1_units"]["value"] == "1"
-    assert all(mapped[name]["value"] == "" for name in PROOF_FIELDS - {"line1_units"})
+    assert all(mapped[name]["value"] == "" for name in TEMPLATE_FIELDS - {"line1_units"})
     template = load_official_ub04_template()["fields"]["line1_units"]
     registration = register_official_ub04(image)
     raw_width = (template["x_region"][1] - template["x_region"][0]) * (
@@ -118,6 +149,33 @@ def test_principal_diagnosis_retry_keeps_the_complete_typed_code():
     words = [OcrWord("A12.3456", [1, 1, 30, 12], .95)]
     values = {candidate.value for candidate in candidate_values("principal_dx", words)}
     assert "A12.3456" in values
+
+
+def test_icd_dictionary_accepts_printed_and_ub192_forms_without_accepting_unknown_code():
+    assert icd10_dictionary("F25.9", {})[0] == Verdict.PASS
+    assert icd10_dictionary("F259", {})[0] == Verdict.PASS
+    assert icd10_dictionary("F25.8", {})[0] == Verdict.FAIL
+
+
+def test_repeated_revenue_rows_are_structurally_ordered_and_bounded():
+    image = _form()
+    registration = register_official_ub04(image)
+    for family in ("rev_code", "hcpcs", "units", "charges"):
+        regions = [official_ub04_field_region(
+            image, f"line{row}_{family}", registration
+        ) for row in (1, 2, 3)]
+        assert all(0 <= box[0] < box[2] <= image.width and
+                   0 <= box[1] < box[3] <= image.height for box in regions)
+        assert regions[0][1] < regions[1][1] < regions[2][1]
+
+
+def test_latency_stage_accounting_is_complete_and_additive():
+    stages = new_stage_latency()
+    assert tuple(stages) == OFFICIAL_LATENCY_STAGES
+    assert all(value == 0.0 for value in stages.values())
+    stages["primary_ocr"] += 1.25
+    stages["primary_ocr"] += 2.75
+    assert stages["primary_ocr"] == 4.0
 
 
 def test_money_retry_prefers_validator_compatible_typed_representation():
@@ -165,6 +223,10 @@ def test_optional_blank_and_mapping_exclusions_remain_explicit():
     template_fields = set(load_official_ub04_template()["fields"])
     assert "patient_address" not in template_fields
     assert "attending_qualifier" not in template_fields
+    fields = load_official_ub04_template()["fields"]
+    assert fields["line1_hcpcs"]["blank_policy"] == "blank_valid"
+    assert fields["line2_rev_code"]["support_status"] == "not_printed"
+    assert "attending_npi" not in template_fields
 
 
 def test_dynamic_holdout_guard_no_expected_value_registration_and_synthetic_regression():
@@ -179,6 +241,9 @@ def test_dynamic_holdout_guard_no_expected_value_registration_and_synthetic_regr
     )
     assert "expected_value" not in registration_text
     assert "organiser_value" not in registration_text
+    assert "expected_value" not in Path(
+        "eval/official/extraction.py"
+    ).read_text(encoding="utf-8")
     digest = hashlib.sha256(Path(
         "engine/layout/templates/ub04_v3.json"
     ).read_bytes()).hexdigest()
@@ -199,3 +264,29 @@ def test_committed_proof_receipt_is_complete_and_contains_no_values():
     split = json.loads(Path("eval/official/splits/tier_c_split_v1.json").read_text())
     holdout = {row["source_id"] for row in split["holdout"] + split["excluded"]}
     assert not holdout.intersection(row["source_id"] for row in rows)
+
+
+def test_expansion_receipt_tracks_all_stages_and_contains_no_ground_truth():
+    receipt = json.loads(Path(
+        "eval/results/official_ub04_development_expansion_summary.json"
+    ).read_text(encoding="utf-8"))
+    summary = receipt["summary"]
+    assert summary["template_regions"] == 25
+    assert summary["geometry_instances"] == summary["geometry_correct"] == 50
+    assert summary["instances"] == len(receipt["field_rows"]) == 28
+    assert set(summary["stage_latency_ms"]) == set(OFFICIAL_LATENCY_STAGES)
+    assert all(value >= 0 for value in summary["stage_latency_ms"].values())
+    assert summary["holdout_access_count"] == 0
+    assert summary["external_provider_calls"] == 0
+    forbidden_keys = {"value", "expected", "ocr_text", "organiser_value", "filename"}
+    assert all(not forbidden_keys.intersection(row)
+               for group in ("field_rows", "geometry_rows")
+               for row in receipt[group])
+    split = json.loads(Path(
+        "eval/official/splits/tier_c_split_v1.json"
+    ).read_text(encoding="utf-8"))
+    forbidden_ids = {row["source_id"] for row in split["holdout"] + split["excluded"]}
+    assert not forbidden_ids.intersection(
+        row["source_id"] for group in ("field_rows", "geometry_rows")
+        for row in receipt[group]
+    )

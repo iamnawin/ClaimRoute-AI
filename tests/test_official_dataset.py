@@ -100,6 +100,9 @@ def test_normalization_is_field_aware():
     assert normalize_value("patient_dob", "01/02/2001") == "20010102"
     assert normalize_value("total_charge", "$1,234.50") == "1234.50"
     assert normalize_value("diagnosis_1", "A12.3456") == "A123456"
+    assert normalize_value("type_of_bill", "0117") == normalize_value(
+        "type_of_bill", "117"
+    )
 
 
 def test_aliased_line_item_names_reach_their_typed_branch():
