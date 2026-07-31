@@ -22,7 +22,7 @@ not accurate or fast enough for an honest Tier A holdout run.
 - Critical-field accuracy is 17/41 (41.4634%).
 - Retry resolves 23/60 attempts (38.3333%).
 - 45 populated instances remain unresolved.
-- Full local processing takes 265.075 seconds/page and $0.003682/page.
+- Full local processing takes 119.187 seconds/page and $0.001655/page.
 - Checkbox extraction, dates, diagnosis codes, identifiers, and multi-word provider fields need
   measured field-policy/OCR work on the same three development pages.
 - Two correctly normalized retry cases remain below the unchanged Balanced accept threshold;

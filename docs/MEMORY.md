@@ -10,7 +10,7 @@
   123/123 across the same three approved pages; holdout access remains zero.
 - Populated development extraction is not freeze-ready: primary 18/77, retry 23/60 resolved,
   normalized 32/77, critical 17/41. Governor: 22 ACCEPT, 14 ACCEPT_WITH_FLAG, 41 ESCALATE.
-- Full local processing measured 265,074.663 ms/page and $0.003681593/page; external calls zero.
+- Full local processing measured 119,186.826 ms/page and $0.001655373/page; external calls zero.
   Failures cluster in OCR character confusion (39) and segmentation (6), not registration.
 - Retry attempts had been passing raw OCR confidence to the governor instead of fused confidence.
   The fix turns one prior NPI escalation into ACCEPT; two other prior cases remain correctly

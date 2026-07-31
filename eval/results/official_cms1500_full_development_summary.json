@@ -103,10 +103,10 @@
     }
   ],
   "performance": {
-    "latency_ms_total": 795223.988,
-    "latency_ms_per_page": 265074.663,
-    "local_cost_usd_total": 0.011044778,
-    "local_cost_usd_per_page": 0.003681593,
+    "latency_ms_total": 357560.478,
+    "latency_ms_per_page": 119186.826,
+    "local_cost_usd_total": 0.004966119,
+    "local_cost_usd_per_page": 0.001655373,
     "external_provider_calls": 0,
     "external_cost_usd": 0.0
   },
@@ -121,7 +121,7 @@
   "freeze_blockers": [
     "normalized development accuracy is 32/77",
     "critical-field accuracy is 17/41",
-    "generic local retry latency is 265074.663 ms/page",
+    "generic local retry latency is 119186.826 ms/page",
     "45 populated fields remain unresolved after normalization"
   ]
 }

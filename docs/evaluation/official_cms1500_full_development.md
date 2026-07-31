@@ -21,10 +21,14 @@ resolved 18, local retry was attempted on 60 and resolved 23, and final normaliz
 32. Critical-field accuracy was 17/41. Governor outcomes were 22 ACCEPT, 14 ACCEPT_WITH_FLAG,
 and 41 ESCALATE. External calls and external cost remained zero.
 
-Measured latency was 795,223.988 ms total (265,074.663 ms/page). Measured local cost was
-$0.011044778 total ($0.003681593/page). The failure cluster is downstream of registration:
+Measured latency was 357,560.478 ms total (119,186.826 ms/page). Measured local cost was
+$0.004966119 total ($0.001655373/page). The failure cluster is downstream of registration:
 39 OCR character-confusion failures and 6 segmentation failures; registration and coordinate
 geometry failures were zero.
+
+The first timing pass exposed a redundant full-template remap inside every non-checkbox retry.
+Moving that remap into the checkbox-only branch reduced latency from 265,074.663 to 119,186.826
+ms/page without changing any extraction or governor outcome.
 
 ## Earlier escalation analysis
 

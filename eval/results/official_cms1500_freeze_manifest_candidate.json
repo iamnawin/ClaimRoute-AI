@@ -6,7 +6,7 @@
   "files": [
     {"path": "engine/layout/templates/official/cms1500_02_12.yaml", "sha256": "7504ce773ef1e37056ef1670ad2f44d59707083218d767659ba84e0305530ab5"},
     {"path": "engine/layout/official_cms1500_registration.py", "sha256": "a74549f9e4575f27e21b6ef03376ea029218e64a29759775e71a09e33adb9e82"},
-    {"path": "eval/official/extraction.py", "sha256": "1caeff25fec631eea5722996b39dbda52770dbb8e1e0321fc68b9a934f3b210b"},
+    {"path": "eval/official/extraction.py", "sha256": "c82205bd73929043f5eab9fe5478b5fddc9564bc2979de28376c9b3d1dbaed8a"},
     {"path": "eval/official/normalization.py", "sha256": "ba7cea1f1f5fa7a09e57ba3f603df7285820760b829675b97fc487cdf623bcb5"},
     {"path": "eval/official/cms1500_field_map.yaml", "sha256": "7d2f05fa9531880142faac8c2157b8205e8ee7e709c236cbd786ddda5d902bc2"},
     {"path": "configs/field_policy.yaml", "sha256": "f08543f7f07c97a46c1c171960578d46e4f87d98114ad224353beb94c86244bd"},
