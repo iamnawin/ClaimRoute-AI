@@ -1,0 +1,48 @@
+meta:
+  policy_id: tier_c_ub04_denominator_candidate_v1
+  split_id: tier_c_official_v1
+  status: candidate_only_not_frozen
+  allowed_policies:
+    - always_scored
+    - scored_only_when_visibly_printed_nonblank
+    - blank_valid_and_included
+    - blank_valid_and_excluded
+    - conditional
+    - unsupported
+    - ambiguous_pending_organiser_confirmation
+    - not_printed_and_excluded
+
+fields:
+  provider_name: {locator: "1", policy: always_scored, included: true}
+  patient_control_no: {locator: "3a", policy: always_scored, included: true}
+  medical_record_no: {locator: "3b", policy: ambiguous_pending_organiser_confirmation, included: false, question: "Should a visibly printed FL 3b be scored when the UB-192 development record omits it?"}
+  type_of_bill: {locator: "4", policy: always_scored, included: true}
+  federal_tax_no: {locator: "5", policy: ambiguous_pending_organiser_confirmation, included: false, question: "Should FL 5 be compared to the ten-character UB-192 slice when the printed form contains a nine-digit EIN?"}
+  statement_from: {locator: "6 From", policy: always_scored, included: true}
+  statement_to: {locator: "6 Through", policy: always_scored, included: true}
+  patient_name: {locator: "8b", policy: always_scored, included: true}
+  patient_address: {locator: "9a-9d", policy: ambiguous_pending_organiser_confirmation, included: false, question: "Which printed address subfields comprise the single UB-192 address slice?"}
+  patient_dob: {locator: "10", policy: always_scored, included: true}
+  patient_sex: {locator: "11", policy: always_scored, included: true}
+  admission_date: {locator: "12", policy: always_scored, included: true}
+  line1_rev_code: {locator: "42 row 1", policy: scored_only_when_visibly_printed_nonblank, included: true}
+  line1_hcpcs: {locator: "44 row 1", policy: blank_valid_and_excluded, included: false}
+  line1_units: {locator: "46 row 1", policy: scored_only_when_visibly_printed_nonblank, included: true}
+  line1_charges: {locator: "47 row 1", policy: scored_only_when_visibly_printed_nonblank, included: true}
+  line2_rev_code: {locator: "42 row 2", policy: not_printed_and_excluded, included: false, question: "Should UB-192 repeated values absent from the rendered page ever be included?"}
+  line2_hcpcs: {locator: "44 row 2", policy: blank_valid_and_excluded, included: false}
+  line2_units: {locator: "46 row 2", policy: not_printed_and_excluded, included: false, question: "Should UB-192 repeated values absent from the rendered page ever be included?"}
+  line2_charges: {locator: "47 row 2", policy: not_printed_and_excluded, included: false, question: "Should UB-192 repeated values absent from the rendered page ever be included?"}
+  line3_rev_code: {locator: "42 row 3", policy: not_printed_and_excluded, included: false, question: "Should UB-192 repeated values absent from the rendered page ever be included?"}
+  line3_hcpcs: {locator: "44 row 3", policy: blank_valid_and_excluded, included: false}
+  line3_units: {locator: "46 row 3", policy: not_printed_and_excluded, included: false, question: "Should UB-192 repeated values absent from the rendered page ever be included?"}
+  line3_charges: {locator: "47 row 3", policy: not_printed_and_excluded, included: false, question: "Should UB-192 repeated values absent from the rendered page ever be included?"}
+  total_charges: {locator: "47 Totals", policy: always_scored, included: true}
+  principal_dx: {locator: "67", policy: always_scored, included: true}
+  provider_npi: {locator: "56", policy: unsupported, included: false, question: "Should UB-192 provider NPI be parsed and scored, and from which record slice?"}
+  payer_name: {locator: "50", policy: unsupported, included: false, question: "What organiser record field is authoritative for payer name?"}
+  attending_qualifier: {locator: "76 Qual", policy: unsupported, included: false, question: "Should the qualifier be extracted as a scored field or used only as control metadata?"}
+  attending_npi: {locator: "76", policy: conditional, included: false, condition: "Only when the organiser confirms qualifier XX semantics and an expected identifier is emitted."}
+  line1_service_date: {locator: "45 row 1", policy: unsupported, included: false, question: "Should service dates be parsed from UB-192 and scored per rendered revenue row?"}
+  line2_service_date: {locator: "45 row 2", policy: unsupported, included: false, question: "Should service dates be parsed from UB-192 and scored per rendered revenue row?"}
+  line3_service_date: {locator: "45 row 3", policy: unsupported, included: false, question: "Should service dates be parsed from UB-192 and scored per rendered revenue row?"}

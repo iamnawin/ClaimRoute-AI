@@ -1,0 +1,11 @@
+dictionary_id: claimroute_icd10_curated_fy2026_v1
+status: curated_validator_subset_not_complete_code_set
+authority: Centers for Medicare & Medicaid Services
+source: https://www.cms.gov/medicare/coding-billing/icd-10-codes
+source_version: FY 2026 ICD-10-CM
+effective_date: 2025-10-01
+dictionary_path: engine/validators/dictionaries/icd10.txt
+dictionary_stable_sha256: 3afcae74f6bf65b02908031580e8ce0b3b67a2758923845fb05a268aadd13311
+allowed_punctuation: "A single printed decimal is optional for membership comparison."
+canonical_comparison: "Uppercase ASCII letters and digits only; punctuation is removed."
+unknown_code_policy: "Valid-shape codes absent from the curated dictionary fail icd10_dictionary."

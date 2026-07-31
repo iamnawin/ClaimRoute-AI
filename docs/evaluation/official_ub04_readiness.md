@@ -2,6 +2,15 @@
 
 Recommendation: **DO NOT FREEZE TIER C**.
 
+## Freeze-review update
+
+The accepted-wrong FL 10 DOB path is resolved with a DOB-specific validator and required independent
+local confirmation. The development rerun is 28/28 normalized, validator, and governed correct, with
+28 ACCEPT outcomes. Retry candidate accuracy is now explicitly 27/27 expected-value matches; zero
+fields are unresolved. The candidate denominator and stable freeze hashes are recorded separately.
+Freeze remains blocked by unanswered organiser semantics for FL 3b, FL 5, record-only repeated rows,
+and parser-absent/conditional fields. Candidate hashes do not authorize holdout access.
+
 ## Development expansion update
 
 The official template now records 25 concrete regions with form locator, canonical name, crop,

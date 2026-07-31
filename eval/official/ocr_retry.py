@@ -157,13 +157,13 @@ def candidate_values(field_name: str, words: list[OcrWord], *, source: str = "cr
 
 
 def select_best_candidate(field_name: str, candidates: list[RetryCandidate],
-                          context: dict) -> RankedCandidate | None:
+                          context: dict, validator=validate_field) -> RankedCandidate | None:
     if not candidates:
         return None
     agreements = Counter(normalize_value(field_name, row.value) for row in candidates)
     ranked = []
     for candidate in candidates:
-        stamps = validate_field(field_name, candidate.value, {**context, field_name: candidate.value})
+        stamps = validator(field_name, candidate.value, {**context, field_name: candidate.value})
         failures = sum(stamp.verdict.value == "FAIL" for stamp in stamps)
         passes = sum(stamp.verdict.value == "PASS" for stamp in stamps)
         agreement = agreements[normalize_value(field_name, candidate.value)]

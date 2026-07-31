@@ -27,10 +27,13 @@ from engine.layout.official_ub04_registration import (
 from engine.ocr import get_engine
 from engine.ocr.base import OcrWord
 from engine.preprocess import preprocess_page
-from engine.schemas import Attempt, FieldResult, FieldState, PageResult
+from engine.schemas import (
+    Attempt, FieldResult, FieldState, PageResult, ValidationStamp, Verdict,
+)
 from engine.validators import run_validators
 from engine.validators import validate_field
-from eval.official.normalization import classify_field
+from engine.validators.registry import patient_dob_valid
+from eval.official.normalization import classify_field, normalize_value
 from eval.official.ocr_retry import (
     RetryCandidate, candidate_values, extract_profile, load_retry_profiles,
     select_best_candidate, should_stop_retry,
@@ -53,6 +56,24 @@ def record_stage(stage_latency: dict[str, float] | None, stage: str,
                  started: float) -> None:
     if stage_latency is not None:
         stage_latency[stage] += (time.perf_counter() - started) * 1000
+
+
+def require_official_field_confirmation(form: str, field: FieldResult,
+                                        state: FieldState) -> tuple[FieldState, str] | None:
+    """Require independent local evidence for high-risk official DOB OCR."""
+    if form == "ub04" and field.field_name == "patient_dob" and state in {
+            FieldState.ACCEPT, FieldState.ACCEPT_WITH_FLAG} and not field.attempts_used("retry_ocr"):
+        field.set_state(FieldState.RETRY)
+        return FieldState.RETRY, "official UB-04 DOB requires independent local confirmation"
+    return None
+
+
+def validate_official_field(form: str, field_name: str, value, context: dict) -> list:
+    """Apply the one form-specific validator override recorded by the template."""
+    if form == "ub04" and field_name == "patient_dob":
+        verdict, detail = patient_dob_valid(value, context)
+        return [ValidationStamp("patient_dob_valid", verdict, detail)]
+    return validate_field(field_name, value, context)
 
 
 def local_ocr(image: Image.Image) -> tuple[list[OcrWord], str, float]:
@@ -250,6 +271,8 @@ def official_retry_candidate(image: Image.Image, field_name: str,
         return None
     box = [round(value) for value in region]
     crop = image.crop(box)
+    crop_gray = np.asarray(crop.convert("L"))
+    blank_crop = bool(crop_gray.size == 0 or (crop_gray < 220).mean() < .001)
     started = time.perf_counter()
     mode = official_retry_mode(field_name, form)
 
@@ -257,7 +280,9 @@ def official_retry_candidate(image: Image.Image, field_name: str,
         marked = map_monochrome_fields([], image, form)[field_name]
         return {"value": marked["value"] or None, "confidence": marked["conf"],
                 "n_spans": marked["n_spans"],
-                "latency_ms": (time.perf_counter() - started) * 1000, "mode": mode}
+                "latency_ms": (time.perf_counter() - started) * 1000, "mode": mode,
+                "crop_dimensions": [crop.width, crop.height], "blank_crop": blank_crop,
+                "invocations": []}
 
     profiles = load_retry_profiles()
     family = _official_template(form)["fields"][field_name]["field_type"]
@@ -265,6 +290,7 @@ def official_retry_candidate(image: Image.Image, field_name: str,
         family, profiles["field_families"]["text"]
     )
     candidates: list[RetryCandidate] = []
+    invocations = []
     ranked = None
 
     if shared_words is not None:
@@ -272,7 +298,10 @@ def official_retry_candidate(image: Image.Image, field_name: str,
         candidates.extend(candidate_values(
             field_name, hits, source="shared_page", attempt_index=0
         ))
-        ranked = select_best_candidate(field_name, candidates, {})
+        ranked = select_best_candidate(
+            field_name, candidates, {},
+            validator=lambda name, value, ctx: validate_official_field(form, name, value, ctx),
+        )
 
     attempts_used = 0
     if not should_stop_retry(ranked, .50):
@@ -281,18 +310,31 @@ def official_retry_candidate(image: Image.Image, field_name: str,
             attempt_started = time.perf_counter()
             words = sorted(extract_profile(crop, profile), key=lambda word: word.bbox[0])
             latency_ms = (time.perf_counter() - attempt_started) * 1000
+            invocations.append({
+                "ocr_profile": profile["engine"],
+                "profile": {key: profile[key] for key in sorted(profile)},
+                "crop_dimensions": [crop.width, crop.height],
+                "process_startups": int(profile["engine"] == "tesseract"),
+                "latency_ms": round(latency_ms, 3),
+            })
             attempts_used += 1
             candidates.extend(candidate_values(
                 field_name, words, source=f"crop_{profile['engine']}",
                 attempt_index=index, latency_ms=latency_ms,
             ))
-            ranked = select_best_candidate(field_name, candidates, {})
+            ranked = select_best_candidate(
+                field_name, candidates, {},
+                validator=lambda name, value, ctx: validate_official_field(form, name, value, ctx),
+            )
             if should_stop_retry(ranked, .50):
                 break
 
     if classify_field(field_name) == "quantity" and not candidates:
         candidates.extend(_quantity_component_candidates(field_name, crop, attempts_used))
-        ranked = select_best_candidate(field_name, candidates, {})
+        ranked = select_best_candidate(
+            field_name, candidates, {},
+            validator=lambda name, value, ctx: validate_official_field(form, name, value, ctx),
+        )
 
     if classify_field(field_name) == "quantity" and not candidates:
         gray = np.asarray(crop.convert("L"))
@@ -304,18 +346,26 @@ def official_retry_candidate(image: Image.Image, field_name: str,
                   and x > 0 and x + w < width]
         if narrow:
             candidates.append(RetryCandidate("1", .70, 1, "component", attempts_used))
-            ranked = select_best_candidate(field_name, candidates, {})
+            ranked = select_best_candidate(
+                field_name, candidates, {},
+                validator=lambda name, value, ctx: validate_official_field(form, name, value, ctx),
+            )
 
     if ranked is None:
         return {"value": None, "confidence": 0.0, "n_spans": 0,
                 "latency_ms": (time.perf_counter() - started) * 1000, "mode": mode,
-                "attempts_used": attempts_used, "source": "none"}
+                "attempts_used": attempts_used, "source": "none",
+                "selected_attempt_index": None,
+                "crop_dimensions": [crop.width, crop.height], "blank_crop": blank_crop,
+                "invocations": invocations}
     selected = ranked.candidate
     return {"value": selected.value, "confidence": selected.confidence,
             "n_spans": selected.n_spans,
             "latency_ms": (time.perf_counter() - started) * 1000,
             "mode": mode, "attempts_used": attempts_used,
-            "source": selected.source}
+            "source": selected.source, "selected_attempt_index": selected.attempt_index,
+            "crop_dimensions": [crop.width, crop.height],
+            "blank_crop": blank_crop, "invocations": invocations}
 
 
 def structured_page(image: Image.Image, words: list[OcrWord], form: str,
@@ -337,6 +387,10 @@ def structured_page(image: Image.Image, words: list[OcrWord], form: str,
     raw_values = {name: row["value"] for name, row in mapped.items()}
     started = time.perf_counter()
     stamps = run_validators(raw_values)
+    if form == "ub04" and "patient_dob" in raw_values:
+        stamps["patient_dob"] = validate_official_field(
+            form, "patient_dob", raw_values["patient_dob"], raw_values
+        )
     record_stage(stage_latency, "validation", started)
     for name, row in mapped.items():
         vnames = [stamp.validator for stamp in stamps.get(name, [])]
@@ -348,6 +402,9 @@ def structured_page(image: Image.Image, words: list[OcrWord], form: str,
         field.attempts = [Attempt("primary_ocr", "tesseract", field.value, confidence)]
         started = time.perf_counter()
         state, reason = apply(field, preset)
+        confirmation = require_official_field_confirmation(form, field, state)
+        if confirmation is not None:
+            state, reason = confirmation
         record_stage(stage_latency, "governor", started)
         page.fields[name] = field
         page.decisions[name] = [(state.value, reason)]
@@ -367,12 +424,17 @@ def retry_official_page(page: PageResult, image: Image.Image,
     shared_started = time.perf_counter()
     shared_words = extract_profile(image, load_retry_profiles()["shared_page"])
     shared_latency_ms = (time.perf_counter() - shared_started) * 1000
+    shared_profile = load_retry_profiles()["shared_page"]
     if stage_latency is not None:
         stage_latency["retry_ocr"] += shared_latency_ms
     for name, field in page.fields.items():
         if field.state != FieldState.RETRY:
             continue
         started = time.perf_counter()
+        primary_value = field.value
+        primary_validator_clean = not any(
+            stamp.verdict == Verdict.FAIL for stamp in field.stamps
+        )
         candidate = official_retry_candidate(
             image, name, shared_words=shared_words,
             region=list(field.bbox) if field.bbox else None,
@@ -384,7 +446,7 @@ def retry_official_page(page: PageResult, image: Image.Image,
         value = candidate["value"]
         context = {**values, name: value}
         started = time.perf_counter()
-        stamps = validate_field(name, value, context)
+        stamps = validate_official_field(page.doc_type, name, value, context)
         record_stage(stage_latency, "validation", started)
         confidence = fuse(candidate["confidence"], page.quality_score,
                           candidate["n_spans"], value or "",
@@ -401,9 +463,15 @@ def retry_official_page(page: PageResult, image: Image.Image,
             candidate.get("source", "retry"), 0,
         )
         started = time.perf_counter()
-        selected = select_best_candidate(name, [primary, retry], values)
+        selected = select_best_candidate(
+            name, [primary, retry], values,
+            validator=lambda field_name, candidate, ctx: validate_official_field(
+                page.doc_type, field_name, candidate, ctx
+            ),
+        )
         record_stage(stage_latency, "normalization", started)
-        if selected and selected.candidate.source != "primary":
+        retry_selected = bool(selected and selected.candidate.source != "primary")
+        if retry_selected:
             field.value, field.confidence, field.stamps = value, confidence, stamps
             values[name] = value
         started = time.perf_counter()
@@ -412,9 +480,21 @@ def retry_official_page(page: PageResult, image: Image.Image,
         page.decisions[name].append((state.value, reason))
         receipts.append({"field_name": name, "mode": candidate["mode"],
                          "source": candidate.get("source"),
+                         "selected_attempt_index": candidate.get("selected_attempt_index"),
                          "attempts_used": candidate.get("attempts_used", 0),
                          "state": state.value, "latency_ms": candidate["latency_ms"],
-                         "shared_page_latency_ms": shared_latency_ms})
+                         "shared_page_latency_ms": shared_latency_ms,
+                         "shared_page_profile": shared_profile["engine"],
+                         "shared_page_process_startups": int(
+                             shared_profile["engine"] == "tesseract"),
+                         "crop_dimensions": candidate.get("crop_dimensions"),
+                         "blank_crop": candidate.get("blank_crop"),
+                         "invocations": candidate.get("invocations", []),
+                         "primary_validator_clean": primary_validator_clean,
+                         "retry_selected_as_final": retry_selected,
+                         "retry_changed_selected_value": (
+                             normalize_value(name, primary_value)
+                             != normalize_value(name, field.value))})
     return receipts
 
 

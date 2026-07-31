@@ -106,6 +106,37 @@ def date_valid(v, ctx):
     return (Verdict.PASS, "") if _parse_date(v) else (Verdict.FAIL, "unparseable date")
 
 
+def patient_dob_valid(v, ctx):
+    """Validate one complete DOB and its relationship to claim dates."""
+    text = str(v).strip()
+    if not re.fullmatch(r"(?:\d{6}|\d{8}|\d{1,2}([/ .-])\d{1,2}\1\d{2,4})", text):
+        return Verdict.FAIL, "DOB must be one complete printed date"
+    dob = _parse_date(text)
+    if dob is None and re.fullmatch(r"\d{8}", text):
+        try:
+            dob = datetime.strptime(text, "%Y%m%d").date()
+        except ValueError:
+            pass
+    if dob is None:
+        return Verdict.FAIL, "unparseable DOB"
+    references = []
+    for key, value in ctx.items():
+        if key in {"admission_date", "statement_from", "statement_to"} or re.fullmatch(
+                r"line\d+_(?:date_from|date_to|service_date)", key):
+            parsed = _parse_date(value)
+            if parsed is not None:
+                references.append(parsed)
+    if not references:
+        return Verdict.FAIL, "claim date unavailable for DOB chronology"
+    reference = min(references)
+    if dob >= reference:
+        return Verdict.FAIL, "DOB is not before claim dates"
+    years = reference.year - dob.year - ((reference.month, reference.day) < (dob.month, dob.day))
+    if years > 125:
+        return Verdict.FAIL, "DOB exceeds plausible age range"
+    return Verdict.PASS, ""
+
+
 def dob_before_service(v, ctx):
     d = _parse_date(v)
     if d is None:
@@ -185,7 +216,7 @@ def revenue_code_format(v, ctx):
 
 _VALIDATORS = {f.__name__: f for f in [
     npi_checksum, cpt_format, cpt_dictionary, icd10_format, icd10_dictionary,
-    date_valid, dob_before_service, currency_format, claim_arithmetic,
+    date_valid, patient_dob_valid, dob_before_service, currency_format, claim_arithmetic,
     numeric_format, zip_format, tax_id_format, id_format, name_format,
     org_name_format, revenue_code_format]}
 
