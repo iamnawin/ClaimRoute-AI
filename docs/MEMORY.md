@@ -1,6 +1,30 @@
 
 # ClaimRoute project memory
 
+## Official Tier C freeze-readiness review - 31 Jul 2026
+
+- Started from synchronized `main` at `d0f9ee2`; three Tier C holdout documents remained untouched.
+- Implementation, tests, policies, and candidate evidence: commit `8db227a`.
+- The prior accepted-wrong comparison was `patient_dob` (FL 10) on safe ID `251f79e97f77`:
+  primary-wrong, not retried, normalized-wrong, validator false positive, governor ACCEPT.
+- Root cause: a plausible OCR date passed generic calendar validation, while `dob_before_service`
+  compared the DOB field to the same context value. The fix is scoped to official UB-04: strict
+  complete-DOB validation plus independent local confirmation before ACCEPT. CMS-1500 policy and
+  governor thresholds are unchanged.
+- Development rerun: primary 8/28; 27/27 retry candidates match expected; normalized, validator,
+  and governed correctness 28/28; 28 ACCEPT; external calls/cost zero.
+- Retry funnel: 28 eligible, 27 retried, 20 primary-wrong, seven primary-correct low/medium
+  confidence, zero blank, 27 selected, zero unresolved. Two shared Paddle page calls and nine crop
+  Paddle calls; zero Tesseract process startups. No latency optimization implemented.
+- Candidate denominator policy excludes unresolved FL 3b, FL 5, record-only repeated rows, blank
+  HCPCS, ambiguous address, and parser-absent/conditional fields pending exact organiser answers.
+- CMS FY 2026 ICD curated-subset semantics and dictionary hash are recorded. Candidate hashes use
+  stable UTF-8/LF content hashing and do not authorize holdout.
+- Measured wall 44,968.195 ms / 22,484.098 ms per page; retry OCR 38,096.103 ms; local cost
+  $0.000624558 / $0.000312279 per page. Full suite: 198 passed.
+- Recommendation: **DO NOT FREEZE** until organiser denominator semantics are confirmed and the
+  candidate manifest is reviewed. Next task is organiser clarification plus a no-data freeze audit.
+
 ## Official UB-04 development template expansion - 31 Jul 2026
 
 - Starting commit `6688dc2`; Tier C holdout access remained zero.

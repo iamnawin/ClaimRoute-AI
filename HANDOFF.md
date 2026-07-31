@@ -1,5 +1,35 @@
 # Handoff — claims-engine (Day 11 frozen evidence verified)
 
+## Session log - 31 Jul 2026 (official Tier C freeze-readiness review)
+
+Started from clean synchronized `main` at `d0f9ee2`. Only development IDs `251f79e97f77` and
+`751e44752221` were processed; Tier C holdout access remained zero. No Bhavya-owned multimodal file,
+frozen synthetic artifact, governor threshold, Streamlit file, organiser image/crop/OCR text, or
+expected value was changed or committed.
+
+Implementation, tests, policies, and candidate evidence are in commit `8db227a`.
+
+The previous accepted-wrong field was `patient_dob` (FL 10) on safe ID `251f79e97f77`. A plausible
+wrong OCR date survived normalization, generic date validation, and high-confidence governor
+acceptance; `dob_before_service` compared the candidate to the same DOB context. Official UB-04 now
+uses a strict DOB-only validator and requires one independent local confirmation. Shared CMS-1500
+and synthetic policies remain unchanged.
+
+Development rerun: geometry 50/50; primary 8/28; retry candidates 27/27 expected-correct;
+normalized, validator, and governed correctness 28/28; governor 28 ACCEPT. Retry funnel: 28 eligible,
+27 attempted, 20 primary-wrong, seven primary-correct low/medium-confidence, zero blank, 27 selected,
+zero unresolved. Wall 44,968.195 ms / 22,484.098 ms per page; retry OCR 38,096.103 ms. Local cost
+$0.000624558 / $0.000312279 per page; external calls/cost zero. Full suite: 198 passed.
+
+The candidate denominator, ICD FY 2026 curated-subset version/hash, invocation timing receipt, and
+cross-platform stable candidate manifest are recorded. Freeze recommendation remains **DO NOT
+FREEZE** because FL 3b, FL 5, unprinted repeated record values, address composition, provider NPI,
+service date, payer, and attending-provider semantics still require organiser confirmation.
+
+Next exact task: obtain organiser answers recorded in `eval/official/ub04_denominator_policy.yaml`,
+then perform a no-data candidate-hash review. Do not run Tier C holdout until a separate explicit
+authorization follows that review.
+
 ## Session log - 31 Jul 2026 (official Tier C UB-04 development expansion)
 
 Started from synchronized `main` at `6688dc2`. The official CMS-1450 template expanded from five
