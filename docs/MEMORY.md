@@ -1,6 +1,20 @@
 
 # ClaimRoute project memory
 
+## Official CMS-1500 OCR optimization - 31 Jul 2026
+
+- Kept all 41 official coordinates and governor thresholds unchanged; geometry remains 123/123.
+- Baseline analysis covered all 45 normalized misses and 37 unresolved retries using safe classes
+  only. No OCR strings, expected values, filenames, source IDs, crops, or PHI were committed.
+- Added a shared Paddle page retry, bounded field-family profiles, deterministic preprocessing,
+  typed candidate generation/ranking, validated early stop, and registration/OCR reuse.
+- Six-digit MMDDYY normalization now follows the validator's existing deterministic year pivot.
+- Development results improved: primary 18/77 -> 22/77, retry resolution 23/60 -> 37/60,
+  normalized 32/77 -> 46/77, critical 17/41 -> 26/41.
+- Latency improved 119,186.826 -> 63,523.322 ms/page; local cost improved $0.001655373 ->
+  $0.000882268/page. Governor is now 29 ACCEPT, 13 ACCEPT_WITH_FLAG, 35 ESCALATE.
+- Holdout access and external calls remain zero. Freeze recommendation remains DO_NOT_FREEZE.
+
 ## Official CMS-1500 full development expansion - 31 Jul 2026
 
 - The authoritative 44-name NSF-320 denominator mechanically yields 41 scored,

@@ -1,5 +1,34 @@
 # Handoff — claims-engine (Day 11 frozen evidence verified)
 
+## Session log - 31 Jul 2026 (official CMS-1500 OCR optimization)
+
+Started from synchronized `main` at `a9c7551`. The 41-field official geometry and governor
+thresholds were not changed; development geometry remains 123/123. Holdout access remained zero.
+
+Safe failure analysis covered all 45 baseline normalized misses and 37 unresolved retries. The
+highest-value defects were repeated crop OCR/registration, six-digit date comparison, and
+label-contaminated typed candidates. Four checkbox thresholds recovered zero cases, so checkbox
+logic was deliberately left unchanged.
+
+Implemented one shared Paddle page pass, bounded field-family crop profiles, deterministic crop
+preprocessing, typed candidate generation, validator/confidence/agreement ranking, validated early
+stop, singleton OCR reuse, and one registration per mapping pass. Six-digit MMDDYY comparison now
+uses the validator's existing deterministic year pivot. Coordinates, governor thresholds, code
+dictionaries, frozen synthetic evidence, and external-provider policy remain unchanged.
+
+Development before -> after: primary 18/77 -> 22/77; retry resolution 23/60 -> 37/60;
+normalized 32/77 -> 46/77; critical 17/41 -> 26/41; validator pass 46/77 -> 50/77.
+Governor changed from 22 ACCEPT / 14 ACCEPT_WITH_FLAG / 41 ESCALATE to 29 / 13 / 35. Latency
+fell from 119,186.826 to 63,523.322 ms/page and local cost from $0.001655373 to $0.000882268/page.
+External calls/cost remain zero. Freeze recommendation remains **DO NOT FREEZE** because 31/77
+populated fields are unresolved.
+
+Repository-safe evidence: `official_cms1500_ocr_failure_analysis.json/.csv`,
+`official_cms1500_ocr_optimization_summary.json`, and the paired evaluation documents. Candidate
+freeze hashes were refreshed but remain explicitly `candidate_only_not_frozen`.
+
+Next exact command: `.\.venv\Scripts\python.exe -m pytest tests\ -q`.
+
 ## Session log - 31 Jul 2026 (official CMS-1500 full development expansion)
 
 Starting commit `b48ddb9`; clean synchronized `main`. Implementation/evidence ending commit
