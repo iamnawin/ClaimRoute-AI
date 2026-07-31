@@ -32,6 +32,11 @@ eval/official/diagnostics/
 !.streamlit/
 !.streamlit/config.toml
 .streamlit/secrets.toml
+# Provider API keys for engine/escalation live here. Never committed;
+# .env.example is the tracked, value-free template.
+.env
+.env.*
+!.env.example
 *.egg-info/
 .pytest_cache/
 .claude-flow/

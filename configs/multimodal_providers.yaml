@@ -1,0 +1,55 @@
+# Multimodal escalation providers — Tier-2 candidate generation.
+#
+# DISABLED BY DEFAULT. `enabled: false` means engine/escalation refuses to make
+# any network call: it returns a CONFIGURATION_ERROR result instead. Turning this
+# on is a deliberate, reviewable act, not an accident of importing a module.
+#
+# This file NEVER contains an API key. Each provider names an environment
+# variable; the key is read from the process environment at call time and is
+# never written to config, logs, audit records, or test fixtures.
+#
+# Nothing here is wired into engine/extract.py. The adapter is a standalone
+# candidate generator until a separate integration task connects it.
+
+enabled: false
+
+active_provider: openai
+
+request_policy:
+  # Crops only, never full pages. This mirrors model_policy.send_full_pages_externally
+  # in configs/pipeline.yaml; engine/cropper.py remains the structural boundary that
+  # physically bounds what can be built into a request.
+  crop_only: true
+  max_page_fraction: 0.25
+  # An image with no recorded source-page size cannot be PROVEN to be a crop.
+  # Unverifiable provenance is refused rather than assumed safe.
+  require_page_provenance: true
+  max_crop_bytes: 2000000
+  # The adapter is for synthetic data until organiser PHI governance is confirmed
+  # (docs/security_and_phi.md). A request not marked synthetic is refused.
+  synthetic_data_only: true
+
+transport:
+  timeout_seconds: 30
+  # Total attempts, not retries-after-the-first: 3 means at most 3 calls.
+  max_attempts: 3
+  backoff_initial_seconds: 0.5
+  backoff_multiplier: 2.0
+  backoff_max_seconds: 8.0
+  # A malformed answer is a schema problem, not a transient one. Retrying it bills
+  # a second time for the same defect, so it is off by default.
+  retry_on_invalid_response: false
+
+response_policy:
+  # One form box cannot hold a paragraph; a longer value means it read the page.
+  max_value_chars: 120
+
+providers:
+  openai:
+    kind: openai_chat_completions
+    model: gpt-5-nano
+    endpoint: https://api.openai.com/v1/chat/completions
+    api_key_env: OPENAI_API_KEY
+    max_output_tokens: 200
+    # Row in configs/prices.yaml — the single source of truth for model spend.
+    price_row: gpt-5-nano
