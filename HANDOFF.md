@@ -1,5 +1,29 @@
 # Handoff — claims-engine (Day 11 frozen evidence verified)
 
+## Session log - 31 Jul 2026 (official CMS-1500 five-field crop proof)
+
+Starting commit `2e05052`. Official CMS-1500 (02-12) registration now uses long horizontal
+form rules for vertical bounds/row bands and band-local vertical segments for horizontal bounds.
+Page-edge stripes are rejected; the synthetic red-grid mapper is unchanged. No interrupted
+scratch work was reusable, so local-only diagnostics were rebuilt under the existing ignored
+`eval/official/diagnostics/` path.
+
+Only development IDs `5858cb1e596e`, `ac3175590d3e`, and `a0ccd0f63f79` were opened. Holdout
+access remained zero. Registration confidence was 0.993–0.994. Fixed Boxes 3, 24F line 1, 24G
+line 1, 25, and 33a produced 15/15 geometrically correct crops with 15/15 visible values.
+Primary normalized accuracy was 4/15; field-specific local crop retry resolved 12/12 attempts,
+giving 15/15 final normalized matches and 15/15 validator passes. Frozen governor outcomes were
+12 ACCEPT and 3 ESCALATE; thresholds were not changed. Measured proof latency was 55,691.535 ms,
+local cost $0.000773493, and external calls/cost zero.
+
+Repository-safe evidence: `eval/results/official_cms1500_five_field_proof_summary.json` and
+`docs/evaluation/official_cms1500_five_field_proof.md`. They contain no extracted/expected values,
+OCR text, crops, overlays, TIFFs, organiser filenames, or PHI. Focused tests: 43 passed. Full suite:
+142 passed in 80.81 seconds. PHI/organiser-value/holdout-ID staged-diff scan: clean. Code commit:
+`b86a814`. Evidence commit: `7d82743`.
+
+Next exact command: `git push origin main`.
+
 ## Session log - 31 Jul 2026 (official CMS-1500 field mapping)
 
 Commit `366174f` pushed; `main` synchronized with `origin/main`. Tests **129 passed**
