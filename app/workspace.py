@@ -5,11 +5,21 @@ import csv
 import hashlib
 import io
 import json
+import re
+import time
 from collections import Counter
 from typing import Callable
 
+import yaml
+
 from app import service
 from app.intake import FileRole, IntakeFile, decode_pages
+from engine.governor import field_policy
+from eval.official.evaluator import claimroute_expected, compare_fields
+from eval.official.extraction import local_ocr, structured_page, unstructured_fields
+from eval.official.linker import link_record
+from eval.official.pages import select_claim_pages
+from eval.official.parsers import parse_nsf_bytes, parse_ub_bytes
 
 
 PageProcessor = Callable[[object, str, str], dict]
@@ -19,6 +29,107 @@ def _default_page_processor(image, doc_id: str, mode: str) -> dict:
     return service.process_document(
         image, doc_id, mode, source_kind="local_workspace", tier="clean"
     )
+
+
+def _official_tier(group_key: str) -> str | None:
+    match = re.search(r"(?:^|[/\\])group\s*([a-d])(?:$|[/\\])", group_key, re.I)
+    return match.group(1).upper() if match else None
+
+
+def _local_cost(latency_ms: float) -> float:
+    prices = yaml.safe_load((service.ROOT / "configs" / "prices.yaml").read_text(
+        encoding="utf-8"))
+    return latency_ms / 1000 / 3600 * float(prices["compute"]["vcpu_hour_usd"])
+
+
+def _official_unstructured_result(item: IntakeFile, pages, texts, latency_ms: float) -> dict:
+    values = {}
+    for text in texts:
+        for name, value in unstructured_fields(text).items():
+            values.setdefault(name, value)
+    fields = {name: {
+        "value": value,
+        "state": "ACCEPT_WITH_FLAG",
+        "confidence": None,
+        "stamps": [],
+        "provenance": [{"rung": "local_ocr", "engine": "official_unstructured"}],
+        "cost_usd": 0.0,
+    } for name, value in values.items()}
+    return {
+        "document_id": item.safe_source_id,
+        "safe_source_id": item.safe_source_id,
+        "source_file": item.filename,
+        "source_format": item.source_format,
+        "source_role": item.role.value,
+        "document_type": "unstructured",
+        "page_count": len(pages),
+        "processing_status": "COMPLETED",
+        "fields": [{"page": 1, "fields": fields}],
+        "validations": [],
+        "governor_summary": {"ACCEPT_WITH_FLAG": len(fields)},
+        "retry_summary": {"fields_retried": 0},
+        "escalation_summary": {"fields_escalated": 0, "external_provider_calls": 0},
+        "unresolved_fields": 0,
+        "latency": {"milliseconds": round(latency_ms, 3)},
+        "measured_cost": {"usd": round(_local_cost(latency_ms), 9)},
+        "projected_cost": {"usd": round(_local_cost(latency_ms), 9)},
+        "warnings": ["Tier D uses limited label-driven extraction."],
+        "evaluation": None,
+        "evidence_semantics": "official_unstructured_adapter",
+        "_group_key": item.group_key,
+        "_linkage_text": " ".join(texts),
+    }
+
+
+def _process_official_item(item: IntakeFile, tier: str, mode: str) -> dict:
+    started = time.perf_counter()
+    try:
+        pages = decode_pages(item.content, item.source_format)
+        words_by_page, texts = [], []
+        for page in pages:
+            words, text, _ = local_ocr(page)
+            words_by_page.append(words)
+            texts.append(text)
+        if tier == "D":
+            return _official_unstructured_result(
+                item, pages, texts, (time.perf_counter() - started) * 1000)
+        selection = select_claim_pages(texts, tier)
+        if selection.status != "deterministic" or not selection.claim_pages:
+            result = _failed_result(
+                item, "Claim-page selection abstained; no page was extracted.",
+                status="COMPLETED",
+            )
+            result.update({
+                "page_count": len(pages),
+                "evidence_semantics": "official_monochrome_adapter",
+                "_group_key": item.group_key,
+                "_linkage_text": " ".join(texts),
+            })
+            return result
+        page_index = selection.claim_pages[0]
+        form = "ub04" if tier == "C" else "cms1500"
+        page_result = structured_page(
+            pages[page_index], words_by_page[page_index], form,
+            item.safe_source_id, preset=mode, run_retry=True,
+        )
+        elapsed_ms = (time.perf_counter() - started) * 1000
+        cost = _local_cost(elapsed_ms)
+        receipt = service.build_receipt(
+            page_result,
+            [{"operation": "official_local_compute", "cost_usd": cost,
+              "latency_ms": elapsed_ms, "meta": {}}],
+            mode, elapsed_ms, source_kind="local_workspace",
+        )
+        result = _unify_receipts(item, [receipt])
+        result["page_count"] = len(pages)
+        result["evidence_semantics"] = "official_monochrome_adapter"
+        result["_linkage_text"] = " ".join(texts)
+        if selection.attachment_pages:
+            result["warnings"].append(
+                f"{len(selection.attachment_pages)} attachment page(s) excluded from extraction.")
+        return result
+    except Exception:
+        return _failed_result(item, "Official document processing failed; batch continued.")
 
 
 def _failed_result(item: IntakeFile, warning: str, *, status: str = "FAILED") -> dict:
@@ -45,23 +156,9 @@ def _failed_result(item: IntakeFile, warning: str, *, status: str = "FAILED") ->
     }
 
 
-def process_item(item: IntakeFile, mode: str = service.DEFAULT_MODE,
-                 *, page_processor: PageProcessor | None = None) -> dict:
-    """Process every decoded page without consulting expected output."""
+def _unify_receipts(item: IntakeFile, receipts: list[dict]) -> dict:
     if item.role != FileRole.CLAIM_DOCUMENT:
         return _failed_result(item, "File role is not a claim document.", status="SKIPPED")
-    if item.status == "ERROR":
-        return _failed_result(item, item.warning or "Document intake failed.")
-    processor = page_processor or _default_page_processor
-    try:
-        pages = decode_pages(item.content, item.source_format)
-        receipts = [
-            processor(page, f"{item.safe_source_id}-p{index}", mode)
-            for index, page in enumerate(pages, 1)
-        ]
-    except Exception:
-        return _failed_result(item, "Document processing failed; other batch items continued.")
-
     document_types = {receipt["document"]["document_type"] for receipt in receipts}
     fields, validations = [], []
     governor = Counter()
@@ -116,6 +213,28 @@ def process_item(item: IntakeFile, mode: str = service.DEFAULT_MODE,
     }
 
 
+def process_item(item: IntakeFile, mode: str = service.DEFAULT_MODE,
+                 *, page_processor: PageProcessor | None = None) -> dict:
+    """Process every decoded page without consulting expected output."""
+    if item.role != FileRole.CLAIM_DOCUMENT:
+        return _failed_result(item, "File role is not a claim document.", status="SKIPPED")
+    if item.status == "ERROR":
+        return _failed_result(item, item.warning or "Document intake failed.")
+    official_tier = _official_tier(item.group_key)
+    if official_tier and page_processor is None:
+        return _process_official_item(item, official_tier, mode)
+    processor = page_processor or _default_page_processor
+    try:
+        pages = decode_pages(item.content, item.source_format)
+        receipts = [
+            processor(page, f"{item.safe_source_id}-p{index}", mode)
+            for index, page in enumerate(pages, 1)
+        ]
+        return _unify_receipts(item, receipts)
+    except Exception:
+        return _failed_result(item, "Document processing failed; other batch items continued.")
+
+
 def _job_id(items: list[IntakeFile], mode: str) -> str:
     material = "|".join([mode, *(item.safe_source_id for item in items)])
     return f"batch-{hashlib.sha256(material.encode()).hexdigest()[:12]}"
@@ -151,7 +270,8 @@ def run_batch(items: list[IntakeFile], mode: str = service.DEFAULT_MODE,
               *, processor: Callable[[IntakeFile, str], dict] | None = None,
               progress: Callable[[int, int, dict], None] | None = None,
               stop_requested: Callable[[], bool] | None = None,
-              existing_results: dict[str, dict] | None = None) -> dict:
+              existing_results: dict[str, dict] | None = None,
+              evaluate: bool = False) -> dict:
     """Process deterministically, skip duplicates, and continue after failures."""
     ordered = sorted(items, key=lambda item: (item.filename.casefold(), item.safe_source_id))
     process = processor or (lambda item, selected_mode: process_item(item, selected_mode))
@@ -177,7 +297,7 @@ def run_batch(items: list[IntakeFile], mode: str = service.DEFAULT_MODE,
         results.append(result)
         if progress:
             progress(index, len(ordered), result)
-    return {
+    batch = {
         "batch_job_id": _job_id(ordered, mode),
         "processing_status": "COMPLETED_WITH_ERRORS" if any(
             result["processing_status"] == "FAILED" for result in results
@@ -187,6 +307,105 @@ def run_batch(items: list[IntakeFile], mode: str = service.DEFAULT_MODE,
         "summary": summarize_results(results),
         "evaluation": None,
     }
+    return evaluate_dataset(batch, ordered) if evaluate else batch
+
+
+def _flatten_fields(result: dict) -> dict:
+    flattened = {}
+    for page in result.get("fields", []):
+        for name, field in page.get("fields", {}).items():
+            value = field.get("value") if isinstance(field, dict) else field
+            if name not in flattened or flattened[name] in (None, ""):
+                flattened[name] = value
+    return flattened
+
+
+def parse_expected_output(item: IntakeFile):
+    if item.source_format == "NSF320":
+        return parse_nsf_bytes(item.content)
+    if item.source_format == "UB192":
+        return parse_ub_bytes(item.content)
+    if item.source_format == "JSON":
+        payload = json.loads(item.content.decode("utf-8-sig"))
+        if isinstance(payload, dict) and isinstance(payload.get("fields"), dict):
+            return payload
+    raise ValueError("Expected-output format is not supported.")
+
+
+def _comparison_receipt(comparisons: list[dict], linkage: dict) -> dict:
+    critical = [row for row in comparisons
+                if field_policy(row["field_name"]).get("criticality") == "high"]
+    return {
+        "linkage": linkage,
+        "evaluated_fields": len(comparisons),
+        "correct_fields": sum(row["correct"] for row in comparisons),
+        "accuracy": (sum(row["correct"] for row in comparisons) / len(comparisons)
+                     if comparisons else None),
+        "critical_fields": len(critical),
+        "critical_correct_fields": sum(row["correct"] for row in critical),
+        "critical_accuracy": (sum(row["correct"] for row in critical) / len(critical)
+                              if critical else None),
+        "field_results": comparisons,
+    }
+
+
+def evaluate_dataset(batch: dict, items: list[IntakeFile]) -> dict:
+    """Parse/link expected output only after all document extraction is complete."""
+    expected_by_group: dict[str, list] = {}
+    synthetic_by_id: dict[tuple[str, str], dict] = {}
+    for item in items:
+        if item.role != FileRole.EXPECTED_OUTPUT:
+            continue
+        parsed = parse_expected_output(item)
+        if isinstance(parsed, list):
+            expected_by_group.setdefault(item.group_key, []).extend(parsed)
+        else:
+            synthetic_by_id[(item.group_key, str(parsed.get("doc_id", "")))] = parsed
+
+    all_comparisons = []
+    all_critical = []
+    linked = 0
+    for result in batch["documents"]:
+        if result["processing_status"] != "COMPLETED":
+            continue
+        actual = _flatten_fields(result)
+        group = result.get("_group_key", ".")
+        synthetic = synthetic_by_id.get((group, result["source_file"].rsplit(".", 1)[0]))
+        if synthetic:
+            expected = {
+                name: row.get("value") if isinstance(row, dict) else row
+                for name, row in synthetic["fields"].items()
+            }
+            linkage = {"status": "deterministic", "record_ordinal": None,
+                       "method": "synthetic document ID after extraction"}
+        else:
+            records = expected_by_group.get(group, [])
+            link = link_record(result.get("_linkage_text", ""), records)
+            linkage = link.safe_receipt()
+            record = next((row for row in records if row.ordinal == link.record_ordinal), None)
+            expected = claimroute_expected(record) if record else {}
+        comparisons = compare_fields(expected, actual) if expected else []
+        result["evaluation"] = _comparison_receipt(comparisons, linkage)
+        linked += int(linkage["status"] == "deterministic")
+        all_comparisons.extend(comparisons)
+        all_critical.extend(row for row in comparisons
+                            if field_policy(row["field_name"]).get("criticality") == "high")
+    evaluation = {
+        "documents_linked": linked,
+        "evaluated_fields": len(all_comparisons),
+        "correct_fields": sum(row["correct"] for row in all_comparisons),
+        "accuracy": (sum(row["correct"] for row in all_comparisons) / len(all_comparisons)
+                     if all_comparisons else None),
+        "critical_fields": len(all_critical),
+        "critical_correct_fields": sum(row["correct"] for row in all_critical),
+        "critical_accuracy": (sum(row["correct"] for row in all_critical) / len(all_critical)
+                              if all_critical else None),
+        "ground_truth_stage": "post_extraction_only",
+    }
+    batch["evaluation"] = evaluation
+    batch["summary"]["accuracy"] = evaluation["accuracy"]
+    batch["summary"]["critical_accuracy"] = evaluation["critical_accuracy"]
+    return batch
 
 
 def _public(value):
