@@ -5,6 +5,7 @@ import csv
 import io
 import json
 
+import pytest
 from PIL import Image
 from streamlit.testing.v1 import AppTest
 
@@ -71,7 +72,8 @@ def test_multipage_processing_calls_each_page_in_order():
 
 def test_one_corrupt_document_does_not_abort_batch():
     good = inspect_content("good.png", _image_bytes())
-    corrupt = inspect_content("corrupt.001", b"II*\x00not-a-real-tiff")
+    with pytest.warns(UserWarning, match="Corrupt EXIF data"):
+        corrupt = inspect_content("corrupt.001", b"II*\x00not-a-real-tiff")
 
     def process(item, mode):
         if item.filename.startswith("corrupt"):
