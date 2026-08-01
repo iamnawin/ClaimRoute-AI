@@ -1,0 +1,602 @@
+# Instincts generated from https://github.com/iamnawin/ClaimRoute-AI
+# Generated: 2026-08-01T22:40:44.861Z
+# Version: 2.0
+# NOTE: This file supplements (does not replace) any existing curated instincts.
+# High-confidence manually curated instincts should be preserved alongside these.
+
+---
+id: ClaimRoute-AI-commit-conventional
+trigger: "when writing a commit message"
+confidence: 0.85
+domain: git
+source: repo-analysis
+source_repo: https://github.com/iamnawin/ClaimRoute-AI
+---
+
+# ClaimRoute AI Commit Conventional
+
+## Action
+
+Use conventional commit format with prefixes: feat, docs, fix, merge, test
+
+## Evidence
+
+- 23 commits analyzed
+- Detected conventional commit pattern
+- Examples: feat: add provider-independent multimodal escalation adapter, release: freeze hackathon submission candidate
+
+---
+id: ClaimRoute-AI-commit-length
+trigger: "when writing a commit message"
+confidence: 0.6
+domain: git
+source: repo-analysis
+source_repo: https://github.com/iamnawin/ClaimRoute-AI
+---
+
+# ClaimRoute AI Commit Length
+
+## Action
+
+Write moderate-length commit messages (~51 characters)
+
+## Evidence
+
+- Average commit message length: 51 chars
+- Based on 23 commits
+
+---
+id: ClaimRoute-AI-naming-files
+trigger: "when creating a new file"
+confidence: 0.8
+domain: code-style
+source: repo-analysis
+source_repo: https://github.com/iamnawin/ClaimRoute-AI
+---
+
+# ClaimRoute AI Naming Files
+
+## Action
+
+Use snake_case naming convention
+
+## Evidence
+
+- Analyzed file naming patterns in repository
+- Dominant pattern: snake_case
+
+---
+id: ClaimRoute-AI-import-relative
+trigger: "when importing modules"
+confidence: 0.75
+domain: code-style
+source: repo-analysis
+source_repo: https://github.com/iamnawin/ClaimRoute-AI
+---
+
+# ClaimRoute AI Import Relative
+
+## Action
+
+Use relative imports for project files
+
+## Evidence
+
+- Import analysis shows relative import pattern
+- Example: import { x } from '../lib/x'
+
+---
+id: ClaimRoute-AI-export-style
+trigger: "when exporting from a module"
+confidence: 0.7
+domain: code-style
+source: repo-analysis
+source_repo: https://github.com/iamnawin/ClaimRoute-AI
+---
+
+# ClaimRoute AI Export Style
+
+## Action
+
+Prefer named exports
+
+## Evidence
+
+- Export pattern analysis
+- Dominant style: named
+
+---
+id: ClaimRoute-AI-test-separate
+trigger: "when writing tests"
+confidence: 0.8
+domain: testing
+source: repo-analysis
+source_repo: https://github.com/iamnawin/ClaimRoute-AI
+---
+
+# ClaimRoute AI Test Separate
+
+## Action
+
+Place tests in the tests/ or __tests__/ directory, mirroring src structure
+
+## Evidence
+
+- Separate test directory pattern detected
+- Tests live in dedicated test folders
+
+---
+id: ClaimRoute-AI-test-naming
+trigger: "when creating a test file"
+confidence: 0.85
+domain: testing
+source: repo-analysis
+source_repo: https://github.com/iamnawin/ClaimRoute-AI
+---
+
+# ClaimRoute AI Test Naming
+
+## Action
+
+Name test files using the pattern: *.test.ts
+
+## Evidence
+
+- File pattern: *.test.ts
+- Consistent across test files
+
+---
+id: ClaimRoute-AI-test-types
+trigger: "when planning tests for a feature"
+confidence: 0.7
+domain: testing
+source: repo-analysis
+source_repo: https://github.com/iamnawin/ClaimRoute-AI
+---
+
+# ClaimRoute AI Test Types
+
+## Action
+
+Write unit, integration tests to match project standards
+
+## Evidence
+
+- Test types detected: unit, integration
+- Coverage config: no
+
+---
+id: ClaimRoute-AI-workflow-feature-development
+trigger: "when implementing a new feature"
+confidence: 0.9
+domain: workflow
+source: repo-analysis
+source_repo: https://github.com/iamnawin/ClaimRoute-AI
+---
+
+# ClaimRoute AI Workflow Feature Development
+
+## Action
+
+Follow the feature-development workflow:
+1. Add feature implementation
+2. Add tests for feature
+3. Update documentation
+
+## Evidence
+
+- Workflow detected from commit patterns
+- Frequency: ~12x per month
+- Files: **/*.test.*, **/api/**
+
+---
+id: ClaimRoute-AI-workflow-feature-development-with-tests-and-docs
+trigger: "when doing feature development with tests and docs"
+confidence: 0.75
+domain: workflow
+source: repo-analysis
+source_repo: https://github.com/iamnawin/ClaimRoute-AI
+---
+
+# ClaimRoute AI Workflow Feature Development With Tests And Docs
+
+## Action
+
+Follow the feature-development-with-tests-and-docs workflow:
+1. Implement new feature in one or more app/engine files.
+2. Add or update corresponding tests in tests/.
+3. Update or add relevant documentation in docs/ or README.md.
+
+## Evidence
+
+- Workflow detected from commit patterns
+- Frequency: ~5x per month
+- Files: app/*.py, engine/**/*.py, tests/**/*.py
+
+---
+id: ClaimRoute-AI-workflow-integration-or-merge-feature-branches
+trigger: "when doing integration or merge feature branches"
+confidence: 0.6
+domain: workflow
+source: repo-analysis
+source_repo: https://github.com/iamnawin/ClaimRoute-AI
+---
+
+# ClaimRoute AI Workflow Integration Or Merge Feature Branches
+
+## Action
+
+Follow the integration-or-merge-feature-branches workflow:
+1. Merge code files from both branches.
+2. Merge or reconcile test files.
+3. Merge or update documentation to reflect integrated features.
+
+## Evidence
+
+- Workflow detected from commit patterns
+- Frequency: ~2x per month
+- Files: app/*.py, engine/**/*.py, tests/**/*.py
+
+---
+id: ClaimRoute-AI-workflow-manual-or-integration-testing-documentation-update
+trigger: "when doing manual or integration testing documentation update"
+confidence: 0.65
+domain: workflow
+source: repo-analysis
+source_repo: https://github.com/iamnawin/ClaimRoute-AI
+---
+
+# ClaimRoute AI Workflow Manual Or Integration Testing Documentation Update
+
+## Action
+
+Follow the manual-or-integration-testing-documentation-update workflow:
+1. Perform manual or integration testing.
+2. Update or add documentation files (e.g., runbooks, evidence, validation).
+
+## Evidence
+
+- Workflow detected from commit patterns
+- Frequency: ~3x per month
+- Files: docs/submission/manual_testing_runbook.md, docs/development/**/*.md, docs/submission/**/*.md
+
+---
+id: ClaimRoute-AI-workflow-add-or-update-provider-adapter
+trigger: "when doing add or update provider adapter"
+confidence: 0.6
+domain: workflow
+source: repo-analysis
+source_repo: https://github.com/iamnawin/ClaimRoute-AI
+---
+
+# ClaimRoute AI Workflow Add Or Update Provider Adapter
+
+## Action
+
+Follow the add-or-update-provider-adapter workflow:
+1. Implement provider logic in engine/escalation/providers/.
+2. Update or add configuration in configs/.
+3. Update or add client/contract logic in engine/escalation/.
+4. Add or update tests for the provider.
+5. Update .env.example if new environment variables are needed.
+
+## Evidence
+
+- Workflow detected from commit patterns
+- Frequency: ~2x per month
+- Files: engine/escalation/providers/*.py, engine/escalation/*.py, configs/*.yaml
+
+---
+id: ClaimRoute-AI-workflow-fix-or-enhance-workspace-or-intake
+trigger: "when doing fix or enhance workspace or intake"
+confidence: 0.65
+domain: workflow
+source: repo-analysis
+source_repo: https://github.com/iamnawin/ClaimRoute-AI
+---
+
+# ClaimRoute AI Workflow Fix Or Enhance Workspace Or Intake
+
+## Action
+
+Follow the fix-or-enhance-workspace-or-intake workflow:
+1. Modify app/workspace.py or app/intake.py to fix or enhance logic.
+2. Update or add tests in tests/test_local_workspace.py or tests/test_local_intake.py.
+
+## Evidence
+
+- Workflow detected from commit patterns
+- Frequency: ~3x per month
+- Files: app/workspace.py, app/intake.py, tests/test_local_workspace.py
+
+---
+id: claimroute-ai-instinct-file-naming-snake-case
+trigger: "When creating or renaming a Python file"
+confidence: 0.9
+domain: code-style
+source: repo-analysis
+source_repo: iamnawin/ClaimRoute-AI
+---
+
+# Claimroute Ai Instinct File Naming Snake Case
+
+## Action
+
+Use snake_case for the filename
+
+## Evidence
+
+- Pattern in namingConventions.files: snake_case
+
+---
+id: claimroute-ai-instinct-function-naming-camelCase
+trigger: "When defining a new function"
+confidence: 0.8
+domain: code-style
+source: repo-analysis
+source_repo: iamnawin/ClaimRoute-AI
+---
+
+# Claimroute Ai Instinct Function Naming CamelCase
+
+## Action
+
+Name the function using camelCase
+
+## Evidence
+
+- Pattern in namingConventions.functions: camelCase
+
+---
+id: claimroute-ai-instinct-class-naming-pascal-case
+trigger: "When defining a new class"
+confidence: 0.8
+domain: code-style
+source: repo-analysis
+source_repo: iamnawin/ClaimRoute-AI
+---
+
+# Claimroute Ai Instinct Class Naming Pascal Case
+
+## Action
+
+Name the class using PascalCase
+
+## Evidence
+
+- Pattern in namingConventions.classes: PascalCase
+
+---
+id: claimroute-ai-instinct-constant-naming-screaming-snake-case
+trigger: "When defining a constant"
+confidence: 0.8
+domain: code-style
+source: repo-analysis
+source_repo: iamnawin/ClaimRoute-AI
+---
+
+# Claimroute Ai Instinct Constant Naming Screaming Snake Case
+
+## Action
+
+Use SCREAMING_SNAKE_CASE for the constant name
+
+## Evidence
+
+- Pattern in namingConventions.constants: SCREAMING_SNAKE_CASE
+
+---
+id: claimroute-ai-instinct-relative-imports
+trigger: "When importing modules within the package"
+confidence: 0.85
+domain: code-style
+source: repo-analysis
+source_repo: iamnawin/ClaimRoute-AI
+---
+
+# Claimroute Ai Instinct Relative Imports
+
+## Action
+
+Use relative imports
+
+## Evidence
+
+- Pattern in importStyle: relative
+
+---
+id: claimroute-ai-instinct-named-exports
+trigger: "When exporting functions or classes from a module"
+confidence: 0.8
+domain: code-style
+source: repo-analysis
+source_repo: iamnawin/ClaimRoute-AI
+---
+
+# Claimroute Ai Instinct Named Exports
+
+## Action
+
+Use named exports
+
+## Evidence
+
+- Pattern in exportStyle: named
+
+---
+id: claimroute-ai-instinct-test-file-pattern
+trigger: "When creating a test file"
+confidence: 0.7
+domain: testing
+source: repo-analysis
+source_repo: iamnawin/ClaimRoute-AI
+---
+
+# Claimroute Ai Instinct Test File Pattern
+
+## Action
+
+Name the file using the pattern *.test.ts
+
+## Evidence
+
+- Pattern in testing.filePattern: *.test.ts
+
+---
+id: claimroute-ai-instinct-test-types-unit-integration
+trigger: "When writing tests"
+confidence: 0.8
+domain: testing
+source: repo-analysis
+source_repo: iamnawin/ClaimRoute-AI
+---
+
+# Claimroute Ai Instinct Test Types Unit Integration
+
+## Action
+
+Write both unit and integration tests as appropriate
+
+## Evidence
+
+- Pattern in testing.testTypes: unit, integration
+
+---
+id: claimroute-ai-instinct-feature-development-workflow
+trigger: "When someone wants to add a new feature to the application"
+confidence: 0.95
+domain: workflow
+source: repo-analysis
+source_repo: iamnawin/ClaimRoute-AI
+---
+
+# Claimroute Ai Instinct Feature Development Workflow
+
+## Action
+
+Implement the feature in app/ or engine/, add/update tests in tests/, and update documentation in docs/ or README.md
+
+## Evidence
+
+- Workflow: feature-development-with-tests-and-docs
+- Commits: feat: add provider-independent multimodal escalation adapter, docs: finalize hackathon submission narrative
+
+---
+id: claimroute-ai-instinct-merge-feature-branches-workflow
+trigger: "When someone wants to combine two or more developed features into the main branch"
+confidence: 0.9
+domain: workflow
+source: repo-analysis
+source_repo: iamnawin/ClaimRoute-AI
+---
+
+# Claimroute Ai Instinct Merge Feature Branches Workflow
+
+## Action
+
+Merge code, test, and documentation files from both branches, reconciling as needed
+
+## Evidence
+
+- Workflow: integration-or-merge-feature-branches
+- Commits: merge: integrate provider-independent multimodal escalation adapter
+
+---
+id: claimroute-ai-instinct-manual-testing-doc-update-workflow
+trigger: "When someone completes manual or integration testing and needs to document the results"
+confidence: 0.92
+domain: workflow
+source: repo-analysis
+source_repo: iamnawin/ClaimRoute-AI
+---
+
+# Claimroute Ai Instinct Manual Testing Doc Update Workflow
+
+## Action
+
+Update or add documentation files (e.g., runbooks, evidence, validation) in docs/submission/ or docs/development/
+
+## Evidence
+
+- Workflow: manual-or-integration-testing-documentation-update
+- Commits: docs: add manual testing runbook, docs: record manual prototype validation
+
+---
+id: claimroute-ai-instinct-add-provider-adapter-workflow
+trigger: "When someone wants to support a new provider or update provider logic"
+confidence: 0.88
+domain: workflow
+source: repo-analysis
+source_repo: iamnawin/ClaimRoute-AI
+---
+
+# Claimroute Ai Instinct Add Provider Adapter Workflow
+
+## Action
+
+Implement provider logic in engine/escalation/providers/, update configs/, add/update tests for the provider, and update .env.example if needed
+
+## Evidence
+
+- Workflow: add-or-update-provider-adapter
+- Commits: feat: add provider-independent multimodal escalation adapter
+
+---
+id: claimroute-ai-instinct-fix-workspace-or-intake-workflow
+trigger: "When someone wants to fix or improve workspace or intake features"
+confidence: 0.9
+domain: workflow
+source: repo-analysis
+source_repo: iamnawin/ClaimRoute-AI
+---
+
+# Claimroute Ai Instinct Fix Workspace Or Intake Workflow
+
+## Action
+
+Modify app/workspace.py or app/intake.py and update/add tests in tests/test_local_workspace.py or tests/test_local_intake.py
+
+## Evidence
+
+- Workflow: fix-or-enhance-workspace-or-intake
+- Commits: fix: [various]
+
+---
+id: claimroute-ai-instinct-conventional-commit-prefix
+trigger: "When writing a commit message"
+confidence: 0.95
+domain: git
+source: repo-analysis
+source_repo: iamnawin/ClaimRoute-AI
+---
+
+# Claimroute Ai Instinct Conventional Commit Prefix
+
+## Action
+
+Start the commit message with a conventional prefix (feat, fix, docs, merge, test, release)
+
+## Evidence
+
+- Pattern in commits.prefixes: feat, fix, docs, merge, test, release
+- Examples: feat: add provider-independent multimodal escalation adapter
+
+---
+id: claimroute-ai-instinct-commit-length-guideline
+trigger: "When writing a commit message"
+confidence: 0.8
+domain: git
+source: repo-analysis
+source_repo: iamnawin/ClaimRoute-AI
+---
+
+# Claimroute Ai Instinct Commit Length Guideline
+
+## Action
+
+Keep the commit message around 50 characters on average
+
+## Evidence
+
+- Pattern in commits.averageLength: 51
+
