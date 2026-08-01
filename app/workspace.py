@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import csv
+import copy
 import hashlib
 import io
 import json
@@ -9,6 +10,8 @@ import os
 import re
 import time
 from collections import Counter
+from datetime import datetime, timezone
+from enum import Enum
 from typing import Callable
 
 import yaml
@@ -16,8 +19,9 @@ import yaml
 from app import service
 from app.intake import FileRole, IntakeFile, decode_pages
 from app.local_retry import retry_cms1500_page
-from engine.governor import field_policy
+from engine.governor import field_policy, preset
 from engine.schemas import FieldState, ValidationStamp, Verdict
+from engine.validators import validate_field
 from engine.validators.registry import cpt_format, currency_format, date_valid
 from eval.official.evaluator import claimroute_expected, compare_fields
 from eval.official.extraction import (
@@ -38,6 +42,51 @@ PageProcessor = Callable[[object, str, str], dict]
 # Statuses that mean "this document produced extraction output". PARTIAL
 # documents did real work and must keep contributing to batch metrics.
 PRODUCED_OUTPUT = {"COMPLETED", "PARTIAL"}
+RESOLVED_FIELD_STATES = {
+    "INAPPLICABLE", "ACCEPT", "ACCEPT_WITH_FLAG", "ACCEPT_WITH_OVERRIDE",
+}
+
+
+class ProcessingStage(str, Enum):
+    QUEUED = "QUEUED"
+    DECODING = "DECODING"
+    ROUTING = "ROUTING"
+    PRIMARY_OCR = "PRIMARY_OCR"
+    VALIDATING_PRIMARY = "VALIDATING_PRIMARY"
+    LOCAL_RETRY = "LOCAL_RETRY"
+    VALIDATING_RETRY = "VALIDATING_RETRY"
+    MULTIMODAL_PENDING = "MULTIMODAL_PENDING"
+    MULTIMODAL_PROCESSING = "MULTIMODAL_PROCESSING"
+    VALIDATING_MULTIMODAL = "VALIDATING_MULTIMODAL"
+    HUMAN_REVIEW_REQUIRED = "HUMAN_REVIEW_REQUIRED"
+    HUMAN_REVIEW_COMPLETED = "HUMAN_REVIEW_COMPLETED"
+    COMPLETED = "COMPLETED"
+    PARTIAL = "PARTIAL"
+    FAILED_EXTRACTION = "FAILED_EXTRACTION"
+    FAILED = "FAILED"
+    CANCELLED = "CANCELLED"
+
+
+def mode_policy(mode: str) -> dict:
+    """The runtime policy actually consumed by the governor."""
+    runtime = preset(mode)
+    calibrated = service.load_operating_modes()[mode]
+    result = {
+        "mode": mode,
+        "accept_threshold": runtime["accept_threshold"],
+        "escalate_threshold": runtime["escalate_threshold"],
+        "allow_accept_with_flag": runtime["allow_accept_with_flag"],
+        "paid_escalation_criticalities": calibrated["paid_escalation_criticalities"],
+        "retry_before_escalation": calibrated["retry_before_escalation"],
+        "external_calls_enabled": False,
+    }
+    return result
+
+
+def _stage(progress: Callable[[dict], None] | None, stage: ProcessingStage,
+           message: str, **details) -> None:
+    if progress:
+        progress({"stage": stage.value, "message": message, **details})
 
 
 def _document_status(field_count: int, unresolved: int) -> str:
@@ -45,6 +94,15 @@ def _document_status(field_count: int, unresolved: int) -> str:
     if field_count == 0:
         return "FAILED_EXTRACTION"
     return "PARTIAL" if unresolved else "COMPLETED"
+
+
+def _final_stage(status: str) -> ProcessingStage:
+    return {
+        "COMPLETED": ProcessingStage.COMPLETED,
+        "PARTIAL": ProcessingStage.PARTIAL,
+        "FAILED_EXTRACTION": ProcessingStage.FAILED_EXTRACTION,
+        "CANCELLED": ProcessingStage.CANCELLED,
+    }.get(status, ProcessingStage.FAILED)
 
 
 def _default_page_processor(image, doc_id: str, mode: str) -> dict:
@@ -139,7 +197,8 @@ def _provider_policy_snapshot(config: dict | None = None,
     }
 
 
-def _provider_escalation(page: int, field: dict, policy: dict) -> dict:
+def _provider_escalation(page: int, field: dict, policy: dict,
+                         routing_policy: dict) -> dict:
     """Attach one safe terminal workflow state to an unresolved/attempted field."""
     decision = field.get("decision", "")
     attempted = bool(field.get("escalated"))
@@ -147,7 +206,13 @@ def _provider_escalation(page: int, field: dict, policy: dict) -> dict:
     attempted_model = record.get("model") or ""
     external_calls = int(
         record.get("escalated") is True and attempted_model != "offline-oracle")
-    eligible = bool(field_policy(field["field_name"]).get("external_model_allowed", True))
+    configured = field_policy(field["field_name"])
+    eligible = bool(
+        configured.get("external_model_allowed", True)
+        and configured.get("criticality", "med")
+        in routing_policy["paid_escalation_criticalities"]
+        and not configured.get("optional", False)
+    )
     unresolved = decision not in {
         "INAPPLICABLE", "ACCEPT", "ACCEPT_WITH_FLAG", "ACCEPT_WITH_OVERRIDE"
     }
@@ -188,7 +253,7 @@ def _official_unstructured_result(item: IntakeFile, pages, texts, latency_ms: fl
     } for name, value in values.items()}
     empty_extraction = not fields
     provider_policy = _provider_policy_snapshot()
-    return {
+    result = {
         "document_id": item.safe_source_id,
         "safe_source_id": item.safe_source_id,
         "source_file": item.filename,
@@ -197,6 +262,9 @@ def _official_unstructured_result(item: IntakeFile, pages, texts, latency_ms: fl
         "document_type": "unstructured",
         "page_count": len(pages),
         "processing_status": _document_status(len(fields), 0),
+        "processing_stage": _document_status(len(fields), 0),
+        "last_stage_message": ("Limited unstructured extraction completed"
+                               if fields else "No meaningful fields were extracted"),
         "fields": [{"page": 1, "fields": fields}],
         "validations": [],
         "governor_summary": {"ACCEPT_WITH_FLAG": len(fields)},
@@ -211,6 +279,8 @@ def _official_unstructured_result(item: IntakeFile, pages, texts, latency_ms: fl
         },
         "provider_state": provider_policy,
         "provider_escalations": [],
+        "review_audit": [],
+        "human_review_summary": {"required": 0, "completed": 0},
         "unresolved_fields": 0,
         "latency": {"milliseconds": round(latency_ms, 3)},
         "measured_cost": {"usd": round(_local_cost(latency_ms), 9)},
@@ -225,19 +295,25 @@ def _official_unstructured_result(item: IntakeFile, pages, texts, latency_ms: fl
         "_group_key": item.group_key,
         "_linkage_text": " ".join(texts),
     }
+    result["coverage"] = coverage_metrics(result)
+    return result
 
 
 def _process_official_item(item: IntakeFile, tier: str, mode: str,
                            *, form: str | None = None,
-                           require_detection: bool = False) -> dict | None:
+                           require_detection: bool = False,
+                           progress: Callable[[dict], None] | None = None) -> dict | None:
     started = time.perf_counter()
     stage_latency = new_stage_latency()
     try:
+        _stage(progress, ProcessingStage.DECODING, "Decoding document pages")
         decode_started = time.perf_counter()
         pages = decode_pages(item.content, item.source_format)
         record_stage(stage_latency, "tiff_decode", decode_started)
         words_by_page, texts = [], []
-        for page in pages:
+        for page_number, page in enumerate(pages, 1):
+            _stage(progress, ProcessingStage.PRIMARY_OCR, "Running primary local OCR",
+                   current_page=page_number, total_pages=len(pages))
             words, text, ocr_ms = local_ocr(page)
             stage_latency["primary_ocr"] += ocr_ms
             words_by_page.append(words)
@@ -246,6 +322,8 @@ def _process_official_item(item: IntakeFile, tier: str, mode: str,
             return _official_unstructured_result(
                 item, pages, texts, (time.perf_counter() - started) * 1000)
         selection_tier = tier
+        _stage(progress, ProcessingStage.ROUTING, "Detecting form and claim pages",
+               current_page=1, total_pages=len(pages))
         if form == "auto":
             cms_score = max((_score(text, CMS_MARKERS) for text in texts), default=0)
             ub_score = max((_score(text, UB_MARKERS) for text in texts), default=0)
@@ -268,6 +346,9 @@ def _process_official_item(item: IntakeFile, tier: str, mode: str,
             return result
         page_index = selection.claim_pages[0]
         form = form or ("ub04" if tier == "C" else "cms1500")
+        _stage(progress, ProcessingStage.VALIDATING_PRIMARY,
+               "Mapping fields and validating primary OCR",
+               current_page=page_index + 1, total_pages=len(pages))
         page_result = structured_page(
             pages[page_index], words_by_page[page_index], form,
             item.safe_source_id, preset=mode, run_retry=form != "cms1500",
@@ -275,8 +356,19 @@ def _process_official_item(item: IntakeFile, tier: str, mode: str,
         )
         if form == "cms1500":
             _mark_inactive_cms1500_service_lines(page_result)
+            retry_fields = sum(field.state == FieldState.RETRY
+                               for field in page_result.fields.values())
+            _stage(progress, ProcessingStage.LOCAL_RETRY, "Running local OCR retry",
+                   current_page=page_index + 1, total_pages=len(pages),
+                   fields_processed=0, applicable_fields=len(page_result.fields),
+                   retry_fields=retry_fields)
             retry_cms1500_page(
                 page_result, pages[page_index], mode, stage_latency=stage_latency)
+            _stage(progress, ProcessingStage.VALIDATING_RETRY,
+                   "Revalidating retry candidates",
+                   current_page=page_index + 1, total_pages=len(pages),
+                   fields_processed=len(page_result.fields),
+                   applicable_fields=len(page_result.fields))
         elapsed_ms = (time.perf_counter() - started) * 1000
         cost = _local_cost(elapsed_ms)
         receipt = service.build_receipt(
@@ -302,6 +394,9 @@ def _process_official_item(item: IntakeFile, tier: str, mode: str,
                           for name, value in stage_latency.items()},
             "unattributed_ms": round(max(0.0, total_ms - attributed_ms), 3),
         }
+        if result["escalation_summary"].get("pending_multimodal"):
+            _stage(progress, ProcessingStage.MULTIMODAL_PENDING,
+                   "Unresolved fields are pending multimodal policy review")
         return result
     except Exception:
         if require_detection:
@@ -310,6 +405,7 @@ def _process_official_item(item: IntakeFile, tier: str, mode: str,
 
 
 def _failed_result(item: IntakeFile, warning: str, *, status: str = "FAILED") -> dict:
+    final_stage = status if status in ProcessingStage.__members__ else "FAILED"
     return {
         "document_id": item.safe_source_id,
         "safe_source_id": item.safe_source_id,
@@ -319,6 +415,8 @@ def _failed_result(item: IntakeFile, warning: str, *, status: str = "FAILED") ->
         "document_type": "unknown",
         "page_count": item.page_count or 0,
         "processing_status": status,
+        "processing_stage": final_stage,
+        "last_stage_message": warning,
         "fields": [],
         "validations": [],
         "governor_summary": {},
@@ -337,7 +435,7 @@ def _unify_receipts(item: IntakeFile, receipts: list[dict]) -> dict:
     if item.role != FileRole.CLAIM_DOCUMENT:
         return _failed_result(item, "File role is not a claim document.", status="SKIPPED")
     document_types = {receipt["document"]["document_type"] for receipt in receipts}
-    fields, validations, provider_escalations = [], [], []
+    fields, validations, provider_escalations, review_evidence = [], [], [], []
     governor = Counter()
     retried = escalated = unresolved = 0
     accepted_without_retry = accepted_after_retry = accepted_with_flag = 0
@@ -348,6 +446,8 @@ def _unify_receipts(item: IntakeFile, receipts: list[dict]) -> dict:
     field_count = 0
     provider_policy = _provider_policy_snapshot()
     for page_number, receipt in enumerate(receipts, 1):
+        receipt_mode = receipt.get("operating_mode", {}).get("key", service.DEFAULT_MODE)
+        routing_policy = mode_policy(receipt_mode)
         page_fields = receipt["final_output"]
         field_count += len(page_fields)
         fields.append({"page": page_number, "fields": page_fields})
@@ -358,6 +458,21 @@ def _unify_receipts(item: IntakeFile, receipts: list[dict]) -> dict:
                 "results": field["validation"],
             })
             governor[field["decision"]] += 1
+            review_evidence.append({
+                "page": page_number,
+                "field_name": field["field_name"],
+                "criticality": field["criticality"],
+                "bbox": field["bbox"],
+                "primary_candidate": field["primary_candidate"],
+                "retry_candidate": field["retry_candidate"],
+                "multimodal_candidate": field["escalation_candidate"],
+                "confidence": field["confidence"],
+                "validation_failures": [row for row in field["validation"]
+                                        if row["verdict"] == "FAIL"],
+                "reason": (field["governor_decisions"][-1]["reason"]
+                           if field["governor_decisions"] else "Unresolved field"),
+                "state": field["decision"],
+            })
             retried += int(field["retry_count"] > 0)
             escalated += int(field["escalated"])
             accepted_without_retry += int(
@@ -376,7 +491,8 @@ def _unify_receipts(item: IntakeFile, receipts: list[dict]) -> dict:
             if field["decision"] not in {
                     "INAPPLICABLE", "ACCEPT", "ACCEPT_WITH_FLAG", "ACCEPT_WITH_OVERRIDE"
             } or field["escalated"]:
-                provider_state = _provider_escalation(page_number, field, provider_policy)
+                provider_state = _provider_escalation(
+                    page_number, field, provider_policy, routing_policy)
                 provider_escalations.append(provider_state)
                 external_provider_calls += provider_state["external_call_count"]
                 multimodal_failed += int(
@@ -400,7 +516,7 @@ def _unify_receipts(item: IntakeFile, receipts: list[dict]) -> dict:
         warnings.append(f"{pending_human_review} field(s) require human review.")
     if pending_local_retry:
         warnings.append(f"{pending_local_retry} field(s) remain pending local retry.")
-    return {
+    result = {
         "document_id": item.safe_source_id,
         "safe_source_id": item.safe_source_id,
         "source_file": item.filename,
@@ -409,6 +525,11 @@ def _unify_receipts(item: IntakeFile, receipts: list[dict]) -> dict:
         "document_type": document_type,
         "page_count": len(receipts),
         "processing_status": _document_status(field_count, unresolved),
+        "processing_stage": _document_status(field_count, unresolved),
+        "last_stage_message": (
+            "Processing completed" if not unresolved and field_count
+            else "Processing completed with unresolved fields" if field_count
+            else "No meaningful fields were extracted"),
         "fields": fields,
         "validations": validations,
         "governor_summary": dict(sorted(governor.items())),
@@ -440,9 +561,15 @@ def _unify_receipts(item: IntakeFile, receipts: list[dict]) -> dict:
         "projected_cost": {"usd": round(projected, 9)},
         "warnings": warnings,
         "evaluation": None,
+        "review_audit": [],
+        "human_review_summary": {"required": pending_human_review + pending_multimodal,
+                                 "completed": 0},
+        "_review_evidence": review_evidence,
         "_group_key": item.group_key,
         "_linkage_text": " ".join(linkage_values),
     }
+    result["coverage"] = coverage_metrics(result)
+    return result
 
 
 def _red_router_abstains(item: IntakeFile) -> bool:
@@ -459,27 +586,47 @@ def _red_router_abstains(item: IntakeFile) -> bool:
 
 
 def process_item(item: IntakeFile, mode: str = service.DEFAULT_MODE,
-                 *, page_processor: PageProcessor | None = None) -> dict:
+                 *, page_processor: PageProcessor | None = None,
+                 progress: Callable[[dict], None] | None = None) -> dict:
     """Process every decoded page without consulting expected output."""
+    def finish(result: dict) -> dict:
+        stage = _final_stage(result["processing_status"])
+        result["processing_stage"] = stage.value
+        result.setdefault("last_stage_message", result["processing_status"])
+        _stage(progress, stage, result["last_stage_message"])
+        return result
+
     if item.role != FileRole.CLAIM_DOCUMENT:
-        return _failed_result(item, "File role is not a claim document.", status="SKIPPED")
+        return finish(_failed_result(
+            item, "File role is not a claim document.", status="SKIPPED"))
     if item.status == "ERROR":
-        return _failed_result(item, item.warning or "Document intake failed.")
+        return finish(_failed_result(item, item.warning or "Document intake failed."))
     if page_processor is None and _red_router_abstains(item):
         # The red-ink router only fingerprints colour dropout forms, so a
         # monochrome scan reaches it with an empty mask and is dismissed as
         # unstructured. Route by content instead of by parent folder name.
-        return _process_official_item(item, "auto", mode, form="auto")
+        official = _process_official_item(
+            item, "auto", mode, form="auto", require_detection=True,
+            progress=progress)
+        if official is not None:
+            return finish(official)
     processor = page_processor or _default_page_processor
     try:
+        _stage(progress, ProcessingStage.DECODING, "Decoding document pages")
         pages = decode_pages(item.content, item.source_format)
-        receipts = [
-            processor(page, f"{item.safe_source_id}-p{index}", mode)
-            for index, page in enumerate(pages, 1)
-        ]
-        return _unify_receipts(item, receipts)
+        receipts = []
+        for index, page in enumerate(pages, 1):
+            _stage(progress, ProcessingStage.ROUTING,
+                   "Routing document and preparing local extraction",
+                   current_page=index, total_pages=len(pages))
+            _stage(progress, ProcessingStage.PRIMARY_OCR,
+                   "Running primary OCR and governed local retry",
+                   current_page=index, total_pages=len(pages))
+            receipts.append(processor(page, f"{item.safe_source_id}-p{index}", mode))
+        return finish(_unify_receipts(item, receipts))
     except Exception:
-        return _failed_result(item, "Document processing failed; other batch items continued.")
+        return finish(_failed_result(
+            item, "Document processing failed; other batch items continued."))
 
 
 def _job_id(items: list[IntakeFile], mode: str) -> str:
@@ -511,6 +658,8 @@ def summarize_results(results: list[dict]) -> dict:
     escalations = [result.get("escalation_summary") or {} for result in processed]
     governors = [result.get("governor_summary") or {} for result in processed]
     retries = [result.get("retry_summary") or {} for result in processed]
+    coverages = [result.get("coverage") or coverage_metrics(result) for result in processed]
+    human_reviews = [result.get("human_review_summary") or {} for result in processed]
 
     def total(rows: list[dict], key: str) -> int:
         return sum(int(row.get(key) or 0) for row in rows)
@@ -532,6 +681,7 @@ def summarize_results(results: list[dict]) -> dict:
         "accepted_with_flag": total(governors, "ACCEPT_WITH_FLAG"),
         "retry_attempted": total(retries, "fields_retried"),
         "retry_resolved": total(resolutions, "accepted_after_local_retry"),
+        "primary_resolved": total(resolutions, "accepted_without_retry"),
         "unresolved_fields": sum(
             int(result.get("unresolved_fields") or 0) for result in processed),
         "inapplicable": total(resolutions, "inapplicable"),
@@ -539,16 +689,221 @@ def summarize_results(results: list[dict]) -> dict:
         "multimodal_attempted": total(escalations, "multimodal_attempted"),
         "multimodal_failed": total(escalations, "multimodal_failed"),
         "human_review_required": total(escalations, "pending_human_review"),
+        "human_review_completed": total(human_reviews, "completed"),
         "external_calls": total(escalations, "external_provider_calls"),
+        "applicable_fields": total(coverages, "applicable_fields"),
+        "fields_produced": total(coverages, "fields_produced"),
+        "validated_fields": total(coverages, "validated_fields"),
         "measured_cost_usd": round(sum(
             result["measured_cost"]["usd"] for result in processed), 9),
         "projected_cost_usd": round(sum(
             result["projected_cost"]["usd"] for result in processed), 9),
         "latency_ms": round(latency, 3),
+        "mean_latency_ms": round(latency / len(processed), 3) if processed else 0.0,
         "throughput_pages_per_minute": round(pages * 60000 / latency, 6) if latency else 0.0,
         "accuracy": None,
         "critical_accuracy": None,
     }
+
+
+def coverage_metrics(result: dict) -> dict:
+    """Coverage is extraction completeness, never measured accuracy."""
+    pages = result.get("fields") or []
+    fields = [field for page in pages for field in (page.get("fields") or {}).values()]
+    known_schema = result.get("document_type") in {"cms1500", "ub04"} and bool(fields)
+    if not known_schema:
+        return {
+            "available": False,
+            "message": "Coverage unavailable â€” document schema not established",
+        }
+    inapplicable = sum(field.get("state") == "INAPPLICABLE" for field in fields)
+    applicable_fields = [field for field in fields if field.get("state") != "INAPPLICABLE"]
+    produced = sum(field.get("value") not in (None, "") for field in applicable_fields)
+    validated = sum(field.get("state") in RESOLVED_FIELD_STATES
+                    for field in applicable_fields)
+    confidence = {"high": 0, "medium": 0, "low": 0}
+    for field in applicable_fields:
+        value = float(field.get("confidence") or 0)
+        confidence["high" if value >= .85 else "medium" if value >= .60 else "low"] += 1
+    denominator = len(applicable_fields)
+    return {
+        "available": True,
+        "schema_fields": len(fields),
+        "applicable_fields": denominator,
+        "inapplicable_fields": inapplicable,
+        "fields_produced": produced,
+        "validated_fields": validated,
+        "unresolved_fields": sum(
+            field.get("state") not in RESOLVED_FIELD_STATES
+            for field in applicable_fields),
+        "extraction_coverage": produced / denominator if denominator else None,
+        "validated_coverage": validated / denominator if denominator else None,
+        "confidence_distribution": confidence,
+    }
+
+
+def build_review_queue(result: dict) -> list[dict]:
+    provider_by_field = {
+        (row["page"], row["field_name"]): row
+        for row in result.get("provider_escalations", [])
+    }
+    queue = []
+    for evidence in result.get("_review_evidence", []):
+        if evidence["state"] in RESOLVED_FIELD_STATES:
+            continue
+        provider = provider_by_field.get((evidence["page"], evidence["field_name"]), {})
+        queue.append({
+            "document_id": result["safe_source_id"],
+            **evidence,
+            "provider_state": provider.get("final_workflow_state", "HUMAN_REVIEW_REQUIRED"),
+        })
+    return sorted(queue, key=lambda row: (row["page"], row["field_name"]))
+
+
+def _refresh_result(result: dict) -> None:
+    all_fields = [field for page in result.get("fields", [])
+                  for field in page.get("fields", {}).values()]
+    result["unresolved_fields"] = sum(
+        field.get("state") not in RESOLVED_FIELD_STATES for field in all_fields)
+    result["processing_status"] = _document_status(
+        len(all_fields), result["unresolved_fields"])
+    result["processing_stage"] = result["processing_status"]
+    result["last_stage_message"] = (
+        "Human review correction saved" if result.get("review_audit")
+        else result["processing_status"])
+    result["coverage"] = coverage_metrics(result)
+    pending_multimodal = sum(
+        field.get("state") == "ESCALATE" for field in all_fields)
+    pending_human = sum(field.get("state") == "HUMAN_REVIEW" for field in all_fields)
+    result.setdefault("escalation_summary", {})["pending_multimodal"] = pending_multimodal
+    result["escalation_summary"]["pending_human_review"] = pending_human
+    result.setdefault("resolution_summary", {})["pending_multimodal"] = pending_multimodal
+    result["resolution_summary"]["pending_human_review"] = pending_human
+    governor = Counter(field.get("state") for field in all_fields
+                       if field.get("state") != "INAPPLICABLE")
+    if sum(field.get("state") == "INAPPLICABLE" for field in all_fields):
+        governor["INAPPLICABLE"] = sum(
+            field.get("state") == "INAPPLICABLE" for field in all_fields)
+    result["governor_summary"] = dict(sorted(governor.items()))
+    result["resolution_summary"].update({
+        "inapplicable": governor["INAPPLICABLE"],
+        "accepted_with_flag": governor["ACCEPT_WITH_FLAG"],
+    })
+    reviewed = {(row["page"], row["field_name"])
+                for row in result.get("review_audit", [])}
+    completed = 0
+    for page in result.get("fields", []):
+        completed += sum(
+            (page["page"], name) in reviewed
+            and field.get("state") in RESOLVED_FIELD_STATES
+            for name, field in page.get("fields", {}).items()
+        )
+    result["human_review_summary"] = {
+        "required": len(build_review_queue(result)),
+        "completed": completed,
+    }
+
+
+def apply_human_review(result: dict, *, page: int, field_name: str, action: str,
+                       value, reason: str, reviewer_id: str = "local-reviewer") -> dict:
+    """Apply one session-local correction without writing field values to logs."""
+    if not reason.strip():
+        raise ValueError("A review reason is required.")
+    updated = copy.deepcopy(result)
+    page_row = next((row for row in updated.get("fields", []) if row["page"] == page), None)
+    if not page_row or field_name not in page_row["fields"]:
+        raise KeyError("Review field was not found in this document.")
+    field = page_row["fields"][field_name]
+    if action == "REJECT_DOCUMENT":
+        updated["processing_status"] = "FAILED"
+        updated["processing_stage"] = ProcessingStage.FAILED.value
+    elif action == "LEAVE_UNRESOLVED":
+        field["state"] = "HUMAN_REVIEW"
+    elif action == "MARK_NOT_APPLICABLE":
+        field.update({"value": None, "state": "INAPPLICABLE", "confidence": None,
+                      "stamps": [{"validator": "human_review",
+                                  "verdict": "INAPPLICABLE"}]})
+    else:
+        final_value = None if action == "MARK_BLANK" else value
+        context = {name: candidate.get("value")
+                   for name, candidate in page_row["fields"].items()}
+        context[field_name] = final_value
+        stamps = validate_field(field_name, final_value, context)
+        failed = any(stamp.verdict == Verdict.FAIL for stamp in stamps)
+        field.update({
+            "value": final_value,
+            "state": "HUMAN_REVIEW" if failed else "ACCEPT_WITH_OVERRIDE",
+            "stamps": [{"validator": stamp.validator, "verdict": stamp.verdict.value,
+                        "detail": stamp.detail} for stamp in stamps],
+            "override": {
+                "reviewer_id": reviewer_id,
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "reason": reason,
+                "resolution": "HUMAN_CORRECTED" if not failed else "VALIDATION_FAILED",
+            },
+        })
+    audit = {
+        "page": page,
+        "field_name": field_name,
+        "action": action,
+        "reviewer_id": reviewer_id,
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "reason": reason,
+        "resulting_state": field.get("state"),
+    }
+    updated.setdefault("review_audit", []).append(audit)
+    for evidence in updated.get("_review_evidence", []):
+        if evidence["page"] == page and evidence["field_name"] == field_name:
+            evidence["state"] = field.get("state")
+    for validation in updated.get("validations", []):
+        if validation["page"] == page and validation["field_name"] == field_name:
+            validation["results"] = field.get("stamps", [])
+    for provider in updated.get("provider_escalations", []):
+        if provider["page"] == page and provider["field_name"] == field_name:
+            provider["final_workflow_state"] = (
+                ProcessingStage.HUMAN_REVIEW_COMPLETED.value
+                if field.get("state") in {"INAPPLICABLE", "ACCEPT_WITH_OVERRIDE"}
+                else ProcessingStage.HUMAN_REVIEW_REQUIRED.value)
+    _refresh_result(updated)
+    if action == "REJECT_DOCUMENT":
+        updated["processing_status"] = "FAILED"
+        updated["processing_stage"] = ProcessingStage.FAILED.value
+        updated["last_stage_message"] = "Document rejected during human review"
+    return updated
+
+
+def retry_document(batch: dict, item: IntakeFile, *, mode: str | None = None,
+                   processor: Callable[[IntakeFile, str], dict] | None = None) -> dict:
+    """Retry one document, retaining prior attempts only in session memory."""
+    updated = copy.deepcopy(batch)
+    selected_mode = mode or updated.get("operating_mode") or service.DEFAULT_MODE
+    process = processor or process_item
+    replacement = process(item, selected_mode)
+    old = next((row for row in updated["documents"]
+                if row["safe_source_id"] == item.safe_source_id), None)
+    if old is None:
+        raise KeyError("Retry document is not part of this batch.")
+    prior = copy.deepcopy(old)
+    prior.pop("_prior_results", None)
+    replacement["_prior_results"] = [*old.get("_prior_results", []), prior]
+    replacement["retry_count"] = int(old.get("retry_count") or 0) + 1
+    replacement["retry_history"] = [*old.get("retry_history", []), {
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "from_status": old["processing_status"],
+        "to_status": replacement["processing_status"],
+        "external_calls": int(
+            (replacement.get("escalation_summary") or {}).get(
+                "external_provider_calls") or 0),
+    }]
+    updated["documents"] = [replacement if row is old or (
+        row["safe_source_id"] == item.safe_source_id) else row
+        for row in updated["documents"]]
+    updated["processing_status"] = _batch_status(updated["documents"])
+    updated["operating_mode"] = selected_mode
+    updated["mode_policy"] = mode_policy(selected_mode)
+    updated["summary"] = summarize_results(updated["documents"])
+    updated["evaluation"] = None
+    return updated
 
 
 def run_batch(items: list[IntakeFile], mode: str = service.DEFAULT_MODE,
@@ -556,6 +911,7 @@ def run_batch(items: list[IntakeFile], mode: str = service.DEFAULT_MODE,
               progress: Callable[[int, int, dict], None] | None = None,
               stop_requested: Callable[[], bool] | None = None,
               existing_results: dict[str, dict] | None = None,
+              stage_progress: Callable[[dict], None] | None = None,
               evaluate: bool = False) -> dict:
     """Process deterministically, skip duplicates, and continue after failures."""
     ordered = sorted(items, key=lambda item: (item.filename.casefold(), item.safe_source_id))
@@ -564,6 +920,17 @@ def run_batch(items: list[IntakeFile], mode: str = service.DEFAULT_MODE,
     seen = set()
     results = []
     for index, item in enumerate(ordered, 1):
+        def document_progress(event: dict) -> None:
+            if stage_progress:
+                stage_progress({
+                    "document_number": index,
+                    "total_documents": len(ordered),
+                    "document": item.filename,
+                    **event,
+                })
+
+        document_progress({"stage": ProcessingStage.QUEUED.value,
+                           "message": "Document queued"})
         if stop_requested and stop_requested():
             result = _failed_result(item, "Batch stopped before this document.", status="CANCELLED")
         elif item.safe_source_id in existing_results:
@@ -574,10 +941,15 @@ def run_batch(items: list[IntakeFile], mode: str = service.DEFAULT_MODE,
             result = _failed_result(item, "File is not routed to document processing.", status="SKIPPED")
         else:
             try:
-                result = process(item, mode)
+                result = (process_item(item, mode, progress=document_progress)
+                          if processor is None else process(item, mode))
             except Exception:
                 result = _failed_result(
                     item, "Document processing failed; other batch items continued.")
+        document_progress({
+            "stage": _final_stage(result["processing_status"]).value,
+            "message": result.get("last_stage_message") or result["processing_status"],
+        })
         seen.add(item.safe_source_id)
         results.append(result)
         if progress:
@@ -586,6 +958,7 @@ def run_batch(items: list[IntakeFile], mode: str = service.DEFAULT_MODE,
         "batch_job_id": _job_id(ordered, mode),
         "processing_status": _batch_status(results),
         "operating_mode": mode,
+        "mode_policy": mode_policy(mode),
         "documents": results,
         "summary": summarize_results(results),
         "evaluation": None,

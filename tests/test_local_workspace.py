@@ -457,6 +457,7 @@ def test_official_container_preserves_adapter_evidence_semantics(monkeypatch):
     item = inspect_content(
         "synthetic.001", _image_bytes("TIFF"), group_key="Group A")
     calls = []
+    stages = []
 
     monkeypatch.setattr(
         workspace, "local_ocr",
@@ -468,7 +469,7 @@ def test_official_container_preserves_adapter_evidence_semantics(monkeypatch):
         return _page_for_official(doc_id)
 
     monkeypatch.setattr(workspace, "structured_page", structured)
-    result = workspace.process_item(item)
+    result = workspace.process_item(item, progress=stages.append)
 
     assert len(calls) == 1 and calls[0][0] == "cms1500"
     assert calls[0][1]["preset"] == "balanced"
@@ -477,6 +478,9 @@ def test_official_container_preserves_adapter_evidence_semantics(monkeypatch):
     assert result["processing_status"] == "COMPLETED"
     assert result["evidence_semantics"] == "official_monochrome_adapter"
     assert result["escalation_summary"]["external_provider_calls"] == 0
+    assert workspace.ProcessingStage.LOCAL_RETRY.value in {
+        event["stage"] for event in stages
+    }
 
 
 def test_single_monochrome_cms1500_falls_back_to_official_adapter(monkeypatch):
@@ -509,6 +513,24 @@ def test_single_monochrome_cms1500_falls_back_to_official_adapter(monkeypatch):
         "reporting",
     }
     assert result["latency"]["unattributed_ms"] >= 0
+
+
+def test_official_marker_abstention_falls_through_to_normal_preprocessed_route(monkeypatch):
+    item = inspect_content("synthetic.png", _image_bytes())
+    calls = []
+    monkeypatch.setattr(workspace, "_red_router_abstains", lambda _item: True)
+    monkeypatch.setattr(
+        workspace, "_process_official_item",
+        lambda *args, **kwargs: calls.append(kwargs) or None,
+    )
+    monkeypatch.setattr(
+        workspace, "_default_page_processor", lambda *args: _receipt())
+
+    result = workspace.process_item(item)
+
+    assert calls[0]["require_detection"] is True
+    assert result["processing_status"] == "COMPLETED"
+    assert result["document_type"] == "cms1500"
 
 
 def _page_for_official(doc_id):
@@ -555,7 +577,7 @@ def test_partial_document_is_available_to_streamlit_document_selector():
     with pytest.raises(StopRendering):
         streamlit_app._render_local_document(
             probe, {"documents": [partial, failed]}, [])
-    assert probe.options == [partial]
+    assert probe.options == [partial, failed]
 
 
 def test_validation_rows_are_readable_and_not_raw_objects():
@@ -654,3 +676,157 @@ def test_workspace_job_unlocks_after_failure():
     assert result is None
     assert state["workspace_job_running"] is False
     assert "sensitive" not in state["workspace_job_error"]
+
+
+def test_stage_progress_exposes_local_retry_and_final_partial_state():
+    item = inspect_content("synthetic.png", _image_bytes())
+    stages = []
+
+    batch = workspace.run_batch(
+        [item],
+        processor=lambda _item, _mode: workspace.process_item(
+            item, page_processor=lambda *args: _unresolved_receipt()),
+        stage_progress=stages.append,
+    )
+
+    assert stages[0]["stage"] == workspace.ProcessingStage.QUEUED.value
+    assert stages[-1]["stage"] == workspace.ProcessingStage.PARTIAL.value
+    assert stages[-1]["document_number"] == 1
+    assert batch["documents"][0]["processing_stage"] == "PARTIAL"
+
+
+def test_operating_mode_changes_real_governor_policy_and_is_recorded():
+    assert workspace.mode_policy("economy")["accept_threshold"] < (
+        workspace.mode_policy("accuracy")["accept_threshold"]
+    )
+    item = inspect_content("synthetic.png", _image_bytes())
+
+    batch = workspace.run_batch(
+        [item], mode="accuracy", processor=lambda _item, _mode: workspace.process_item(
+            item, mode=_mode, page_processor=lambda *args: _receipt()))
+
+    assert batch["operating_mode"] == "accuracy"
+    assert batch["mode_policy"]["external_calls_enabled"] is False
+
+
+def test_coverage_excludes_inapplicable_and_is_not_accuracy():
+    item = inspect_content("synthetic.png", _image_bytes())
+    result = workspace.process_item(
+        item, page_processor=lambda *args: _inapplicable_receipt())
+
+    coverage = workspace.coverage_metrics(result)
+
+    assert coverage == {
+        "available": True,
+        "schema_fields": 1,
+        "applicable_fields": 0,
+        "inapplicable_fields": 1,
+        "fields_produced": 0,
+        "validated_fields": 0,
+        "unresolved_fields": 0,
+        "extraction_coverage": None,
+        "validated_coverage": None,
+        "confidence_distribution": {"high": 0, "medium": 0, "low": 0},
+    }
+    assert "accuracy" not in coverage
+
+
+def test_unknown_schema_reports_coverage_unavailable():
+    result = workspace._failed_result(
+        inspect_content("synthetic.png", _image_bytes()), "no schema",
+        status="FAILED_EXTRACTION")
+
+    assert workspace.coverage_metrics(result)["available"] is False
+
+
+def test_retry_document_replaces_result_and_preserves_prior_attempt_in_memory():
+    item = inspect_content("synthetic.png", _image_bytes())
+    failed = workspace._failed_result(item, "first failure")
+    batch = {
+        "batch_job_id": "batch-test", "processing_status": "COMPLETED_WITH_ERRORS",
+        "operating_mode": "balanced", "documents": [failed],
+        "summary": workspace.summarize_results([failed]), "evaluation": None,
+    }
+
+    retried = workspace.retry_document(
+        batch, item, processor=lambda _item, _mode: workspace.process_item(
+            item, page_processor=lambda *args: _receipt()))
+
+    document = retried["documents"][0]
+    assert document["processing_status"] == "COMPLETED"
+    assert document["retry_count"] == 1
+    assert document["_prior_results"][0]["processing_status"] == "FAILED"
+    assert document["retry_history"][0]["external_calls"] == 0
+
+
+def test_human_review_correction_revalidates_updates_output_and_audit():
+    item = inspect_content("synthetic.png", _image_bytes())
+    result = workspace.process_item(
+        item, page_processor=lambda *args: _unresolved_receipt())
+    queue = workspace.build_review_queue(result)
+
+    assert queue[0]["field_name"] == "patient_dob"
+    corrected = workspace.apply_human_review(
+        result, page=1, field_name="patient_dob", action="MARK_NOT_APPLICABLE",
+        value=None, reason="Synthetic field is not applicable")
+
+    field = corrected["fields"][0]["fields"]["patient_dob"]
+    assert field["state"] == "INAPPLICABLE"
+    assert corrected["unresolved_fields"] == 0
+    assert corrected["human_review_summary"]["required"] == 0
+    assert corrected["human_review_summary"]["completed"] == 1
+    assert corrected["review_audit"][-1]["action"] == "MARK_NOT_APPLICABLE"
+    assert "INAPPLICABLE" in workspace.export_document_json(corrected)
+
+    repeated = workspace.apply_human_review(
+        corrected, page=1, field_name="patient_dob", action="MARK_NOT_APPLICABLE",
+        value=None, reason="Synthetic field remains not applicable")
+    assert repeated["human_review_summary"] == {"required": 0, "completed": 1}
+
+
+def test_valid_human_edit_is_exported_as_human_corrected_without_external_call():
+    item = inspect_content("synthetic.png", _image_bytes())
+    page = PageResult("safe", "p1", "cms1500", quality_score=0.9)
+    field = FieldResult("safe", "p1", "patient_name", None,
+                        FieldState.ESCALATE, 0.2)
+    field.attempts = [Attempt("primary_ocr", "stub", None, 0.2)]
+    page.fields = {"patient_name": field}
+    page.decisions = {"patient_name": [("ESCALATE", "synthetic unresolved")]}
+    receipt = service.build_receipt(
+        page, [], "balanced", 10.0, source_kind="local_workspace")
+    result = workspace.process_item(item, page_processor=lambda *args: receipt)
+
+    corrected = workspace.apply_human_review(
+        result, page=1, field_name="patient_name", action="EDIT_VALUE",
+        value="DOE, JANE", reason="Synthetic visual confirmation")
+
+    field = corrected["fields"][0]["fields"]["patient_name"]
+    assert field["state"] == "ACCEPT_WITH_OVERRIDE"
+    assert field["override"]["resolution"] == "HUMAN_CORRECTED"
+    assert corrected["escalation_summary"]["external_provider_calls"] == 0
+    assert "DOE, JANE" in workspace.export_document_json(corrected)
+    assert "DOE, JANE" in workspace.export_document_csv(corrected)
+
+
+def test_mode_changes_multimodal_field_eligibility_without_enabling_calls():
+    item = inspect_content("synthetic.png", _image_bytes())
+
+    def receipt(mode):
+        page = PageResult("safe", "p1", "cms1500", quality_score=0.9)
+        field = FieldResult("safe", "p1", "patient_city", "SYNTHETIC CITY",
+                            FieldState.ESCALATE, 0.2)
+        field.attempts = [Attempt("primary_ocr", "stub", field.value, 0.2)]
+        page.fields = {"patient_city": field}
+        page.decisions = {"patient_city": [("ESCALATE", "synthetic unresolved")]}
+        return service.build_receipt(
+            page, [], mode, 10.0, source_kind="local_workspace")
+
+    economy = workspace.process_item(
+        item, mode="economy", page_processor=lambda *args: receipt("economy"))
+    accuracy = workspace.process_item(
+        item, mode="accuracy", page_processor=lambda *args: receipt("accuracy"))
+
+    assert economy["provider_escalations"][0]["multimodal_eligible"] is False
+    assert accuracy["provider_escalations"][0]["multimodal_eligible"] is True
+    assert economy["escalation_summary"]["external_provider_calls"] == 0
+    assert accuracy["escalation_summary"]["external_provider_calls"] == 0
