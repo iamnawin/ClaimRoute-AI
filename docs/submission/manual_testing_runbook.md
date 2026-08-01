@@ -1,6 +1,7 @@
 # ClaimRoute AI manual testing runbook
 
-Status: manually validated on `integrate/final-submission` from baseline `68f7bf3` on 2026-08-01.
+Status: local workspace validated on `feat/local-intake-workspace` from baseline `1cc8d0b` on
+2026-08-01.
 
 This runbook separates safe synthetic and declared development work from protected organiser
 inputs. It never requires a real provider, OpenRouter, a network call, or a holdout rerun.
@@ -39,7 +40,7 @@ field values and source filenames are not.
 Open PowerShell and establish the repository state:
 
 ```powershell
-Set-Location "D:\AI-Workspace\hackathon 2026\claims-engine"
+Set-Location "<repository-root>"
 git status --short --branch
 git branch --show-current
 git log --oneline -8
@@ -65,6 +66,21 @@ uv run --python .venv\Scripts\python.exe python -m pytest tests\test_day10.py te
 These tests do not read the organiser folder. They cover upload validation, UI workflows, final and
 audit JSON separation, multipage TIFF decoding, Tier B selection logic, structured output, and
 resumable synthetic batch receipts.
+
+Local-workspace focused tests:
+
+```powershell
+uv run --python .venv\Scripts\python.exe python -m pytest tests\test_local_intake.py tests\test_local_workspace.py tests\test_day10.py tests\test_day11_ui.py tests\test_official_dataset.py -q
+```
+
+Full regression suite:
+
+```powershell
+uv run --python .venv\Scripts\python.exe python -m pytest -q
+```
+
+Validated result: `233 passed, 1 skipped`. The skip is the Windows symbolic-link test when link
+creation privileges are unavailable; traversal still uses `followlinks=False`.
 
 ## Manual validation receipt
 
@@ -103,13 +119,57 @@ returned HTTP `200` with body `ok`, after which the process was stopped.
 | Tier B control | Masked selection fixtures and committed aggregate receipt | Run focused pytest; parse only `per_tier.B` presence read-only | Selection/attachment contracts pass; receipt remains readable | Tests passed and Tier B committed section parsed | PASS | Pytest console; committed receipt unchanged | No Tier-B-only official runner exists | No |
 | Tier C control | Frozen aggregate receipt only | Parse the frozen receipt fields read-only; do not invoke the holdout module | Existing receipt readable with external-call field; no rerun | Receipt parsed; no Tier C document or holdout runner accessed | PASS | `eval/results/official_ub04_holdout_summary.json` unchanged | Consumed holdout must never be rerun | No |
 | Tier D control | Committed aggregate receipt only | Parse only `per_tier.D` presence read-only | Existing limited Tier D aggregate remains readable | Tier D committed section parsed; no fresh official evaluator run | PASS | `eval/official/results/official_sample_summary.json` unchanged | No split or Tier-D-only development command exists | No |
-| Synthetic automated folder demo | Fixed `data/generated/<form>/<tier>/...` calibration tree | Use the two Day 8 commands below only in a disposable repository copy | Finite discovery, processing, resume, JSONL records, and JSON/CSV summary | Contract passed in tests; fresh batch deliberately not run on this evidence-bearing branch | BLOCKED | Disposable copy's `eval/results/day8_escalation_*` files | Protection boundary/configuration constraint, not an application defect | Yes: terminal completion plus summary table |
+| Synthetic automated folder demo | Temporary folder containing converted bundled synthetic files | Start `local_workspace`; scan folder; select files; process; download JSON/CSV | Finite recursive discovery, processing, continue-on-error, and summary | Four documents/five pages completed; corrupt file isolated; exports parsed | PASS | Browser downloads only; temporary proof folder auto-deleted | Not a watcher; keep demo inputs synthetic | Yes: inventory, queue, and summary |
 | Visual browser capture during this validation | Local Streamlit app only | Connect the integrated validation browser | Interactive screenshots can be captured | Browser runtime exited because a user-level Node ESM setting conflicts with its bootstrap; app health and `AppTest` remained successful | BLOCKED | None | Configuration issue in validation tooling, not ClaimRoute | Yes: capture manually before demo |
 
-No executed test failed. The two `BLOCKED` rows are classified as configuration/protection
-constraints: the first preserves fixed evidence paths, and the second affects only the validation
-browser bootstrap. Neither is evidence of a ClaimRoute application defect. No user-error condition
-was observed.
+No ClaimRoute test failed. The remaining `BLOCKED` row affects only the integrated validation
+browser bootstrap and is a tooling configuration issue, not an application defect.
+
+### Local workspace validation receipt
+
+| Test | Exact input | Expected result | Actual result | Status | Output/warning |
+|---|---|---|---|---|---|
+| Single PNG | Bundled no-PHI clean synthetic page | One document/page completes locally | Completed; zero external calls | PASS | In-memory result; local download available |
+| Single TIFF | CCITT Group 4 conversion of the bundled synthetic page | TIFF signature detected and one page processed | Detected `TIFF`, one page, completed | PASS | No extension trust |
+| Multipage TIFF | Two-frame CCITT conversion of the bundled synthetic page | Both pages decode and process | Two pages completed | PASS | UI page limit defaults to 100 in local mode |
+| PDF | One-page PDF rendered from the bundled synthetic page | PDF rasterizes and processes through OCR | One page completed | PASS | Raster OCR only; no native text extraction claim |
+| Numeric extension | Byte-for-byte TIFF content named with `.001` | TIFF accepted by signature without rename | Detected as TIFF claim document and completed | PASS | Duplicate content is processed once per batch |
+| Mixed inventory | PNG, TIFF, multipage TIFF, PDF, numeric TIFF, generated expected JSON, synthetic specification, corrupt TIFF | Every file receives one role/status before processing | Claim, expected-output, specification, duplicate, and error states displayed correctly | PASS | Temporary directory auto-deleted |
+| Continue on error | Corrupt TIFF plus valid documents | Corrupt item fails; later items continue | One failed; four succeeded/five pages completed | PASS | Decoder error is value-free |
+| Dataset evaluation | Generated expected JSON matching the bundled PNG | Ground truth enters after extraction; safe accuracy receipt emitted | 44/44 fields and 21/21 critical fields; stage labelled `post_extraction_only` | PASS | Synthetic proof only |
+| JSON/CSV exports | Same mixed batch | Both exports parse and omit absolute paths/private linkage text | Valid JSON, eight CSV rows, absolute path excluded | PASS | Raw synthetic fields remain local |
+| Approved organiser development inventory | Three Tier A and two Tier C manifest-declared development containers only | Numeric extensions recognized as TIFF claims; hashes match | Five/five recognized; hashes matched; five pages | PASS | Holdout containers opened: zero; filenames/values not recorded |
+
+The first fixture-generation attempt used RGB pixels with CCITT Group 4 and failed before
+ClaimRoute ran. Recreating the synthetic fixture as 1-bit pixels resolved it. Classification:
+fixture-generation user error, not an application defect.
+
+## Localhost workspace workflow
+
+Start the local workspace in PowerShell:
+
+```powershell
+Set-Location "<repository-root>"
+$env:CLAIMROUTE_APP_MODE = "local_workspace"
+uv run --python .venv\Scripts\python.exe python -m streamlit run app\streamlit_app.py
+```
+
+Open `http://localhost:8501`.
+
+1. Choose **Process Documents** when no ground truth is present, or **Evaluate Dataset** when the
+   inventory contains generated/authorized expected output.
+2. Choose **Single file**, **Multiple files**, or **Local folder**.
+3. For a folder, enter its absolute local path and click **Scan folder**. The path control exists
+   only in `local_workspace` mode.
+4. Review role, detected format, pages, status, group, and warning before processing.
+5. Select all or a subset under **Files included in this run**.
+6. Click **Process selected files**. One corrupt document does not stop later documents.
+7. Inspect the queue, document result, validations, retries/governor, cost/latency, and summary.
+8. Download document or batch JSON/CSV.
+
+Expected-output and specification files are never sent through OCR. Evaluation parsing, linkage,
+normalization, and comparison start only after document extraction completes. External escalation
+is disabled. Do not expose this mode through a public URL.
 
 ## Testing matrix
 
@@ -174,21 +234,23 @@ After a run completes:
 6. In **Benchmark**, retain the warning that the display is the frozen synthetic benchmark with an
    offline-oracle projection, not official or real-claim evidence.
 
-### Actual upload support
+### Actual upload support by environment mode
 
-| Input or behavior | Current support | Evidence from code |
+| Input or behavior | Public/synthetic mode | Local workspace mode |
 |---|---|---|
-| PNG | Yes | Uploader and service allow PNG |
-| JPEG/JPG | Yes | Uploader and service allow JPEG/JPG |
-| TIFF | Yes, single page only | TIFF allowed; service rejects page counts above one |
-| Multipage TIFF in Streamlit | No | `MAX_PAGE_COUNT = 1` and validation rejects additional frames |
-| PDF | No | PDF is absent from allowed extensions and formats |
-| Organiser-data upload | No safe support | UI requires synthetic/no-PHI attestation; organiser documents are prohibited |
-| Multiple-file upload | No | `file_uploader` is configured for one file |
-| Batch folder upload | No | No folder selector, multi-file uploader, or batch UI path exists |
+| PNG | Yes, attested synthetic only | Yes, content-detected |
+| JPEG/JPG | Yes, attested synthetic only | Yes, content-detected |
+| TIFF | Yes, one page | Yes, all frames up to configured limit |
+| Multipage TIFF | Rejected by one-page public limit | Yes |
+| PDF | No | Yes, rasterized locally then OCRed |
+| Numeric extension TIFF/CCITT | No | Yes, accepted by TIFF signature |
+| Organiser data | Prohibited | Authorized development/local use only |
+| Multiple-file upload | No | Yes |
+| Recursive folder scan | No | Yes, symbolic links not followed |
+| Dataset evaluation | Frozen displays only | Yes, post-extraction comparison |
 
-The local official adapter can decode multipage TIFFs, but that does not make multipage TIFF a
-Streamlit feature.
+Public mode intentionally remains the restricted single-file demo. Local capability must not be
+used to justify uploading organiser data to a public deployment.
 
 ## Official A/B/C/D controls
 
@@ -241,14 +303,16 @@ Classification is based on current code and tests, not intended architecture.
 
 | Capability | Classification | Exact boundary |
 |---|---|---|
-| Process a single file by path | PARTIAL | `read_tiff_pages(path)` accepts a TIFF path and diagnostics open fixed paths, but there is no generic end-to-end single-file CLI |
-| Process an entire folder | PARTIAL | Official benchmark consumes fixed `Group A`-`Group D` directories and synthetic harnesses consume a fixed generated-data layout; no arbitrary-folder CLI exists |
-| Recursively discover files | NOT_IMPLEMENTED | Official discovery uses one-level `iterdir`; synthetic evaluation uses split IDs and fixed paths; no `rglob` ingestion path exists |
+| Process a single file | IMPLEMENTED_AND_TESTED | Local UI accepts one content-detected file and exports document JSON/CSV |
+| Process multiple files | IMPLEMENTED_AND_TESTED | Local UI accepts multiple files and runs a deterministic batch |
+| Process an entire folder | IMPLEMENTED_AND_TESTED | Local-only path input inventories and processes a selected folder subset |
+| Recursively discover files | IMPLEMENTED_AND_TESTED | `scan_folder()` traverses deterministically with symbolic-link following disabled |
 | Multipage TIFF page extraction | IMPLEMENTED_AND_TESTED | `read_tiff_pages()` copies every frame; `test_tiff_reader_decodes_all_frames_without_retaining_file_handle` covers three frames |
-| Resumable batch processing | IMPLEMENTED_AND_TESTED | Day 8 and Day 11 use append-once JSONL keys and skip completed targets; both have resumability tests |
-| Structured JSON output | IMPLEMENTED_AND_TESTED | UI final JSON and evaluator JSON/JSONL contracts have tests |
+| PDF page extraction | IMPLEMENTED_AND_TESTED | `pypdfium2` rasterizes every page; both scanned and text PDFs use OCR |
+| Resumable batch processing | PARTIAL | Completed results can be reused in-session; there is no persistent job store |
+| Structured JSON output | IMPLEMENTED_AND_TESTED | Document and batch JSON contracts have tests |
 | Audit JSON output | IMPLEMENTED_AND_TESTED | `service.export_json(..., audit=True)` and UI download buttons are tested |
-| CSV output | IMPLEMENTED_AND_TESTED | Day 8 summary CSV shape is tested; frozen Day 11 also emits CSV receipts |
+| CSV output | IMPLEMENTED_AND_TESTED | Document-field and batch-summary CSV downloads are tested |
 | EDI output | NOT_IMPLEMENTED | NSF-320 and UB-192 are input parsers only; no 837/835 or other EDI writer exists |
 | Folder watching or automatic ingestion | NOT_IMPLEMENTED | No watcher, polling loop, filesystem event handler, queue consumer, or new-file daemon exists |
 
@@ -257,36 +321,20 @@ finite evaluation pass.
 
 ## Demo-safe batch workflow
 
-The closest existing automation is the Day 8 synthetic calibration harness. It discovers document
-IDs from the calibration split, resolves their files in the fixed generated-data tree, skips
-completed keys, processes pages, writes one JSON record per page/field to JSONL, and produces
-aggregate JSON/CSV accuracy and cost summaries.
+Use the localhost workspace rather than an evaluator harness:
 
-It does **not** accept an arbitrary folder argument and does **not** write one standalone JSON file
-per document. A line in `day8_escalation_pages.jsonl` is the per-document/page JSON record.
+1. Prepare a folder outside Git containing several generated/synthetic claims and, optionally,
+   their generated expected JSON.
+2. Start `local_workspace` mode with the command above.
+3. Choose **Local folder**, scan, and show the mixed inventory.
+4. Select the claim documents and expected JSON only.
+5. Use **Process Documents** first to prove ground-truth independence.
+6. Repeat with **Evaluate Dataset** to show post-extraction accuracy.
+7. Show the queue, aggregate pages/success/failure/unresolved/cost/throughput, and download JSON/CSV.
 
-Because its output paths are fixed and this branch already contains committed evidence, demonstrate
-a fresh run only inside a disposable copy of the repository. In that copy, preserve or move aside
-the copied Day 8 receipts, ensure the same synthetic `data/generated` tree is present, then run:
-
-```powershell
-uv run --python .venv\Scripts\python.exe python -m eval.day8_escalation --tiers clean noisy ugly --limit 6 --provider offline-oracle
-uv run --python .venv\Scripts\python.exe python -m eval.day8_escalation --tiers clean noisy ugly --summarize --provider offline-oracle
-```
-
-Expected disposable-copy outputs:
-
-```text
-eval/results/day8_escalation_rows.jsonl
-eval/results/day8_escalation_pages.jsonl
-eval/results/day8_escalation_ledger.jsonl
-eval/results/day8_escalation_summary.json
-eval/results/day8_escalation_summary.csv
-```
-
-This is the safest existing demonstration of finite discovery, processing, resumability, structured
-records, and aggregate accuracy/cost. It is not arbitrary-folder ingestion, per-document file
-emission, or continuous watching. Do not use the frozen Day 11 runner for this demo.
+This path accepts an arbitrary local folder, processes a finite selected inventory, and retains no
+raw files beyond the browser session. It is not continuous watching or automatic ingestion. Do not
+use Day 8 or frozen Day 11 output paths for the demo.
 
 ## Expected output interpretation
 
@@ -294,11 +342,9 @@ emission, or continuous watching. Do not use the frozen Day 11 runner for this d
 - Audit JSON: receipt metadata, operating-mode assumptions, funnel, cost bases, projections, token
   usage, latency, field candidates, validators, processing paths, governor decisions, and escalation
   records.
-- Day 8 rows JSONL: one line per escalated field receipt.
-- Day 8 pages JSONL: one line per processed document-tier page with accuracy, routing, cost, and
-  latency aggregates.
-- Day 8 ledger JSONL: append-only operation costs and timings.
-- Day 8 summary JSON/CSV: per-tier and blended aggregate results.
+- Local document JSON/CSV: one selected document's structured fields and evidence summary.
+- Local batch JSON/CSV: one row/result per inventory item plus aggregate status, accuracy when
+  evaluated, unresolved fields, cost, latency, and throughput.
 - Official safe receipts: opaque identifiers, field names, counts, booleans, timings, and aggregate
   costs only; no raw expected or OCR values.
 
@@ -328,11 +374,11 @@ OCR candidates and latency may vary by workstation. Do not overwrite evidence or
 pipeline. Present the live run as a manual synthetic check and use committed frozen receipts for
 submission claims.
 
-### A batch command reports zero pages
+### A local batch reports zero pages
 
-The harness is resumable and skips keys already present in its JSONL outputs. This is expected in a
-copy that still contains completed Day 8 receipts. Use a disposable copy prepared for the demo; do
-not delete or truncate evidence in the submission branch.
+Review the inventory roles and selected IDs. Expected output, specifications, attachments,
+unsupported files, unknown files, and duplicate hashes are not processed as claim pages. A corrupt
+container remains visible as a failed item while later documents continue.
 
 ### Official development command cannot find the organiser root
 
