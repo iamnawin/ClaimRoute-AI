@@ -6,6 +6,7 @@ import io
 import json
 
 from PIL import Image
+from streamlit.testing.v1 import AppTest
 
 from app import service, workspace
 from app.intake import FileRole, inspect_content
@@ -129,6 +130,10 @@ def test_json_and_csv_exports_exclude_private_and_absolute_paths(tmp_path):
     assert "_linkage_text" not in json_text
     assert json.loads(json_text)["summary"]["success"] == 1
     assert list(csv.DictReader(io.StringIO(csv_text)))[0]["processing_status"] == "COMPLETED"
+    document = batch["documents"][0]
+    assert json.loads(workspace.export_document_json(document))["source_file"] == "synthetic.png"
+    assert list(csv.DictReader(io.StringIO(workspace.export_document_csv(document))))[0][
+        "field_name"] == "patient_name"
 
 
 def test_evaluation_with_synthetic_expected_output_is_post_extraction_only():
@@ -212,3 +217,14 @@ def _page_for_official(doc_id):
     page.fields = {"patient_name": field}
     page.decisions = {"patient_name": [("ACCEPT", "test")]}
     return page
+
+
+def test_local_workspace_ui_exposes_intake_without_public_controls(monkeypatch):
+    monkeypatch.setenv("CLAIMROUTE_APP_MODE", "local_workspace")
+    app = AppTest.from_file("app/streamlit_app.py", default_timeout=30)
+    app.run(timeout=30)
+    assert not app.exception
+    assert any(item.value == "Intake" for item in app.subheader)
+    assert [item.label for item in app.radio] == ["Workflow", "Input source"]
+    assert len(app.get("file_uploader")) == 1
+    assert not app.sidebar

@@ -1,6 +1,7 @@
 """ClaimRoute Day 10 Streamlit demo."""
 from __future__ import annotations
 
+import os
 from pathlib import Path
 import sys
 
@@ -9,7 +10,18 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from app import service
+from app import service, workspace
+from app.intake import FileRole, IntakeError, decode_pages, inspect_content, scan_folder
+
+
+def app_mode(environ=None) -> str:
+    source = environ if environ is not None else os.environ
+    value = source.get("CLAIMROUTE_APP_MODE", "public_synthetic")
+    return "local_workspace" if value == "local_workspace" else "public_synthetic"
+
+
+def local_folder_enabled(environ=None) -> bool:
+    return app_mode(environ) == "local_workspace"
 
 
 def _fmt_pct(value) -> str:
@@ -284,11 +296,225 @@ def _render_benchmark(st):
     st.caption(calibration["evidence_boundary"])
 
 
+def _inventory_rows(items):
+    return [{
+        "Filename": item.filename,
+        "Role": item.role.value,
+        "Format": item.source_format,
+        "Pages": item.page_count,
+        "Status": item.status,
+        "Group": item.group_key,
+        "Warning": item.warning,
+    } for item in items]
+
+
+def _uploaded_items(uploaded_files, max_pages):
+    return [inspect_content(
+        uploaded.name, uploaded.getvalue(), max_pages=max_pages,
+    ) for uploaded in (uploaded_files or [])]
+
+
+def _render_local_document(st, result, items):
+    st.subheader("Document result")
+    completed = [row for row in result.get("documents", [])
+                 if row["processing_status"] == "COMPLETED"]
+    if not completed:
+        st.info("Process a supported document to inspect its result.")
+        return
+    selected = st.selectbox(
+        "Document", completed,
+        format_func=lambda row: f"{row['source_file']} · {row['processing_status']}",
+        key="workspace_result_document",
+    )
+    source = next((item for item in items
+                   if item.safe_source_id == selected["safe_source_id"]), None)
+    left, right = st.columns([1, 1.4])
+    with left:
+        if source and source.role == FileRole.CLAIM_DOCUMENT:
+            try:
+                st.image(decode_pages(source.content, source.source_format)[0],
+                         caption="First decoded page", width="stretch")
+            except IntakeError:
+                st.warning("Preview is unavailable; processing metadata remains visible.")
+        st.metric("Pages", selected["page_count"])
+        st.metric("Unresolved fields", selected["unresolved_fields"])
+        st.metric("Latency", f"{selected['latency']['milliseconds'] / 1000:.2f} s")
+    with right:
+        field_rows = []
+        for page in selected["fields"]:
+            for name, field in page["fields"].items():
+                field_rows.append({
+                    "Page": page["page"], "Field": name,
+                    "Value": field.get("value"), "State": field.get("state"),
+                    "Confidence": field.get("confidence"),
+                    "Provenance": ", ".join(
+                        entry.get("engine", "") for entry in field.get("provenance", [])),
+                })
+        st.dataframe(field_rows, hide_index=True, width="stretch")
+    evidence_tabs = st.tabs(["Validations", "Retries & governor", "Cost & latency"])
+    with evidence_tabs[0]:
+        st.dataframe(selected["validations"], hide_index=True, width="stretch")
+    with evidence_tabs[1]:
+        st.write({
+            "governor": selected["governor_summary"],
+            "retry": selected["retry_summary"],
+            "escalation": selected["escalation_summary"],
+        })
+    with evidence_tabs[2]:
+        st.write({
+            "measured_cost": selected["measured_cost"],
+            "projected_cost": selected["projected_cost"],
+            "latency": selected["latency"],
+        })
+    json_column, csv_column = st.columns(2)
+    json_column.download_button(
+        "Download document JSON", workspace.export_document_json(selected),
+        file_name=f"{selected['safe_source_id']}-document.json",
+        mime="application/json", width="stretch",
+    )
+    csv_column.download_button(
+        "Download document CSV", workspace.export_document_csv(selected),
+        file_name=f"{selected['safe_source_id']}-fields.csv",
+        mime="text/csv", width="stretch",
+    )
+
+
+def _render_local_summary(st, batch):
+    st.subheader("Batch and evaluation summary")
+    if not batch:
+        st.info("Run the selected inventory to create a batch summary.")
+        return
+    summary = batch["summary"]
+    columns = st.columns(5)
+    for column, (label, value) in zip(columns, (
+        ("Files", summary["files"]), ("Pages", summary["pages"]),
+        ("Succeeded", summary["success"]), ("Failed", summary["failed"]),
+        ("Unresolved", summary["unresolved_fields"]),
+    )):
+        column.metric(label, value)
+    st.write({
+        "document_types": summary["document_types"],
+        "measured_cost_usd": summary["measured_cost_usd"],
+        "projected_cost_usd": summary["projected_cost_usd"],
+        "throughput_pages_per_minute": summary["throughput_pages_per_minute"],
+    })
+    if batch.get("evaluation"):
+        evaluation = batch["evaluation"]
+        left, right = st.columns(2)
+        left.metric("Field accuracy", _fmt_pct(evaluation["accuracy"] or 0))
+        right.metric("Critical accuracy", _fmt_pct(evaluation["critical_accuracy"] or 0))
+        st.caption("Expected output was parsed and compared only after extraction completed.")
+    json_column, csv_column = st.columns(2)
+    json_column.download_button(
+        "Download batch JSON", workspace.export_batch_json(batch),
+        file_name=f"{batch['batch_job_id']}.json", mime="application/json", width="stretch",
+    )
+    csv_column.download_button(
+        "Download batch CSV", workspace.export_batch_csv(batch),
+        file_name=f"{batch['batch_job_id']}.csv", mime="text/csv", width="stretch",
+    )
+
+
+def _local_workspace(st) -> None:
+    st.markdown(
+        '<div class="cr-header"><h1>ClaimRoute local workspace</h1>'
+        '<p>Inspect, process, and evaluate local claim datasets without transmitting files. '
+        'Raw values remain in this browser session; external escalation is disabled.</p></div>',
+        unsafe_allow_html=True,
+    )
+    st.success("Local workspace mode · folder access enabled · external providers disabled")
+    st.warning("Authorized local data only. Do not expose this workspace through a public URL.")
+
+    st.subheader("Intake")
+    workflow = st.radio(
+        "Workflow", ["Process Documents", "Evaluate Dataset"], horizontal=True,
+        help="Evaluation parses expected output only after document extraction finishes.",
+    )
+    source = st.radio(
+        "Input source", ["Single file", "Multiple files", "Local folder"], horizontal=True,
+    )
+    max_pages = int(os.environ.get("CLAIMROUTE_MAX_PAGES", "100"))
+    items = []
+    if source == "Single file":
+        uploaded = st.file_uploader("Choose one local file", type=None, key="workspace_single")
+        items = _uploaded_items([uploaded] if uploaded else [], max_pages)
+    elif source == "Multiple files":
+        uploaded = st.file_uploader(
+            "Choose local files", type=None, accept_multiple_files=True, key="workspace_multiple")
+        items = _uploaded_items(uploaded, max_pages)
+    else:
+        folder = st.text_input("Local dataset/folder path", key="workspace_folder_path")
+        if st.button("Scan folder", type="primary"):
+            try:
+                st.session_state["workspace_inventory"] = scan_folder(
+                    folder, max_pages=max_pages)
+            except IntakeError as exc:
+                st.error(str(exc))
+        items = st.session_state.get("workspace_inventory", [])
+    if source != "Local folder":
+        st.session_state["workspace_inventory"] = items
+
+    st.subheader("File inventory")
+    if not items:
+        st.info("Add files or scan a folder to build the inventory.")
+        _render_local_summary(st, st.session_state.get("workspace_batch"))
+        return
+    st.dataframe(_inventory_rows(items), hide_index=True, width="stretch")
+    defaults = [item.safe_source_id for item in items
+                if item.role == FileRole.CLAIM_DOCUMENT or (
+                    workflow == "Evaluate Dataset" and item.role == FileRole.EXPECTED_OUTPUT)]
+    selected_ids = st.multiselect(
+        "Files included in this run", [item.safe_source_id for item in items],
+        default=defaults,
+        format_func=lambda source_id: next(
+            item.filename for item in items if item.safe_source_id == source_id),
+    )
+    selected = [item for item in items if item.safe_source_id in selected_ids]
+
+    st.subheader("Processing queue")
+    st.caption("Processing is synchronous. Optional stop is honored between documents.")
+    stop_after_first = st.checkbox("Stop after the first document in this run")
+    queue_slot = st.empty()
+    progress_bar = st.progress(0)
+    if st.button("Process selected files", type="primary", disabled=not selected):
+        processed = {"count": 0}
+
+        def on_progress(index, total, result):
+            processed["count"] = index
+            progress_bar.progress(index / total)
+            queue_slot.dataframe([{
+                "Document": result["source_file"],
+                "Status": result["processing_status"],
+                "Warning": "; ".join(result["warnings"]),
+            }], hide_index=True, width="stretch")
+
+        batch = workspace.run_batch(
+            selected,
+            evaluate=workflow == "Evaluate Dataset",
+            progress=on_progress,
+            stop_requested=lambda: stop_after_first and processed["count"] >= 1,
+        )
+        st.session_state["workspace_batch"] = batch
+    batch = st.session_state.get("workspace_batch")
+    if batch:
+        queue_slot.dataframe([{
+            "Document": row["source_file"], "Status": row["processing_status"],
+            "Warning": "; ".join(row["warnings"]),
+        } for row in batch["documents"]], hide_index=True, width="stretch")
+        _render_local_document(st, batch, items)
+    else:
+        st.info("Select supported claim documents, then start the queue.")
+    _render_local_summary(st, batch)
+
+
 def main() -> None:
     import streamlit as st
 
     st.set_page_config(page_title="ClaimRoute AI", page_icon="CR", layout="wide")
     _style(st)
+    if app_mode() == "local_workspace":
+        _local_workspace(st)
+        return
     st.markdown(
         '<div class="cr-header"><h1>ClaimRoute AI</h1>'
         '<p><strong>Interactive synthetic-claim demo.</strong> Inspect how each field earns '

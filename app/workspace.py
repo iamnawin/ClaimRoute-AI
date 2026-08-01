@@ -420,6 +420,28 @@ def export_batch_json(batch: dict) -> str:
     return json.dumps(_public(batch), indent=2, sort_keys=True)
 
 
+def export_document_json(result: dict) -> str:
+    return json.dumps(_public(result), indent=2, sort_keys=True)
+
+
+def export_document_csv(result: dict) -> str:
+    stream = io.StringIO(newline="")
+    fieldnames = ["page", "field_name", "value", "state", "confidence", "cost_usd"]
+    writer = csv.DictWriter(stream, fieldnames=fieldnames)
+    writer.writeheader()
+    for page in result.get("fields", []):
+        for name, field in page.get("fields", {}).items():
+            writer.writerow({
+                "page": page["page"],
+                "field_name": name,
+                "value": field.get("value") if isinstance(field, dict) else field,
+                "state": field.get("state") if isinstance(field, dict) else "",
+                "confidence": field.get("confidence") if isinstance(field, dict) else "",
+                "cost_usd": field.get("cost_usd") if isinstance(field, dict) else "",
+            })
+    return stream.getvalue()
+
+
 def export_batch_csv(batch: dict) -> str:
     stream = io.StringIO(newline="")
     fieldnames = [
