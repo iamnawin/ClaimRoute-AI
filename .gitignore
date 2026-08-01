@@ -43,3 +43,13 @@ eval/official/diagnostics/
 eval/results/_smoke_*.jsonl
 eval/results/vision_cache.jsonl
 eval/frozen/_work/
+# Submission artifacts are built locally and delivered by email/upload, never
+# committed. The control documents in docs/submission/ are tracked; the binaries
+# they describe are not. See docs/submission/PACKAGING_RUNBOOK.md.
+submission/**/*.pdf
+submission/**/*.mp4
+submission/**/*.xlsx
+submission/**/*.pptx
+submission/**/*.docx
+submission/**/*.zip
+!submission/**/.gitkeep
