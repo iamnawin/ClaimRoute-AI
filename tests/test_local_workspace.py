@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import csv
+import inspect
 import io
 import json
 
@@ -93,28 +94,41 @@ def test_processing_without_ground_truth_uses_unified_contract():
     assert result["escalation_summary"]["external_provider_calls"] == 0
 
 
-def test_empty_extraction_is_partial_not_completed():
+def test_empty_extraction_is_failed_with_numeric_unresolved_count():
     item = inspect_content("synthetic.png", _image_bytes())
     result = workspace.process_item(
         item, page_processor=lambda *args: _empty_receipt())
 
-    assert result["processing_status"] == "PARTIAL"
-    assert result["unresolved_fields"] is None
+    assert result["processing_status"] == "FAILED_EXTRACTION"
+    assert result["unresolved_fields"] == 0
     assert result["warnings"] == [
-        "Document classified as unstructured; no fields were extracted."
+        "Document classified as unstructured; the page decoded but no fields "
+        "were extracted, so it was not successfully processed."
     ]
 
 
-def test_partial_extraction_is_not_counted_as_batch_success():
+def test_failed_extraction_only_batch_reports_completed_with_errors():
     item = inspect_content("synthetic.png", _image_bytes())
     batch = workspace.run_batch(
         [item], processor=lambda item, mode: workspace.process_item(
             item, page_processor=lambda *args: _empty_receipt()))
 
-    assert batch["processing_status"] == "COMPLETED_WITH_REVIEW"
+    assert batch["processing_status"] == "COMPLETED_WITH_ERRORS"
     assert batch["summary"]["success"] == 0
-    assert batch["summary"]["partial"] == 1
-    assert batch["summary"]["unresolved_fields"] is None
+    assert batch["summary"]["partial"] == 0
+    assert batch["summary"]["failed_extraction"] == 1
+    assert batch["summary"]["unresolved_fields"] == 0
+
+
+def test_summary_tolerates_legacy_none_unresolved_value():
+    result = workspace._failed_result(
+        inspect_content("synthetic.png", _image_bytes()), "legacy", status="PARTIAL")
+    result["unresolved_fields"] = None
+
+    summary = workspace.summarize_results([result])
+
+    assert summary["unresolved_fields"] == 0
+    assert isinstance(summary["unresolved_fields"], int)
 
 
 def test_unresolved_fields_are_partial_and_explicitly_pending_not_sent():
@@ -283,10 +297,8 @@ def test_fixed_width_expected_output_is_parsed_only_for_evaluation():
     assert isinstance(workspace.parse_expected_output(item), list)
 
 
-def test_official_group_detection_is_path_based_not_filename_based():
-    assert workspace._official_tier("Group A") == "A"
-    assert workspace._official_tier("root/Group C/nested") == "C"
-    assert workspace._official_tier("ordinary") is None
+def test_folder_tier_router_symbol_is_absent():
+    assert "_official" + "_tier" not in inspect.getsource(workspace)
 
 
 def test_official_container_preserves_adapter_evidence_semantics(monkeypatch):
@@ -366,6 +378,32 @@ def test_local_workspace_ui_exposes_intake_without_public_controls(monkeypatch):
     assert [item.label for item in app.radio] == ["Workflow", "Input source"]
     assert len(app.get("file_uploader")) == 1
     assert not app.sidebar
+
+
+def test_partial_document_is_available_to_streamlit_document_selector():
+    class StopRendering(Exception):
+        pass
+
+    class SelectorProbe:
+        def subheader(self, _label):
+            pass
+
+        def info(self, _message):
+            raise AssertionError("PARTIAL output was hidden")
+
+        def selectbox(self, _label, options, **_kwargs):
+            self.options = options
+            raise StopRendering
+
+    partial = {"processing_status": "PARTIAL", "source_file": "synthetic.png"}
+    failed = {"processing_status": "FAILED_EXTRACTION", "source_file": "empty.png"}
+    probe = SelectorProbe()
+
+    assert "PARTIAL" in workspace.PRODUCED_OUTPUT
+    with pytest.raises(StopRendering):
+        streamlit_app._render_local_document(
+            probe, {"documents": [partial, failed]}, [])
+    assert probe.options == [partial]
 
 
 def test_validation_rows_are_readable_and_not_raw_objects():
