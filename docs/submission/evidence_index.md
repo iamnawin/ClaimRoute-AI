@@ -20,3 +20,8 @@
 | `docs/licensing.md` | Installed dependency/license audit |
 | `docs/security_and_phi.md` | Data, PHI, secret, and provider boundary audit |
 | `docs/screenshots/day10_home.png` | Screenshot-safe UI proof |
+| `eval/official/results/official_sample_summary.json` | PHI-safe official Tier B page-selection receipt |
+| `eval/results/official_ub04_holdout_summary.json` | PHI-safe one-time official Tier C receipt |
+| `docs/evaluation/official_ub04_holdout.md` | Tier C denominator, results, failures, and evidence boundary |
+| `docs/submission/final_submission_package.md` | Final evidence-backed narrative, tables, roadmap, and readiness |
+| `docs/demo_script.md` | Three- and seven-minute scripts, judge Q&A, and backup plan |

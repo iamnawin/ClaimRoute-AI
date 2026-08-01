@@ -59,14 +59,16 @@ These are synthetic-test results, not real-claim or provider-accuracy claims. St
 `docs/submission/evidence_index.md` and `docs/submission/claims_register.md`; exact manifests and
 receipts are under `eval/frozen/`.
 
-## Official organiser sample
+## Official organiser evidence
 
 The separate local-only adapter under `eval/official/` decoded all 30 organiser TIFF containers
-(67 pages) and parsed the supplied NSF/UB expected-output records without committing source data or
-values. The first run is **not an authoritative official benchmark**: four record links abstained,
-and the legacy monochrome layouts do not align with the synthetic red-grid templates. No combined
-official score is published. See `docs/official_dataset_benchmark.md` for the PHI-safe receipt,
-limitations, organiser questions, and exact rerun command.
+(67 pages) without committing source data or values. No combined official score is published
+because four record links abstained. On deterministically linked evaluable Tier B items, 4/4 claim
+pages were selected and 15/15 attachments rejected. A separate one-time Tier C UB-04 holdout
+measured 36/42 primary normalized fields (85.714%), 36/63 extended fields (57.143%), 16/18 critical
+fields (88.889%), and 3/3 registrations under a provisional denominator policy, with zero external
+calls. These results are separate from the synthetic benchmark. See
+`docs/official_dataset_benchmark.md` and `docs/evaluation/official_ub04_holdout.md`.
 
 ## Licensing
 
