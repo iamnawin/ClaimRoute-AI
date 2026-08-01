@@ -14,6 +14,39 @@ from app import service, workspace
 from app.intake import FileRole, IntakeError, decode_pages, inspect_content, scan_folder
 
 
+BATCH_COUNTERS = {
+    "files": "Total files",
+    "pages": "Total pages",
+    "success": "Completed",
+    "partial": "Partial",
+    "failed_extraction": "Failed extraction",
+    "failed": "Failed",
+    "total_fields": "Total fields",
+    "accepted": "Accepted",
+    "accepted_with_flag": "Accepted with flag",
+    "retry_attempted": "Retry attempted",
+    "retry_resolved": "Retry resolved",
+    "unresolved_fields": "Unresolved",
+    "inapplicable": "Inapplicable",
+    "pending_multimodal": "Pending multimodal",
+    "multimodal_attempted": "Multimodal attempted",
+    "multimodal_failed": "Multimodal failed",
+    "human_review_required": "Human review required",
+    "external_calls": "External calls",
+}
+
+EVALUATION_COUNTERS = {
+    "documents_found": "Documents found",
+    "expected_records_found": "Expected records found",
+    "deterministic_pairs": "Deterministic pairs",
+    "ambiguous_pairs": "Ambiguous pairs",
+    "unmatched_documents": "Unmatched documents",
+    "unmatched_expected_records": "Unmatched expected records",
+    "evaluated_fields": "Evaluated fields",
+    "denominator": "Denominator",
+}
+
+
 def app_mode(environ=None) -> str:
     source = environ if environ is not None else os.environ
     value = source.get("CLAIMROUTE_APP_MODE", "public_synthetic")
@@ -53,6 +86,62 @@ def _validation_rows(validations: list[dict]) -> list[dict]:
                 "Severity": "ERROR" if verdict == "FAIL" else "INFO",
             })
     return rows
+
+
+def _yes_no(value) -> str:
+    return "Yes" if bool(value) else "No"
+
+
+def _provider_label(value: str) -> str:
+    return {"openrouter": "OpenRouter", "openai": "OpenAI"}.get(
+        str(value).lower(), str(value).replace("_", " ").title())
+
+
+def _provider_rows(result: dict) -> list[dict]:
+    """Render-safe field escalation rows; credentials are booleans only."""
+    return [{
+        "Page": row["page"],
+        "Field": row["field_name"],
+        "Multimodal eligible": _yes_no(row["multimodal_eligible"]),
+        "Provider": _provider_label(row["provider_name"]),
+        "Enabled": _yes_no(row["provider_enabled"]),
+        "Configured model": row["configured_model"] or "Not configured",
+        "Credential available": _yes_no(row["credential_available"]),
+        "External call attempted": _yes_no(row["external_call_attempted"]),
+        "External calls": int(row["external_call_count"] or 0),
+        "Reason not attempted": row["reason_not_attempted"] or "—",
+        "Final workflow state": row["final_workflow_state"],
+        "No data sent": _yes_no(row["no_data_sent"]),
+    } for row in result.get("provider_escalations", [])]
+
+
+def _batch_summary_rows(summary: dict) -> list[dict]:
+    rows = [{"Metric": label, "Value": int(summary.get(key) or 0)}
+            for key, label in BATCH_COUNTERS.items()]
+    rows.extend([
+        {"Metric": "Measured cost (USD)",
+         "Value": float(summary.get("measured_cost_usd") or 0)},
+        {"Metric": "Projected cost (USD)",
+         "Value": float(summary.get("projected_cost_usd") or 0)},
+        {"Metric": "Throughput (pages/minute)",
+         "Value": float(summary.get("throughput_pages_per_minute") or 0)},
+    ])
+    return rows
+
+
+def _evaluation_display(evaluation: dict) -> dict:
+    denominator = int(evaluation.get("denominator") or 0)
+    pairs = int(evaluation.get("deterministic_pairs") or 0)
+    if not pairs or not denominator or evaluation.get("accuracy") is None:
+        return {"message": "Accuracy unavailable — no valid evaluation pairs",
+                "field_accuracy": None, "critical_accuracy": None}
+    critical = evaluation.get("critical_accuracy")
+    return {
+        "message": None,
+        "field_accuracy": _fmt_pct(evaluation["accuracy"]),
+        "critical_accuracy": (_fmt_pct(critical) if critical is not None
+                              else "Unavailable — no evaluated critical fields"),
+    }
 
 
 def _queue_workspace_job(state, fingerprint: str) -> bool:
@@ -415,6 +504,23 @@ def _render_local_document(st, result, items):
             "resolution": selected.get("resolution_summary", {}),
             "escalation": selected["escalation_summary"],
         })
+        st.markdown("#### Provider and escalation state")
+        provider = selected.get("provider_state") or workspace._provider_policy_snapshot()
+        st.write({
+            "Provider": _provider_label(provider["provider_name"]),
+            "Enabled": _yes_no(provider["provider_enabled"]),
+            "Configured model": provider["configured_model"] or "Not configured",
+            "Credential available": _yes_no(provider["credential_available"]),
+            "External call attempted": _yes_no(provider["external_call_attempted"]),
+            "External calls": int(provider["external_call_count"] or 0),
+            "Reason": provider["reason_not_attempted"],
+            "No data sent": _yes_no(provider["no_data_sent"]),
+        })
+        provider_rows = _provider_rows(selected)
+        if provider_rows:
+            st.dataframe(provider_rows, hide_index=True, width="stretch")
+        else:
+            st.info("No unresolved or escalated fields require provider routing.")
     with evidence_tabs[2]:
         st.write({
             "measured_cost": selected["measured_cost"],
@@ -440,26 +546,21 @@ def _render_local_summary(st, batch):
         st.info("Run the selected inventory to create a batch summary.")
         return
     summary = batch["summary"]
-    columns = st.columns(6)
-    for column, (label, value) in zip(columns, (
-        ("Files", summary["files"]), ("Pages", summary["pages"]),
-        ("Succeeded", summary["success"]), ("Partial", summary.get("partial", 0)),
-        ("Failed", summary["failed"] + summary.get("failed_extraction", 0)),
-        ("Unresolved", summary["unresolved_fields"]
-         if summary["unresolved_fields"] is not None else "Unknown"),
-    )):
-        column.metric(label, value)
-    st.write({
-        "document_types": summary["document_types"],
-        "measured_cost_usd": summary["measured_cost_usd"],
-        "projected_cost_usd": summary["projected_cost_usd"],
-        "throughput_pages_per_minute": summary["throughput_pages_per_minute"],
-    })
+    st.dataframe(_batch_summary_rows(summary), hide_index=True, width="stretch")
+    st.write({"document_types": summary["document_types"]})
     if batch.get("evaluation"):
         evaluation = batch["evaluation"]
-        left, right = st.columns(2)
-        left.metric("Field accuracy", _fmt_pct(evaluation["accuracy"] or 0))
-        right.metric("Critical accuracy", _fmt_pct(evaluation["critical_accuracy"] or 0))
+        display = _evaluation_display(evaluation)
+        if display["message"]:
+            st.warning(display["message"])
+        else:
+            left, right = st.columns(2)
+            left.metric("Field accuracy", display["field_accuracy"])
+            right.metric("Critical accuracy", display["critical_accuracy"])
+        st.dataframe([
+            {"Metric": label, "Value": int(evaluation.get(key) or 0)}
+            for key, label in EVALUATION_COUNTERS.items()
+        ], hide_index=True, width="stretch")
         st.caption("Expected output was parsed and compared only after extraction completed.")
     json_column, csv_column = st.columns(2)
     json_column.download_button(

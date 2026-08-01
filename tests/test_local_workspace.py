@@ -5,6 +5,7 @@ import csv
 import inspect
 import io
 import json
+import os
 
 import pytest
 from PIL import Image
@@ -64,6 +65,23 @@ def _inapplicable_receipt(doc_id="safe"):
     field.attempts = [Attempt("primary_ocr", "stub", None, 0.0)]
     page.fields = {"line2_cpt_code": field}
     page.decisions = {"line2_cpt_code": [("INAPPLICABLE", "inactive row")]}
+    return service.build_receipt(page, [], "balanced", 10.0,
+                                 source_kind="local_workspace")
+
+
+def _human_review_receipt(doc_id="safe", *, attempted=False):
+    page = PageResult(doc_id, "p1", "cms1500", quality_score=0.9)
+    field = FieldResult(doc_id, "p1", "patient_dob", None,
+                        FieldState.HUMAN_REVIEW, 0.2)
+    field.attempts = [Attempt("primary_ocr", "stub", None, 0.2)]
+    if attempted:
+        field.attempts.append(Attempt("multimodal", "offline-oracle", None, 0.2))
+        page.escalations = {"patient_dob": {
+            "model": "offline-oracle", "escalated": True,
+            "decision": "rejected_by_grounding",
+        }}
+    page.fields = {"patient_dob": field}
+    page.decisions = {"patient_dob": [("HUMAN_REVIEW", "test")]}
     return service.build_receipt(page, [], "balanced", 10.0,
                                  source_kind="local_workspace")
 
@@ -142,6 +160,7 @@ def test_unresolved_fields_are_partial_and_explicitly_pending_not_sent():
         "fields_escalated": 0,
         "pending_multimodal": 1,
         "multimodal_attempted": 0,
+        "multimodal_failed": 0,
         "pending_human_review": 0,
         "external_provider_calls": 0,
     }
@@ -160,6 +179,51 @@ def test_unresolved_fields_are_partial_and_explicitly_pending_not_sent():
         "external_provider_calls": 0,
     }
 
+    provider = result["provider_escalations"][0]
+    assert provider == {
+        "page": 1,
+        "field_name": "patient_dob",
+        "multimodal_eligible": True,
+        "provider_enabled": False,
+        "provider_name": "openrouter",
+        "configured_model": "openai/gpt-5-nano",
+        "credential_available": bool(os.environ.get("OPENROUTER_API_KEY")),
+        "external_call_attempted": False,
+        "external_call_count": 0,
+        "reason_not_attempted": "disabled by policy",
+        "final_workflow_state": "PENDING_MULTIMODAL_PROVIDER_DISABLED",
+        "no_data_sent": True,
+    }
+
+
+def test_provider_state_distinguishes_disabled_missing_key_and_missing_model():
+    base = {
+        "enabled": True,
+        "active_provider": "openrouter",
+        "live_provider": {"enabled": True, "provider": "openrouter"},
+        "providers": {"openrouter": {
+            "model": "synthetic/model", "api_key_env": "SYNTHETIC_TEST_KEY",
+        }},
+    }
+    disabled = workspace._provider_policy_snapshot(
+        {**base, "enabled": False}, env={"SYNTHETIC_TEST_KEY": "not-rendered"})
+    missing_key = workspace._provider_policy_snapshot(base, env={})
+    no_model = workspace._provider_policy_snapshot({
+        **base,
+        "providers": {"openrouter": {"api_key_env": "SYNTHETIC_TEST_KEY"}},
+    }, env={"SYNTHETIC_TEST_KEY": "not-rendered"})
+
+    assert disabled["reason_not_attempted"] == "disabled by policy"
+    assert disabled["final_workflow_state"] == "PENDING_MULTIMODAL_PROVIDER_DISABLED"
+    assert missing_key["credential_available"] is False
+    assert missing_key["final_workflow_state"] == "PENDING_MULTIMODAL_CREDENTIAL_MISSING"
+    assert no_model["configured_model"] == ""
+    assert no_model["final_workflow_state"] == "PENDING_MULTIMODAL_MODEL_NOT_CONFIGURED"
+    assert all(state["external_call_attempted"] is False
+               and state["external_call_count"] == 0
+               for state in (disabled, missing_key, no_model))
+    assert "not-rendered" not in json.dumps([disabled, missing_key, no_model])
+
 
 def test_inapplicable_service_line_field_is_not_unresolved():
     item = inspect_content("synthetic.png", _image_bytes())
@@ -170,6 +234,73 @@ def test_inapplicable_service_line_field_is_not_unresolved():
     assert result["unresolved_fields"] == 0
     assert result["governor_summary"] == {"INAPPLICABLE": 1}
     assert result["resolution_summary"]["inapplicable"] == 1
+
+
+def test_complete_batch_summary_is_numeric_without_double_counting():
+    unresolved = workspace.process_item(
+        inspect_content("unresolved.png", _image_bytes()),
+        page_processor=lambda *args: _unresolved_receipt(),
+    )
+    inapplicable = workspace.process_item(
+        inspect_content("inapplicable.png", _image_bytes() + b"unique"),
+        page_processor=lambda *args: _inapplicable_receipt(),
+    )
+    failed = workspace.process_item(
+        inspect_content("empty.png", _image_bytes() + b"empty"),
+        page_processor=lambda *args: _empty_receipt(),
+    )
+    human = workspace.process_item(
+        inspect_content("human.png", _image_bytes() + b"human"),
+        page_processor=lambda *args: _human_review_receipt(),
+    )
+    multimodal_failed = workspace.process_item(
+        inspect_content("multimodal.png", _image_bytes() + b"multimodal"),
+        page_processor=lambda *args: _human_review_receipt(attempted=True),
+    )
+
+    summary = workspace.summarize_results([
+        unresolved, inapplicable, failed, human, multimodal_failed])
+
+    required = {
+        "files", "pages", "success", "partial", "failed_extraction", "failed",
+        "total_fields", "accepted", "accepted_with_flag", "retry_attempted",
+        "retry_resolved", "unresolved_fields", "inapplicable", "pending_multimodal",
+        "multimodal_attempted", "multimodal_failed", "human_review_required",
+        "external_calls", "measured_cost_usd", "projected_cost_usd",
+        "throughput_pages_per_minute",
+    }
+    assert required <= summary.keys()
+    assert all(isinstance(summary[key], (int, float)) for key in required)
+    assert summary["failed_extraction"] == 1
+    assert summary["total_fields"] == 4
+    assert summary["retry_attempted"] == 1
+    assert summary["retry_resolved"] == 0
+    assert summary["unresolved_fields"] == 3
+    assert summary["inapplicable"] == 1
+    assert summary["pending_multimodal"] == 1
+    assert summary["multimodal_attempted"] == 1
+    assert summary["multimodal_failed"] == 1
+    assert summary["human_review_required"] == 2
+    assert summary["external_calls"] == 0
+    assert human["provider_escalations"][0]["final_workflow_state"] == (
+        "HUMAN_REVIEW_REQUIRED")
+    assert multimodal_failed["provider_escalations"][0]["final_workflow_state"] == (
+        "MULTIMODAL_FAILED")
+
+
+def test_missing_optional_summaries_contribute_zero():
+    result = workspace._failed_result(
+        inspect_content("synthetic.png", _image_bytes()), "legacy", status="PARTIAL")
+    result.update({"fields": [{"page": 1, "fields": {}}],
+                   "resolution_summary": None, "escalation_summary": None})
+
+    summary = workspace.summarize_results([result])
+
+    assert summary["total_fields"] == 0
+    assert summary["retry_attempted"] == 0
+    assert summary["retry_resolved"] == 0
+    assert summary["pending_multimodal"] == 0
+    assert summary["human_review_required"] == 0
 
 
 def test_multipage_processing_calls_each_page_in_order():
@@ -270,7 +401,28 @@ def test_evaluation_with_synthetic_expected_output_is_post_extraction_only():
         row for row in evaluated["documents"] if row["processing_status"] == "COMPLETED")
     assert process_only["documents"][0]["fields"] == evaluated_document["fields"]
     assert evaluated["evaluation"]["accuracy"] == 1.0
+    assert evaluated["evaluation"]["denominator"] == 1
+    assert evaluated["evaluation"]["deterministic_pairs"] == 1
     assert evaluated["evaluation"]["ground_truth_stage"] == "post_extraction_only"
+
+
+def test_zero_pair_evaluation_reports_accuracy_unavailable_with_pair_counts():
+    document = inspect_content("synthetic.png", _image_bytes())
+    batch = workspace.run_batch(
+        [document], processor=lambda item, mode: workspace.process_item(
+            item, page_processor=lambda *args: _receipt()), evaluate=True)
+
+    evaluation = batch["evaluation"]
+    assert evaluation["accuracy"] is None
+    assert evaluation["critical_accuracy"] is None
+    assert evaluation["documents_found"] == 1
+    assert evaluation["expected_records_found"] == 0
+    assert evaluation["deterministic_pairs"] == 0
+    assert evaluation["ambiguous_pairs"] == 0
+    assert evaluation["unmatched_documents"] == 1
+    assert evaluation["unmatched_expected_records"] == 0
+    assert evaluation["evaluated_fields"] == 0
+    assert evaluation["denominator"] == 0
 
 
 def test_process_documents_mode_never_parses_expected_output(monkeypatch):
@@ -425,6 +577,53 @@ def test_validation_rows_are_readable_and_not_raw_objects():
         "Severity": "ERROR",
     }]
     assert "[object Object]" not in str(rows)
+
+
+def test_provider_and_batch_render_rows_are_complete_and_secret_free():
+    provider_rows = streamlit_app._provider_rows({"provider_escalations": [{
+        "page": 1, "field_name": "patient_dob", "multimodal_eligible": True,
+        "provider_enabled": False, "provider_name": "openrouter",
+        "configured_model": "synthetic/model", "credential_available": True,
+        "external_call_attempted": False, "external_call_count": 0,
+        "reason_not_attempted": "disabled by policy",
+        "final_workflow_state": "PENDING_MULTIMODAL_PROVIDER_DISABLED",
+        "no_data_sent": True,
+    }]})
+    summary_rows = streamlit_app._batch_summary_rows({
+        key: 0 for key in streamlit_app.BATCH_COUNTERS
+    } | {"measured_cost_usd": 0.0, "projected_cost_usd": 0.0,
+         "throughput_pages_per_minute": 0.0})
+
+    assert provider_rows[0]["Provider"] == "OpenRouter"
+    assert provider_rows[0]["Enabled"] == "No"
+    assert provider_rows[0]["Credential available"] == "Yes"
+    assert provider_rows[0]["External call attempted"] == "No"
+    assert provider_rows[0]["External calls"] == 0
+    assert provider_rows[0]["Reason not attempted"] == "disabled by policy"
+    assert provider_rows[0]["No data sent"] == "Yes"
+    assert "KEY" not in json.dumps(provider_rows).upper()
+    assert all(isinstance(row["Value"], (int, float)) for row in summary_rows)
+    assert "Unknown" not in json.dumps(summary_rows)
+
+
+def test_evaluation_display_distinguishes_unavailable_and_valid_accuracy():
+    unavailable = streamlit_app._evaluation_display({
+        "accuracy": None, "critical_accuracy": None, "deterministic_pairs": 0,
+        "evaluated_fields": 0, "denominator": 0,
+    })
+    zero_fields = streamlit_app._evaluation_display({
+        "accuracy": None, "critical_accuracy": None, "deterministic_pairs": 1,
+        "evaluated_fields": 0, "denominator": 0,
+    })
+    valid = streamlit_app._evaluation_display({
+        "accuracy": 0.75, "critical_accuracy": 1.0, "deterministic_pairs": 1,
+        "evaluated_fields": 4, "denominator": 4,
+    })
+
+    assert unavailable["message"] == "Accuracy unavailable — no valid evaluation pairs"
+    assert zero_fields["message"] == "Accuracy unavailable — no valid evaluation pairs"
+    assert valid == {"message": None, "field_accuracy": "75.00%",
+                     "critical_accuracy": "100.00%"}
 
 
 def test_workspace_job_does_not_start_twice_and_unlocks_after_success():

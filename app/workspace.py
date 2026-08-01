@@ -5,6 +5,7 @@ import csv
 import hashlib
 import io
 import json
+import os
 import re
 import time
 from collections import Counter
@@ -99,6 +100,79 @@ def _local_cost(latency_ms: float) -> float:
     return latency_ms / 1000 / 3600 * float(prices["compute"]["vcpu_hour_usd"])
 
 
+def _provider_policy_snapshot(config: dict | None = None,
+                              env: dict | None = None) -> dict:
+    """Return safe provider availability metadata without constructing a client."""
+    if config is None:
+        config = yaml.safe_load((service.ROOT / "configs" / "multimodal_providers.yaml")
+                                .read_text(encoding="utf-8")) or {}
+    live = config.get("live_provider") or {}
+    provider_name = live.get("provider") or config.get("active_provider") or ""
+    provider = (config.get("providers") or {}).get(provider_name) or {}
+    model = provider.get("model") or ""
+    key_env = provider.get("api_key_env") or ""
+    values = os.environ if env is None else env
+    enabled = bool(config.get("enabled", False) and live.get("enabled", False))
+    credential_available = bool(key_env and str(values.get(key_env) or "").strip())
+
+    if not enabled:
+        state, reason = "PENDING_MULTIMODAL_PROVIDER_DISABLED", "disabled by policy"
+    elif not model:
+        state, reason = ("PENDING_MULTIMODAL_MODEL_NOT_CONFIGURED",
+                         "model not configured")
+    elif not credential_available:
+        state, reason = ("PENDING_MULTIMODAL_CREDENTIAL_MISSING",
+                         "credential missing")
+    else:
+        state, reason = ("HUMAN_REVIEW_REQUIRED",
+                         "external calls are not executed by the local workspace")
+    return {
+        "provider_enabled": enabled,
+        "provider_name": provider_name,
+        "configured_model": model,
+        "credential_available": credential_available,
+        "external_call_attempted": False,
+        "external_call_count": 0,
+        "reason_not_attempted": reason,
+        "final_workflow_state": state,
+        "no_data_sent": True,
+    }
+
+
+def _provider_escalation(page: int, field: dict, policy: dict) -> dict:
+    """Attach one safe terminal workflow state to an unresolved/attempted field."""
+    decision = field.get("decision", "")
+    attempted = bool(field.get("escalated"))
+    record = field.get("escalation_record") or {}
+    attempted_model = record.get("model") or ""
+    external_calls = int(
+        record.get("escalated") is True and attempted_model != "offline-oracle")
+    eligible = bool(field_policy(field["field_name"]).get("external_model_allowed", True))
+    unresolved = decision not in {
+        "INAPPLICABLE", "ACCEPT", "ACCEPT_WITH_FLAG", "ACCEPT_WITH_OVERRIDE"
+    }
+
+    state = dict(policy)
+    if attempted:
+        state["external_call_attempted"] = bool(external_calls)
+        state["external_call_count"] = external_calls
+        state["reason_not_attempted"] = ""
+        state["no_data_sent"] = not bool(external_calls)
+        state["final_workflow_state"] = (
+            "MULTIMODAL_FAILED" if unresolved else "MULTIMODAL_ATTEMPTED")
+    elif decision == "HUMAN_REVIEW" or not eligible:
+        state["reason_not_attempted"] = (
+            "human review required by governor" if decision == "HUMAN_REVIEW"
+            else "not eligible under field policy")
+        state["final_workflow_state"] = "HUMAN_REVIEW_REQUIRED"
+    return {
+        "page": page,
+        "field_name": field["field_name"],
+        "multimodal_eligible": eligible,
+        **state,
+    }
+
+
 def _official_unstructured_result(item: IntakeFile, pages, texts, latency_ms: float) -> dict:
     values = {}
     for text in texts:
@@ -113,6 +187,7 @@ def _official_unstructured_result(item: IntakeFile, pages, texts, latency_ms: fl
         "cost_usd": 0.0,
     } for name, value in values.items()}
     empty_extraction = not fields
+    provider_policy = _provider_policy_snapshot()
     return {
         "document_id": item.safe_source_id,
         "safe_source_id": item.safe_source_id,
@@ -126,7 +201,16 @@ def _official_unstructured_result(item: IntakeFile, pages, texts, latency_ms: fl
         "validations": [],
         "governor_summary": {"ACCEPT_WITH_FLAG": len(fields)},
         "retry_summary": {"fields_retried": 0},
-        "escalation_summary": {"fields_escalated": 0, "external_provider_calls": 0},
+        "escalation_summary": {
+            "fields_escalated": 0,
+            "pending_multimodal": 0,
+            "multimodal_attempted": 0,
+            "multimodal_failed": 0,
+            "pending_human_review": 0,
+            "external_provider_calls": 0,
+        },
+        "provider_state": provider_policy,
+        "provider_escalations": [],
         "unresolved_fields": 0,
         "latency": {"milliseconds": round(latency_ms, 3)},
         "measured_cost": {"usd": round(_local_cost(latency_ms), 9)},
@@ -253,14 +337,16 @@ def _unify_receipts(item: IntakeFile, receipts: list[dict]) -> dict:
     if item.role != FileRole.CLAIM_DOCUMENT:
         return _failed_result(item, "File role is not a claim document.", status="SKIPPED")
     document_types = {receipt["document"]["document_type"] for receipt in receipts}
-    fields, validations = [], []
+    fields, validations, provider_escalations = [], [], []
     governor = Counter()
     retried = escalated = unresolved = 0
     accepted_without_retry = accepted_after_retry = accepted_with_flag = 0
     inapplicable = pending_local_retry = pending_multimodal = pending_human_review = 0
+    multimodal_failed = external_provider_calls = 0
     measured = projected = latency = 0.0
     linkage_values = []
     field_count = 0
+    provider_policy = _provider_policy_snapshot()
     for page_number, receipt in enumerate(receipts, 1):
         page_fields = receipt["final_output"]
         field_count += len(page_fields)
@@ -287,6 +373,14 @@ def _unify_receipts(item: IntakeFile, receipts: list[dict]) -> dict:
             unresolved += int(field["decision"] not in {
                 "INAPPLICABLE", "ACCEPT", "ACCEPT_WITH_FLAG", "ACCEPT_WITH_OVERRIDE"
             })
+            if field["decision"] not in {
+                    "INAPPLICABLE", "ACCEPT", "ACCEPT_WITH_FLAG", "ACCEPT_WITH_OVERRIDE"
+            } or field["escalated"]:
+                provider_state = _provider_escalation(page_number, field, provider_policy)
+                provider_escalations.append(provider_state)
+                external_provider_calls += provider_state["external_call_count"]
+                multimodal_failed += int(
+                    provider_state["final_workflow_state"] == "MULTIMODAL_FAILED")
             if field.get("final_value") not in (None, ""):
                 linkage_values.append(str(field["final_value"]))
         measured += float(receipt["costs"]["measured_total_automated"]["value_usd"])
@@ -328,15 +422,18 @@ def _unify_receipts(item: IntakeFile, receipts: list[dict]) -> dict:
             "pending_multimodal": pending_multimodal,
             "multimodal_attempted": escalated,
             "pending_human_review": pending_human_review,
-            "external_provider_calls": 0,
+            "external_provider_calls": external_provider_calls,
         },
         "escalation_summary": {
             "fields_escalated": escalated,
             "pending_multimodal": pending_multimodal,
             "multimodal_attempted": escalated,
+            "multimodal_failed": multimodal_failed,
             "pending_human_review": pending_human_review,
-            "external_provider_calls": 0,
+            "external_provider_calls": external_provider_calls,
         },
+        "provider_state": provider_policy,
+        "provider_escalations": provider_escalations,
         "unresolved_fields": unresolved,
         "latency": {"milliseconds": round(latency, 3)},
         "measured_cost": {"usd": round(measured, 9)},
@@ -404,9 +501,20 @@ def summarize_results(results: list[dict]) -> dict:
     counts = Counter(result["processing_status"] for result in results)
     processed = [result for result in results
                  if result["processing_status"] in PRODUCED_OUTPUT]
-    pages = sum(result["page_count"] for result in processed)
+    page_results = [result for result in results if result["processing_status"] not in {
+        "SKIPPED", "DUPLICATE", "CANCELLED"
+    }]
+    pages = sum(int(result.get("page_count") or 0) for result in page_results)
     latency = sum(result["latency"]["milliseconds"] for result in processed)
     types = Counter(result["document_type"] for result in processed)
+    resolutions = [result.get("resolution_summary") or {} for result in processed]
+    escalations = [result.get("escalation_summary") or {} for result in processed]
+    governors = [result.get("governor_summary") or {} for result in processed]
+    retries = [result.get("retry_summary") or {} for result in processed]
+
+    def total(rows: list[dict], key: str) -> int:
+        return sum(int(row.get(key) or 0) for row in rows)
+
     return {
         "files": len(results),
         "pages": pages,
@@ -417,14 +525,27 @@ def summarize_results(results: list[dict]) -> dict:
         "skipped": counts["SKIPPED"] + counts["DUPLICATE"],
         "cancelled": counts["CANCELLED"],
         "document_types": dict(sorted(types.items())),
+        "total_fields": sum(
+            len(page.get("fields") or {})
+            for result in processed for page in (result.get("fields") or [])),
+        "accepted": total(governors, "ACCEPT"),
+        "accepted_with_flag": total(governors, "ACCEPT_WITH_FLAG"),
+        "retry_attempted": total(retries, "fields_retried"),
+        "retry_resolved": total(resolutions, "accepted_after_local_retry"),
         "unresolved_fields": sum(
             int(result.get("unresolved_fields") or 0) for result in processed),
+        "inapplicable": total(resolutions, "inapplicable"),
+        "pending_multimodal": total(escalations, "pending_multimodal"),
+        "multimodal_attempted": total(escalations, "multimodal_attempted"),
+        "multimodal_failed": total(escalations, "multimodal_failed"),
+        "human_review_required": total(escalations, "pending_human_review"),
+        "external_calls": total(escalations, "external_provider_calls"),
         "measured_cost_usd": round(sum(
             result["measured_cost"]["usd"] for result in processed), 9),
         "projected_cost_usd": round(sum(
             result["projected_cost"]["usd"] for result in processed), 9),
         "latency_ms": round(latency, 3),
-        "throughput_pages_per_minute": round(pages * 60000 / latency, 6) if latency else None,
+        "throughput_pages_per_minute": round(pages * 60000 / latency, 6) if latency else 0.0,
         "accuracy": None,
         "critical_accuracy": None,
     }
@@ -500,6 +621,7 @@ def _comparison_receipt(comparisons: list[dict], linkage: dict) -> dict:
     return {
         "linkage": linkage,
         "evaluated_fields": len(comparisons),
+        "denominator": len(comparisons),
         "correct_fields": sum(row["correct"] for row in comparisons),
         "accuracy": (sum(row["correct"] for row in comparisons) / len(comparisons)
                      if comparisons else None),
@@ -524,9 +646,18 @@ def evaluate_dataset(batch: dict, items: list[IntakeFile]) -> dict:
         else:
             synthetic_by_id[(item.group_key, str(parsed.get("doc_id", "")))] = parsed
 
+    expected_keys = {
+        (group, "record", record.ordinal)
+        for group, records in expected_by_group.items() for record in records
+    } | {(group, "synthetic", doc_id) for group, doc_id in synthetic_by_id}
     all_comparisons = []
     all_critical = []
-    linked = 0
+    pairing_statuses = Counter()
+    matched_expected = set()
+    documents_found = sum(
+        result.get("source_role") == FileRole.CLAIM_DOCUMENT.value
+        and result.get("processing_status") not in {"DUPLICATE", "CANCELLED"}
+        for result in batch["documents"])
     for result in batch["documents"]:
         if result["processing_status"] not in PRODUCED_OUTPUT:
             continue
@@ -540,21 +671,33 @@ def evaluate_dataset(batch: dict, items: list[IntakeFile]) -> dict:
             }
             linkage = {"status": "deterministic", "record_ordinal": None,
                        "method": "synthetic document ID after extraction"}
+            matched_key = (group, "synthetic", result["source_file"].rsplit(".", 1)[0])
         else:
             records = expected_by_group.get(group, [])
             link = link_record(result.get("_linkage_text", ""), records)
             linkage = link.safe_receipt()
             record = next((row for row in records if row.ordinal == link.record_ordinal), None)
             expected = claimroute_expected(record) if record else {}
+            matched_key = ((group, "record", link.record_ordinal)
+                           if record is not None else None)
         comparisons = compare_fields(expected, actual) if expected else []
         result["evaluation"] = _comparison_receipt(comparisons, linkage)
-        linked += int(linkage["status"] == "deterministic")
+        pairing_statuses[linkage["status"]] += 1
+        if linkage["status"] == "deterministic" and matched_key is not None:
+            matched_expected.add(matched_key)
         all_comparisons.extend(comparisons)
         all_critical.extend(row for row in comparisons
                             if field_policy(row["field_name"]).get("criticality") == "high")
     evaluation = {
-        "documents_linked": linked,
+        "documents_found": documents_found,
+        "expected_records_found": len(expected_keys),
+        "deterministic_pairs": pairing_statuses["deterministic"],
+        "ambiguous_pairs": pairing_statuses["ambiguous"],
+        "unmatched_documents": documents_found - pairing_statuses["deterministic"],
+        "unmatched_expected_records": max(0, len(expected_keys) - len(matched_expected)),
+        "documents_linked": pairing_statuses["deterministic"],
         "evaluated_fields": len(all_comparisons),
+        "denominator": len(all_comparisons),
         "correct_fields": sum(row["correct"] for row in all_comparisons),
         "accuracy": (sum(row["correct"] for row in all_comparisons) / len(all_comparisons)
                      if all_comparisons else None),
