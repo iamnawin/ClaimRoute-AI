@@ -7,6 +7,7 @@ numpy==2.4.6
 pytesseract==0.3.13
 rapidocr-onnxruntime==1.4.4
 streamlit==1.60.0
+pypdfium2==5.12.1
 
 # pytesseract is only a wrapper: the Tesseract binary is NOT a Python package
 # and must be installed separately (Apache-2.0).
