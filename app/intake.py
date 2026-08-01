@@ -137,10 +137,16 @@ def decode_pages(content: bytes, source_format: str | None = None,
     """Decode supported content to copied RGB pages; PDFs are always rasterized."""
     source_format = source_format or detect_format(content)
     if source_format == "TIFF":
-        pages = read_tiff_pages(content)
+        try:
+            pages = read_tiff_pages(content)
+        except Exception as exc:
+            raise IntakeError("The TIFF could not be decoded safely.") from exc
     elif source_format in {"PNG", "JPEG"}:
-        with Image.open(io.BytesIO(content)) as image:
-            pages = [image.convert("RGB").copy()]
+        try:
+            with Image.open(io.BytesIO(content)) as image:
+                pages = [image.convert("RGB").copy()]
+        except Exception as exc:
+            raise IntakeError("The image could not be decoded safely.") from exc
     elif source_format == "PDF":
         try:
             import pypdfium2 as pdfium

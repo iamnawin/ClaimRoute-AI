@@ -278,7 +278,7 @@ def process_document(image: Image.Image, doc_id: str, mode: str, *, source_kind:
                      timeout_seconds: int = PROCESSING_TIMEOUT_SECONDS) -> dict:
     if mode not in load_operating_modes():
         raise ValueError(f"Unknown operating mode: {mode}")
-    if source_kind not in {"upload", "bundled_synthetic"}:
+    if source_kind not in {"upload", "bundled_synthetic", "local_workspace"}:
         raise ValueError(f"Unknown document source: {source_kind}")
     run_escalate = source_kind == "bundled_synthetic"
     model = "offline-oracle" if run_escalate else None
