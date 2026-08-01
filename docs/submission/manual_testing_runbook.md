@@ -84,6 +84,13 @@ creation privileges are unavailable; traversal still uses `followlinks=False`.
 
 ## Manual validation receipt
 
+> **Baseline scope.** This receipt describes the **pre-integration baseline** at commit `829b2eb`,
+> before the localhost intake workspace was merged. Its multipage-TIFF and folder/batch rows record
+> what the application did *at that time*, and they remain accurate for that commit. They are not a
+> statement about the current branch. For the current behaviour of those two capabilities, see
+> [Post-integration capability retest](#post-integration-capability-retest). Nothing in this table
+> has been rewritten to reflect later work.
+
 The receipt below records what was executed from the submission branch. `AppTest` means the
 repository's installed Streamlit test runtime rendered and interacted with the real app module; it
 does not mean a frozen evaluator was rerun. No extracted field values were printed or retained.
@@ -143,6 +150,73 @@ browser bootstrap and is a tooling configuration issue, not an application defec
 The first fixture-generation attempt used RGB pixels with CCITT Group 4 and failed before
 ClaimRoute ran. Recreating the synthetic fixture as 1-bit pixels resolved it. Classification:
 fixture-generation user error, not an application defect.
+
+## Post-integration capability retest
+
+Executed on the combined integration branch `integrate/local-intake-multimodal-final` (merge commit
+`806d0df`), which joins the multimodal escalation adapter (`7d62dbc`) with the localhost intake
+workspace (`e31fcd0`). Fixtures were built in a temporary folder from the bundled synthetic no-PHI
+sample and deleted afterwards. Outbound sockets were blocked at the Python layer for the duration of
+the run, so the zero-external-call row is measured rather than assumed.
+
+This section exists to answer one question: **the two limitations recorded in the pre-integration
+baseline were "multipage TIFF unavailable" and "folder/batch processing unavailable" — do they still
+hold?** They do not. Both are now available. The baseline rows above remain correct for `829b2eb`.
+
+| Capability | Pre-integration baseline (`829b2eb`) | Post-integration result (`806d0df`) | Status |
+|---|---|---|---|
+| Multipage TIFF | UI rejected it; adapter could decode three frames but this was not a UI feature | Three-frame TIFF detected as 3 pages and processed; batch recorded 7 pages from 5 documents, the surplus coming from the multipage document | PASS |
+| Folder / batch processing | Fixed-tree finite evaluation only; explicitly "not arbitrary-folder ingestion" | Recursive scan of an arbitrary local folder discovered 8 files including a nested subdirectory; 5 completed, 1 failed, 2 duplicates skipped | PASS |
+| PNG | Supported | Detected `PNG`, 1 page, routed `CLAIM_DOCUMENT` | PASS |
+| JPEG | Supported | Detected `JPEG`, 1 page, routed `CLAIM_DOCUMENT` | PASS |
+| Single-page TIFF | Supported | Detected `TIFF`, 1 page, routed `CLAIM_DOCUMENT` | PASS |
+| PDF | Rejected before decoding as an unsupported upload type | Rasterized and processed as 1 page via `pypdfium2` | PASS |
+| Numeric-extension TIFF | Not applicable | `.001` file accepted by content signature without rename; deduplicated against its byte-identical `.tif` twin | PASS |
+| Continue-on-error | Not applicable | Corrupt TIFF failed alone; the other 5 documents completed; batch status `COMPLETED_WITH_ERRORS` | PASS |
+| JSON export | Not applicable | Batch JSON parsed (116,463 bytes); document JSON parsed | PASS |
+| CSV export | Not applicable | Batch CSV 9 rows (8 documents plus header); document CSV 47 lines | PASS |
+| Export path safety | Not applicable | Absolute temporary path absent from both JSON and CSV exports | PASS |
+| External provider calls | Zero | Zero outbound socket attempts under an enforcing network guard | PASS |
+
+Automated suites on the merged branch:
+
+```powershell
+.venv\Scripts\python.exe -m pytest tests/test_local_intake.py tests/test_local_workspace.py -q
+.venv\Scripts\python.exe -m pytest tests/test_multimodal_client.py tests/test_multimodal_contract.py tests/test_multimodal_provider.py tests/test_vision_adapters.py -q
+.venv\Scripts\python.exe -m pytest tests/ -q
+```
+
+Results: `25 passed, 1 skipped` (intake); `95 passed` (multimodal); `321 passed, 3 skipped, 2 failed`
+(full suite). The two failures are the known freeze-manifest line-ending issue and are **not** caused
+by this merge: both reproduce identically on the pre-merge parent `7d62dbc` in the same environment.
+Root cause is `core.autocrlf=true` on this Windows checkout converting 210 LF bytes to CRLF in
+`engine/layout/templates/ub04_v3.json`; the LF-normalised digest `b6714b96eb6b13a5…` matches the
+value the test expects exactly. Not fixed here by instruction; it needs a `.gitattributes` change
+tracked separately.
+
+The Streamlit application was started in `local_workspace` mode on `127.0.0.1:8501`;
+`/_stcore/health` returned HTTP `200`.
+
+### Vision cache display finding after integration
+
+The pre-existing finding is that a warm vision cache can make projected API cost display as zero
+while escalation counts remain nonzero, because a cache hit sets `cost_usd = 0.0`
+(`engine/escalate.py`). Status after integration:
+
+- **Not reproduced through the local workspace path.** Cold-cache and warm-cache runs of the same
+  ugly-tier synthetic document both reported `fields_escalated: 0`, so this path never escalates and
+  therefore cannot exhibit the divergence in either direction.
+- **The finding is not resolved.** The originally-observed path was the evaluation/benchmark cost
+  display, which this retest did not exercise. The responsible code is unchanged by this merge:
+  `engine/escalate.py` and `engine/ledger.py` have no diff against `829b2eb`.
+- **Classification: P1 demo-display issue, not a frozen benchmark correctness issue.** Frozen
+  evidence under `eval/results/` and `eval/official/` is byte-identical to `829b2eb`.
+- **Temporary demo workaround:** delete the gitignored file `eval/results/vision_cache.jsonl` before
+  the final demo rehearsal and recording. It is listed at `.gitignore:44`, is untracked, and is
+  regenerated on demand, so deleting it destroys no evidence. Do not delete anything else under
+  `eval/results/`.
+- **Recommendation:** fix separately after integration, reporting cache-hit cost as a distinct
+  "served from cache" basis rather than folding it into the projected total.
 
 ## Localhost workspace workflow
 
