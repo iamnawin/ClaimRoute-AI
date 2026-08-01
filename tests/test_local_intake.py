@@ -6,9 +6,11 @@ import io
 import pytest
 from PIL import Image
 
+from app import intake
 from app.intake import (
     FileRole,
     IntakeError,
+    ScanState,
     classify_role,
     decode_pages,
     detect_format,
@@ -119,3 +121,49 @@ def test_symbolic_link_is_not_followed(tmp_path):
     except OSError:
         pytest.skip("Symbolic links are unavailable without Windows developer privileges")
     assert all(not item.relative_path.startswith("loop/") for item in scan_folder(tmp_path))
+
+
+def test_folder_scan_reports_progress_for_path_with_spaces_and_ampersand(tmp_path):
+    folder = tmp_path / "safe claims & outputs"
+    folder.mkdir()
+    (folder / "claim.png").write_bytes(_image_bytes("PNG"))
+    (folder / "unsupported.bin").write_bytes(b"PK\x03\x04payload")
+    events = []
+
+    items = scan_folder(folder, progress=events.append)
+
+    states = [event["state"] for event in events]
+    assert states[0] == ScanState.VALIDATING_PATH.value
+    assert ScanState.SCANNING.value in states
+    assert ScanState.CLASSIFYING_FILES.value in states
+    assert ScanState.BUILDING_INVENTORY.value in states
+    assert states[-1] == ScanState.READY.value
+    assert events[-1]["files_discovered"] == 2
+    assert events[-1]["claim_documents"] == 1
+    assert events[-1]["unsupported_files"] == 1
+    assert events[-1]["error_reason"] == ""
+
+
+def test_invalid_folder_reports_failed_scan_state(tmp_path):
+    events = []
+
+    with pytest.raises(IntakeError, match="does not exist"):
+        scan_folder(tmp_path / "missing", progress=events.append)
+
+    assert events[-1]["state"] == ScanState.SCAN_FAILED.value
+    assert "does not exist" in events[-1]["error_reason"]
+
+
+def test_scan_exception_is_reported_as_failed_state(tmp_path, monkeypatch):
+    (tmp_path / "claim.png").write_bytes(_image_bytes("PNG"))
+    events = []
+    monkeypatch.setattr(
+        intake, "inspect_content",
+        lambda *args, **kwargs: (_ for _ in ()).throw(RuntimeError("sensitive")),
+    )
+
+    with pytest.raises(IntakeError, match="failed safely"):
+        scan_folder(tmp_path, progress=events.append)
+
+    assert events[-1]["state"] == ScanState.SCAN_FAILED.value
+    assert "sensitive" not in events[-1]["error_reason"]

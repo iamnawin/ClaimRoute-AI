@@ -6,9 +6,11 @@ import io
 import json
 import os
 import re
+import time
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
+from typing import Callable
 
 from PIL import Image
 
@@ -22,6 +24,17 @@ class FileRole(str, Enum):
     ATTACHMENT = "ATTACHMENT"
     UNSUPPORTED = "UNSUPPORTED"
     UNKNOWN = "UNKNOWN"
+
+
+class ScanState(str, Enum):
+    IDLE = "IDLE"
+    VALIDATING_PATH = "VALIDATING_PATH"
+    SCANNING = "SCANNING"
+    CLASSIFYING_FILES = "CLASSIFYING_FILES"
+    BUILDING_INVENTORY = "BUILDING_INVENTORY"
+    READY = "READY"
+    SCAN_FAILED = "SCAN_FAILED"
+    CANCELLED = "CANCELLED"
 
 
 class IntakeError(ValueError):
@@ -214,15 +227,43 @@ def inspect_content(filename: str, content: bytes, *, relative_path: str = "",
     return item
 
 
-def scan_folder(folder: str | Path, *, max_pages: int = 100) -> list[IntakeFile]:
+def scan_folder(folder: str | Path, *, max_pages: int = 100,
+                progress: Callable[[dict], None] | None = None) -> list[IntakeFile]:
     """Recursively inventory regular files without following symbolic links."""
+    started = time.perf_counter()
+    counts = {
+        "files_discovered": 0,
+        "files_scanned": 0,
+        "supported_files": 0,
+        "unsupported_files": 0,
+        "claim_documents": 0,
+        "expected_output_files": 0,
+        "specifications": 0,
+        "duplicate_files": 0,
+    }
+
+    def emit(state: ScanState, *, current_file: str = "", error_reason: str = ""):
+        if progress:
+            progress({
+                "state": state.value,
+                "elapsed_seconds": round(time.perf_counter() - started, 3),
+                "current_file": current_file,
+                "error_reason": error_reason,
+                **counts,
+            })
+
+    emit(ScanState.VALIDATING_PATH)
     base = Path(folder).expanduser()
     if not base.exists():
+        emit(ScanState.SCAN_FAILED, error_reason="Local dataset path does not exist.")
         raise IntakeError("Local dataset path does not exist.")
     if not base.is_dir():
+        emit(ScanState.SCAN_FAILED, error_reason="Local dataset path must be a folder.")
         raise IntakeError("Local dataset path must be a folder.")
     base = base.resolve()
-    items = []
+    emit(ScanState.SCANNING)
+    paths = []
+    symlinks = []
     for root, dirs, files in os.walk(base, followlinks=False):
         root_path = Path(root)
         dirs[:] = sorted(
@@ -231,30 +272,36 @@ def scan_folder(folder: str | Path, *, max_pages: int = 100) -> list[IntakeFile]
         )
         for name in sorted(files, key=str.casefold):
             path = root_path / name
-            relative = path.relative_to(base).as_posix()
-            group = path.parent.relative_to(base).as_posix() or "."
-            if path.is_symlink():
-                items.append(IntakeFile(
-                    filename=name,
-                    safe_source_id=hashlib.sha256(relative.encode()).hexdigest()[:12],
-                    source_format="SYMLINK",
-                    role=FileRole.UNSUPPORTED,
-                    page_count=None,
-                    size_bytes=0,
-                    status="UNSUPPORTED",
-                    warning="Symbolic links are not followed.",
-                    group_key=group,
-                    relative_path=relative,
-                ))
-                continue
+            (symlinks if path.is_symlink() else paths).append(path)
+    counts["files_discovered"] = len(paths) + len(symlinks)
+    emit(ScanState.CLASSIFYING_FILES)
+    items = []
+    for path in [*paths, *symlinks]:
+        name = path.name
+        relative = path.relative_to(base).as_posix()
+        group = path.parent.relative_to(base).as_posix() or "."
+        if path.is_symlink():
+            item = IntakeFile(
+                filename=name,
+                safe_source_id=hashlib.sha256(relative.encode()).hexdigest()[:12],
+                source_format="SYMLINK",
+                role=FileRole.UNSUPPORTED,
+                page_count=None,
+                size_bytes=0,
+                status="UNSUPPORTED",
+                warning="Symbolic links are not followed.",
+                group_key=group,
+                relative_path=relative,
+            )
+        else:
             try:
                 content = path.read_bytes()
-                items.append(inspect_content(
+                item = inspect_content(
                     name, content, relative_path=relative, group_key=group,
                     max_pages=max_pages,
-                ))
+                )
             except OSError:
-                items.append(IntakeFile(
+                item = IntakeFile(
                     filename=name,
                     safe_source_id=hashlib.sha256(relative.encode()).hexdigest()[:12],
                     source_format="UNREADABLE",
@@ -265,7 +312,21 @@ def scan_folder(folder: str | Path, *, max_pages: int = 100) -> list[IntakeFile]
                     warning="File could not be read.",
                     group_key=group,
                     relative_path=relative,
-                ))
+                )
+            except Exception as exc:
+                emit(ScanState.SCAN_FAILED, current_file=relative,
+                     error_reason="File classification failed safely.")
+                raise IntakeError("File classification failed safely.") from exc
+        items.append(item)
+        counts["files_scanned"] += 1
+        counts["claim_documents"] += int(item.role == FileRole.CLAIM_DOCUMENT)
+        counts["expected_output_files"] += int(item.role == FileRole.EXPECTED_OUTPUT)
+        counts["specifications"] += int(item.role == FileRole.SPECIFICATION)
+        unsupported = item.role in {FileRole.UNSUPPORTED, FileRole.UNKNOWN}
+        counts["unsupported_files"] += int(unsupported)
+        counts["supported_files"] += int(not unsupported and item.status != "ERROR")
+        emit(ScanState.CLASSIFYING_FILES, current_file=relative)
+    emit(ScanState.BUILDING_INVENTORY)
     items.sort(key=lambda item: (item.relative_path.casefold(), item.safe_source_id))
     first_by_hash: dict[str, str] = {}
     for item in items:
@@ -277,4 +338,6 @@ def scan_folder(folder: str | Path, *, max_pages: int = 100) -> list[IntakeFile]
         else:
             item.status = "DUPLICATE"
             item.warning = f"Duplicate content; first seen as {first}."
+            counts["duplicate_files"] += 1
+    emit(ScanState.READY)
     return items
