@@ -15,7 +15,7 @@ from PIL import Image, ImageDraw
 from engine.extract import run_page
 from engine.governor import field_policy
 from engine.ledger import CostLedger
-from engine.schemas import FieldState, PageResult
+from engine.schemas import FieldState, PageResult, Verdict
 
 ROOT = Path(__file__).resolve().parents[1]
 MODES_PATH = ROOT / "configs" / "operating_modes.yaml"
@@ -141,6 +141,9 @@ def _source_attempt(field):
 
 
 def _status_label(field) -> str:
+    if any(stamp.validator == "service_line_activation"
+           and stamp.verdict == Verdict.INAPPLICABLE for stamp in field.stamps):
+        return "Inapplicable"
     if field.state == FieldState.HUMAN_REVIEW:
         return "Human review"
     if field.state == FieldState.ACCEPT_WITH_FLAG:
@@ -166,13 +169,16 @@ def _field_row(name: str, field, decisions: list, escalation: dict | None) -> di
         "latency_ms": round(attempt.latency_ms, 2),
         "cost_usd": round(attempt.cost_usd, 8),
     } for attempt in field.attempts]
+    inapplicable = any(stamp.validator == "service_line_activation"
+                       and stamp.verdict == Verdict.INAPPLICABLE
+                       for stamp in field.stamps)
     return {
         "field_name": name,
         "final_value": field.value,
         "confidence": round(field.confidence, 4),
         "criticality": field_policy(name).get("criticality", "med"),
         "source_engine": source.engine if source else "unknown",
-        "decision": field.state.value,
+        "decision": "INAPPLICABLE" if inapplicable else field.state.value,
         "status": _status_label(field),
         "validation_status": ", ".join(
             sorted({stamp.verdict.value for stamp in field.stamps})) or "NOT_APPLICABLE",
@@ -227,6 +233,10 @@ def build_receipt(page: PageResult, ledger_entries: list[dict], mode: str,
                         for entry in oracle_entries + live_entries)
 
     modes = load_operating_modes()
+    final_output = page.to_json_dict()
+    for row in field_rows:
+        if row["decision"] == "INAPPLICABLE":
+            final_output[row["field_name"]]["state"] = "INAPPLICABLE"
     return {
         "document": {
             "document_id": page.doc_id,
@@ -268,7 +278,7 @@ def build_receipt(page: PageResult, ledger_entries: list[dict], mode: str,
         "usage": {"input_tokens": input_tokens, "output_tokens": output_tokens},
         "latency_ms": round(elapsed_ms, 2),
         "fields": field_rows,
-        "final_output": page.to_json_dict(),
+        "final_output": final_output,
     }
 
 

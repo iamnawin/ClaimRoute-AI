@@ -14,9 +14,19 @@ import yaml
 
 from app import service
 from app.intake import FileRole, IntakeFile, decode_pages
+from app.local_retry import retry_cms1500_page
 from engine.governor import field_policy
+from engine.schemas import FieldState, ValidationStamp, Verdict
+from engine.validators.registry import cpt_format, currency_format, date_valid
 from eval.official.evaluator import claimroute_expected, compare_fields
-from eval.official.extraction import local_ocr, structured_page, unstructured_fields
+from eval.official.extraction import (
+    local_ocr,
+    new_stage_latency,
+    record_stage,
+    retry_official_page,
+    structured_page,
+    unstructured_fields,
+)
 from eval.official.linker import link_record
 from eval.official.pages import CMS_MARKERS, UB_MARKERS, _score, select_claim_pages
 from eval.official.parsers import parse_nsf_bytes, parse_ub_bytes
@@ -42,9 +52,45 @@ def _default_page_processor(image, doc_id: str, mode: str) -> dict:
     )
 
 
-def _official_tier(group_key: str) -> str | None:
-    match = re.search(r"(?:^|[/\\])group\s*([a-d])(?:$|[/\\])", group_key, re.I)
-    return match.group(1).upper() if match else None
+def _cms1500_service_line_anchor_counts(fields: dict) -> dict[int, int]:
+    validators = {
+        "date_from": date_valid,
+        "cpt_code": cpt_format,
+        "charges": currency_format,
+    }
+    return {
+        index: sum(
+            validator(getattr(fields.get(f"line{index}_{suffix}"), "value", None), {})[0]
+            == Verdict.PASS
+            for suffix, validator in validators.items()
+        )
+        for index in range(1, 4)
+    }
+
+
+def _active_cms1500_service_lines(fields: dict) -> set[int]:
+    """Detect printed rows from raw OCR anchors without expected output."""
+    return {index for index, count in _cms1500_service_line_anchor_counts(fields).items()
+            if count >= 2}
+
+
+def _mark_inactive_cms1500_service_lines(page) -> None:
+    anchor_counts = _cms1500_service_line_anchor_counts(page.fields)
+    for name, field in page.fields.items():
+        match = re.fullmatch(r"line(\d+)_\w+", name)
+        if not match or anchor_counts[int(match.group(1))] > 0:
+            continue
+        field.value = None
+        field.confidence = 0.0
+        field.stamps = [ValidationStamp(
+            "service_line_activation", Verdict.INAPPLICABLE,
+            "service line has no valid activation anchors",
+        )]
+        for attempt in field.attempts:
+            attempt.value = None
+            attempt.confidence = 0.0
+        field.set_state(FieldState.ACCEPT)
+        page.decisions[name] = [("INAPPLICABLE", "service line is not active")]
 
 
 def _local_cost(latency_ms: float) -> float:
@@ -66,6 +112,7 @@ def _official_unstructured_result(item: IntakeFile, pages, texts, latency_ms: fl
         "provenance": [{"rung": "local_ocr", "engine": "official_unstructured"}],
         "cost_usd": 0.0,
     } for name, value in values.items()}
+    empty_extraction = not fields
     return {
         "document_id": item.safe_source_id,
         "safe_source_id": item.safe_source_id,
@@ -84,9 +131,11 @@ def _official_unstructured_result(item: IntakeFile, pages, texts, latency_ms: fl
         "latency": {"milliseconds": round(latency_ms, 3)},
         "measured_cost": {"usd": round(_local_cost(latency_ms), 9)},
         "projected_cost": {"usd": round(_local_cost(latency_ms), 9)},
-        "warnings": (["Tier D uses limited label-driven extraction."] if fields else
-                     ["Tier D label-driven extraction produced no fields; "
-                      "the page decoded but nothing was resolved."]),
+        "warnings": [
+            "Tier D uses limited label-driven extraction.",
+            *(["Tier D label-driven extraction produced no fields; "
+               "the page decoded but nothing was resolved."] if empty_extraction else []),
+        ],
         "evaluation": None,
         "evidence_semantics": "official_unstructured_adapter",
         "_group_key": item.group_key,
@@ -95,20 +144,33 @@ def _official_unstructured_result(item: IntakeFile, pages, texts, latency_ms: fl
 
 
 def _process_official_item(item: IntakeFile, tier: str, mode: str,
-                           *, form: str | None = None) -> dict:
+                           *, form: str | None = None,
+                           require_detection: bool = False) -> dict | None:
     started = time.perf_counter()
+    stage_latency = new_stage_latency()
     try:
+        decode_started = time.perf_counter()
         pages = decode_pages(item.content, item.source_format)
+        record_stage(stage_latency, "tiff_decode", decode_started)
         words_by_page, texts = [], []
         for page in pages:
-            words, text, _ = local_ocr(page)
+            words, text, ocr_ms = local_ocr(page)
+            stage_latency["primary_ocr"] += ocr_ms
             words_by_page.append(words)
             texts.append(text)
         if tier == "D":
             return _official_unstructured_result(
                 item, pages, texts, (time.perf_counter() - started) * 1000)
-        selection = select_claim_pages(texts, tier)
+        selection_tier = tier
+        if form == "auto":
+            cms_score = max((_score(text, CMS_MARKERS) for text in texts), default=0)
+            ub_score = max((_score(text, UB_MARKERS) for text in texts), default=0)
+            form = "ub04" if ub_score > cms_score else "cms1500"
+            selection_tier = "C" if form == "ub04" else "auto"
+        selection = select_claim_pages(texts, selection_tier)
         if selection.status != "deterministic" or not selection.claim_pages:
+            if require_detection:
+                return None
             result = _failed_result(
                 item, "Claim-page selection abstained; no page was extracted.",
                 status="FAILED_EXTRACTION",
@@ -121,15 +183,16 @@ def _process_official_item(item: IntakeFile, tier: str, mode: str,
             })
             return result
         page_index = selection.claim_pages[0]
-        if form == "auto":
-            form = ("ub04" if max((_score(text, UB_MARKERS) for text in texts), default=0)
-                    > max((_score(text, CMS_MARKERS) for text in texts), default=0)
-                    else "cms1500")
         form = form or ("ub04" if tier == "C" else "cms1500")
         page_result = structured_page(
             pages[page_index], words_by_page[page_index], form,
-            item.safe_source_id, preset=mode, run_retry=True,
+            item.safe_source_id, preset=mode, run_retry=form != "cms1500",
+            stage_latency=stage_latency,
         )
+        if form == "cms1500":
+            _mark_inactive_cms1500_service_lines(page_result)
+            retry_cms1500_page(
+                page_result, pages[page_index], mode, stage_latency=stage_latency)
         elapsed_ms = (time.perf_counter() - started) * 1000
         cost = _local_cost(elapsed_ms)
         receipt = service.build_receipt(
@@ -138,6 +201,7 @@ def _process_official_item(item: IntakeFile, tier: str, mode: str,
               "latency_ms": elapsed_ms, "meta": {}}],
             mode, elapsed_ms, source_kind="local_workspace",
         )
+        reporting_started = time.perf_counter()
         result = _unify_receipts(item, [receipt])
         result["page_count"] = len(pages)
         result["evidence_semantics"] = "official_monochrome_adapter"
@@ -145,8 +209,19 @@ def _process_official_item(item: IntakeFile, tier: str, mode: str,
         if selection.attachment_pages:
             result["warnings"].append(
                 f"{len(selection.attachment_pages)} attachment page(s) excluded from extraction.")
+        record_stage(stage_latency, "reporting", reporting_started)
+        total_ms = (time.perf_counter() - started) * 1000
+        attributed_ms = sum(stage_latency.values())
+        result["latency"] = {
+            "milliseconds": round(total_ms, 3),
+            "stages_ms": {name: round(value, 3)
+                          for name, value in stage_latency.items()},
+            "unattributed_ms": round(max(0.0, total_ms - attributed_ms), 3),
+        }
         return result
     except Exception:
+        if require_detection:
+            return None
         return _failed_result(item, "Official document processing failed; batch continued.")
 
 
@@ -181,10 +256,14 @@ def _unify_receipts(item: IntakeFile, receipts: list[dict]) -> dict:
     fields, validations = [], []
     governor = Counter()
     retried = escalated = unresolved = 0
+    accepted_without_retry = accepted_after_retry = accepted_with_flag = 0
+    inapplicable = pending_local_retry = pending_multimodal = pending_human_review = 0
     measured = projected = latency = 0.0
     linkage_values = []
+    field_count = 0
     for page_number, receipt in enumerate(receipts, 1):
         page_fields = receipt["final_output"]
+        field_count += len(page_fields)
         fields.append({"page": page_number, "fields": page_fields})
         for field in receipt["fields"]:
             validations.append({
@@ -195,39 +274,74 @@ def _unify_receipts(item: IntakeFile, receipts: list[dict]) -> dict:
             governor[field["decision"]] += 1
             retried += int(field["retry_count"] > 0)
             escalated += int(field["escalated"])
+            accepted_without_retry += int(
+                field["decision"] == "ACCEPT" and not field["retry_count"])
+            accepted_after_retry += int(
+                field["decision"] == "ACCEPT" and field["retry_count"] > 0)
+            accepted_with_flag += int(field["decision"] == "ACCEPT_WITH_FLAG")
+            inapplicable += int(field["decision"] == "INAPPLICABLE")
+            pending_local_retry += int(field["decision"] == "RETRY")
+            pending_multimodal += int(
+                field["decision"] == "ESCALATE" and not field["escalated"])
+            pending_human_review += int(field["decision"] == "HUMAN_REVIEW")
             unresolved += int(field["decision"] not in {
-                "ACCEPT", "ACCEPT_WITH_FLAG", "ACCEPT_WITH_OVERRIDE"
+                "INAPPLICABLE", "ACCEPT", "ACCEPT_WITH_FLAG", "ACCEPT_WITH_OVERRIDE"
             })
             if field.get("final_value") not in (None, ""):
                 linkage_values.append(str(field["final_value"]))
         measured += float(receipt["costs"]["measured_total_automated"]["value_usd"])
         projected += float(receipt["costs"]["projected_total_automated"]["value_usd"])
         latency += float(receipt["latency_ms"])
+    document_type = next(iter(document_types)) if len(document_types) == 1 else "mixed"
+    empty_extraction = field_count == 0
+    warnings = ([f"Document classified as {document_type}; the page decoded but no "
+                 "fields were extracted, so it was not successfully processed."]
+                if empty_extraction else [])
+    if pending_multimodal:
+        warnings.append(
+            f"{pending_multimodal} field(s) pending escalation; external providers are "
+            "disabled and no data was sent."
+        )
+    if pending_human_review:
+        warnings.append(f"{pending_human_review} field(s) require human review.")
+    if pending_local_retry:
+        warnings.append(f"{pending_local_retry} field(s) remain pending local retry.")
     return {
         "document_id": item.safe_source_id,
         "safe_source_id": item.safe_source_id,
         "source_file": item.filename,
         "source_format": item.source_format,
         "source_role": item.role.value,
-        "document_type": next(iter(document_types)) if len(document_types) == 1 else "mixed",
+        "document_type": document_type,
         "page_count": len(receipts),
-        "processing_status": _document_status(
-            sum(len(page["fields"]) for page in fields), unresolved),
+        "processing_status": _document_status(field_count, unresolved),
         "fields": fields,
         "validations": validations,
         "governor_summary": dict(sorted(governor.items())),
         "retry_summary": {"fields_retried": retried},
+        "resolution_summary": {
+            "accepted_without_retry": accepted_without_retry,
+            "accepted_after_local_retry": accepted_after_retry,
+            "accepted_with_flag": accepted_with_flag,
+            "inapplicable": inapplicable,
+            "pending_local_retry": pending_local_retry,
+            "pending_multimodal": pending_multimodal,
+            "multimodal_attempted": escalated,
+            "pending_human_review": pending_human_review,
+            "external_provider_calls": 0,
+        },
         "escalation_summary": {
             "fields_escalated": escalated,
+            "pending_multimodal": pending_multimodal,
+            "multimodal_attempted": escalated,
+            "pending_human_review": pending_human_review,
             "external_provider_calls": 0,
         },
         "unresolved_fields": unresolved,
         "latency": {"milliseconds": round(latency, 3)},
         "measured_cost": {"usd": round(measured, 9)},
         "projected_cost": {"usd": round(projected, 9)},
-        "warnings": ([] if any(page["fields"] for page in fields) else
-                     ["The page decoded but no fields were extracted; "
-                      "this document was not successfully processed."]),
+        "warnings": warnings,
         "evaluation": None,
         "_group_key": item.group_key,
         "_linkage_text": " ".join(linkage_values),
@@ -254,15 +368,11 @@ def process_item(item: IntakeFile, mode: str = service.DEFAULT_MODE,
         return _failed_result(item, "File role is not a claim document.", status="SKIPPED")
     if item.status == "ERROR":
         return _failed_result(item, item.warning or "Document intake failed.")
-    official_tier = _official_tier(item.group_key)
-    if official_tier and page_processor is None:
-        return _process_official_item(item, official_tier, mode)
     if page_processor is None and _red_router_abstains(item):
         # The red-ink router only fingerprints colour dropout forms, so a
         # monochrome scan reaches it with an empty mask and is dismissed as
         # unstructured. Route by content instead of by parent folder name.
-        return _process_official_item(
-            item, "A" if (item.page_count or 1) == 1 else "B", mode, form="auto")
+        return _process_official_item(item, "auto", mode, form="auto")
     processor = page_processor or _default_page_processor
     try:
         pages = decode_pages(item.content, item.source_format)
@@ -283,20 +393,20 @@ def _job_id(items: list[IntakeFile], mode: str) -> str:
 def _batch_status(results: list[dict]) -> str:
     """A batch never claims clean success while any document needs attention."""
     statuses = {result["processing_status"] for result in results}
-    if statuses & {"FAILED"}:
+    if statuses & {"FAILED", "FAILED_EXTRACTION"}:
         return "COMPLETED_WITH_ERRORS"
-    if statuses & {"PARTIAL", "FAILED_EXTRACTION"}:
+    if statuses & {"PARTIAL"}:
         return "COMPLETED_WITH_REVIEW"
     return "COMPLETED"
 
 
 def summarize_results(results: list[dict]) -> dict:
     counts = Counter(result["processing_status"] for result in results)
-    completed = [result for result in results
+    processed = [result for result in results
                  if result["processing_status"] in PRODUCED_OUTPUT]
-    pages = sum(result["page_count"] for result in completed)
-    latency = sum(result["latency"]["milliseconds"] for result in completed)
-    types = Counter(result["document_type"] for result in completed)
+    pages = sum(result["page_count"] for result in processed)
+    latency = sum(result["latency"]["milliseconds"] for result in processed)
+    types = Counter(result["document_type"] for result in processed)
     return {
         "files": len(results),
         "pages": pages,
@@ -307,11 +417,12 @@ def summarize_results(results: list[dict]) -> dict:
         "skipped": counts["SKIPPED"] + counts["DUPLICATE"],
         "cancelled": counts["CANCELLED"],
         "document_types": dict(sorted(types.items())),
-        "unresolved_fields": sum(result["unresolved_fields"] for result in completed),
+        "unresolved_fields": sum(
+            int(result.get("unresolved_fields") or 0) for result in processed),
         "measured_cost_usd": round(sum(
-            result["measured_cost"]["usd"] for result in completed), 9),
+            result["measured_cost"]["usd"] for result in processed), 9),
         "projected_cost_usd": round(sum(
-            result["projected_cost"]["usd"] for result in completed), 9),
+            result["projected_cost"]["usd"] for result in processed), 9),
         "latency_ms": round(latency, 3),
         "throughput_pages_per_minute": round(pages * 60000 / latency, 6) if latency else None,
         "accuracy": None,

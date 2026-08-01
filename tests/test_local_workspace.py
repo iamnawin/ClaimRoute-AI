@@ -10,8 +10,11 @@ from PIL import Image
 from streamlit.testing.v1 import AppTest
 
 from app import service, workspace
+from app import streamlit_app
 from app.intake import FileRole, inspect_content
-from engine.schemas import Attempt, FieldResult, FieldState, PageResult
+from engine.schemas import (
+    Attempt, FieldResult, FieldState, PageResult, ValidationStamp, Verdict,
+)
 
 
 def _image_bytes(fmt="PNG", frames=1):
@@ -29,6 +32,39 @@ def _receipt(doc_id="safe"):
     page.fields = {"patient_name": field}
     page.decisions = {"patient_name": [("ACCEPT", "test")]}
     return service.build_receipt(page, [], "balanced", 10.0, source_kind="local_workspace")
+
+
+def _empty_receipt(doc_id="safe", document_type="unstructured"):
+    page = PageResult(doc_id, "p1", document_type, quality_score=0.9)
+    return service.build_receipt(page, [], "balanced", 10.0,
+                                 source_kind="local_workspace")
+
+
+def _unresolved_receipt(doc_id="safe"):
+    page = PageResult(doc_id, "p1", "cms1500", quality_score=0.9)
+    field = FieldResult(doc_id, "p1", "patient_dob", None,
+                        FieldState.ESCALATE, 0.2)
+    field.attempts = [Attempt("primary_ocr", "stub", None, 0.2),
+                      Attempt("retry_ocr", "stub", None, 0.2)]
+    page.fields = {"patient_dob": field}
+    page.decisions = {"patient_dob": [
+        ("RETRY", "test"), ("ESCALATE", "retry exhausted")
+    ]}
+    return service.build_receipt(page, [], "balanced", 10.0,
+                                 source_kind="local_workspace")
+
+
+def _inapplicable_receipt(doc_id="safe"):
+    page = PageResult(doc_id, "p1", "cms1500", quality_score=0.9)
+    field = FieldResult(doc_id, "p1", "line2_cpt_code", None,
+                        FieldState.ACCEPT, 0.0)
+    field.stamps = [ValidationStamp(
+        "service_line_activation", Verdict.INAPPLICABLE, "inactive row")]
+    field.attempts = [Attempt("primary_ocr", "stub", None, 0.0)]
+    page.fields = {"line2_cpt_code": field}
+    page.decisions = {"line2_cpt_code": [("INAPPLICABLE", "inactive row")]}
+    return service.build_receipt(page, [], "balanced", 10.0,
+                                 source_kind="local_workspace")
 
 
 def test_local_workspace_source_disables_external_escalation(tmp_path):
@@ -55,6 +91,71 @@ def test_processing_without_ground_truth_uses_unified_contract():
     assert result["page_count"] == 1
     assert result["source_role"] == FileRole.CLAIM_DOCUMENT.value
     assert result["escalation_summary"]["external_provider_calls"] == 0
+
+
+def test_empty_extraction_is_partial_not_completed():
+    item = inspect_content("synthetic.png", _image_bytes())
+    result = workspace.process_item(
+        item, page_processor=lambda *args: _empty_receipt())
+
+    assert result["processing_status"] == "PARTIAL"
+    assert result["unresolved_fields"] is None
+    assert result["warnings"] == [
+        "Document classified as unstructured; no fields were extracted."
+    ]
+
+
+def test_partial_extraction_is_not_counted_as_batch_success():
+    item = inspect_content("synthetic.png", _image_bytes())
+    batch = workspace.run_batch(
+        [item], processor=lambda item, mode: workspace.process_item(
+            item, page_processor=lambda *args: _empty_receipt()))
+
+    assert batch["processing_status"] == "COMPLETED_WITH_REVIEW"
+    assert batch["summary"]["success"] == 0
+    assert batch["summary"]["partial"] == 1
+    assert batch["summary"]["unresolved_fields"] is None
+
+
+def test_unresolved_fields_are_partial_and_explicitly_pending_not_sent():
+    item = inspect_content("synthetic.png", _image_bytes())
+    result = workspace.process_item(
+        item, page_processor=lambda *args: _unresolved_receipt())
+
+    assert result["processing_status"] == "PARTIAL"
+    assert result["unresolved_fields"] == 1
+    assert result["escalation_summary"] == {
+        "fields_escalated": 0,
+        "pending_multimodal": 1,
+        "multimodal_attempted": 0,
+        "pending_human_review": 0,
+        "external_provider_calls": 0,
+    }
+    assert result["warnings"] == [
+        "1 field(s) pending escalation; external providers are disabled and no data was sent."
+    ]
+    assert result["resolution_summary"] == {
+        "accepted_without_retry": 0,
+        "accepted_after_local_retry": 0,
+        "accepted_with_flag": 0,
+        "inapplicable": 0,
+        "pending_local_retry": 0,
+        "pending_multimodal": 1,
+        "multimodal_attempted": 0,
+        "pending_human_review": 0,
+        "external_provider_calls": 0,
+    }
+
+
+def test_inapplicable_service_line_field_is_not_unresolved():
+    item = inspect_content("synthetic.png", _image_bytes())
+    result = workspace.process_item(
+        item, page_processor=lambda *args: _inapplicable_receipt())
+
+    assert result["processing_status"] == "COMPLETED"
+    assert result["unresolved_fields"] == 0
+    assert result["governor_summary"] == {"INAPPLICABLE": 1}
+    assert result["resolution_summary"]["inapplicable"] == 1
 
 
 def test_multipage_processing_calls_each_page_in_order():
@@ -205,10 +306,45 @@ def test_official_container_preserves_adapter_evidence_semantics(monkeypatch):
     monkeypatch.setattr(workspace, "structured_page", structured)
     result = workspace.process_item(item)
 
-    assert calls == [("cms1500", {"preset": "balanced", "run_retry": True})]
+    assert len(calls) == 1 and calls[0][0] == "cms1500"
+    assert calls[0][1]["preset"] == "balanced"
+    assert calls[0][1]["run_retry"] is False
+    assert calls[0][1]["stage_latency"] is not None
     assert result["processing_status"] == "COMPLETED"
     assert result["evidence_semantics"] == "official_monochrome_adapter"
     assert result["escalation_summary"]["external_provider_calls"] == 0
+
+
+def test_single_monochrome_cms1500_falls_back_to_official_adapter(monkeypatch):
+    item = inspect_content("synthetic.001", _image_bytes("TIFF"))
+    monkeypatch.setattr(
+        workspace, "_default_page_processor",
+        lambda image, doc_id, mode: _empty_receipt(doc_id),
+    )
+    monkeypatch.setattr(
+        workspace, "local_ocr",
+        lambda page: ([], "HEALTH INSURANCE CLAIM FORM CMS-1500 PATIENT INSURED", 1.0),
+    )
+    monkeypatch.setattr(
+        workspace, "structured_page",
+        lambda image, words, form, doc_id, **kwargs: _page_for_official(doc_id),
+    )
+
+    result = workspace.process_item(item)
+
+    assert result["processing_status"] == "COMPLETED"
+    assert result["document_type"] == "cms1500"
+    assert result["fields"][0]["fields"]
+    assert result["validations"]
+    assert result["governor_summary"] == {"ACCEPT": 1}
+    assert result["evidence_semantics"] == "official_monochrome_adapter"
+    assert result["escalation_summary"]["external_provider_calls"] == 0
+    assert set(result["latency"]["stages_ms"]) == {
+        "tiff_decode", "preprocessing", "registration", "crop_generation",
+        "primary_ocr", "retry_ocr", "normalization", "validation", "governor",
+        "reporting",
+    }
+    assert result["latency"]["unattributed_ms"] >= 0
 
 
 def _page_for_official(doc_id):
@@ -230,3 +366,54 @@ def test_local_workspace_ui_exposes_intake_without_public_controls(monkeypatch):
     assert [item.label for item in app.radio] == ["Workflow", "Input source"]
     assert len(app.get("file_uploader")) == 1
     assert not app.sidebar
+
+
+def test_validation_rows_are_readable_and_not_raw_objects():
+    rows = streamlit_app._validation_rows([{
+        "page": 1,
+        "field_name": "patient_dob",
+        "results": [{
+            "validator": "date_valid", "verdict": "FAIL",
+            "detail": "synthetic invalid date",
+        }],
+    }])
+
+    assert rows == [{
+        "Page": 1,
+        "Field": "patient_dob",
+        "Validation": "date_valid",
+        "Status": "FAIL",
+        "Message": "synthetic invalid date",
+        "Severity": "ERROR",
+    }]
+    assert "[object Object]" not in str(rows)
+
+
+def test_workspace_job_does_not_start_twice_and_unlocks_after_success():
+    state = {}
+    calls = []
+    assert streamlit_app._queue_workspace_job(state, "job")
+    assert not streamlit_app._queue_workspace_job(state, "job")
+
+    result = streamlit_app._run_workspace_job(
+        state, "job", lambda: calls.append("run") or {"ok": True})
+
+    assert result == {"ok": True}
+    assert calls == ["run"]
+    assert state["workspace_job_running"] is False
+    assert "workspace_active_job" not in state
+    assert streamlit_app._run_workspace_job(
+        state, "job", lambda: calls.append("duplicate")) is None
+    assert calls == ["run"]
+
+
+def test_workspace_job_unlocks_after_failure():
+    state = {}
+    streamlit_app._queue_workspace_job(state, "job")
+
+    result = streamlit_app._run_workspace_job(
+        state, "job", lambda: (_ for _ in ()).throw(RuntimeError("sensitive")))
+
+    assert result is None
+    assert state["workspace_job_running"] is False
+    assert "sensitive" not in state["workspace_job_error"]

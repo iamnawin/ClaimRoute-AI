@@ -1,12 +1,30 @@
 """Strict and PHI-safe multimodal adapter boundary tests."""
 import json
+from pathlib import Path
 
 import pytest
+import yaml
 from PIL import Image
 
 from engine.vision.base import VisionErrorType, parse_response
 from engine.vision.gemini_engine import GeminiVisionEngine
 from engine.vision.openai_engine import OpenAIVisionEngine
+
+
+def test_openrouter_routing_placeholder_is_disabled_and_complete():
+    config = yaml.safe_load(Path("configs/multimodal_models.yaml").read_text(
+        encoding="utf-8"))
+
+    assert config["enabled"] is False
+    assert config["status"] == "proposed_unverified"
+    assert config["provider"] == "openrouter"
+    assert set(config["models"]) == {
+        "qwen_flash", "gemini_flash_lite", "qwen_plus", "gemini_31_flash_lite"
+    }
+    assert all(model["supports_images"] is True
+               for model in config["models"].values())
+    assert set(config["operating_modes"]) == {"economy", "balanced", "accuracy"}
+    assert "api_key" not in json.dumps(config).casefold()
 
 
 class _Reply:

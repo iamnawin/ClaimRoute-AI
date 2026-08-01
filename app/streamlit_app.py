@@ -38,6 +38,53 @@ def _shown(value, screenshot_safe: bool):
     return value
 
 
+def _validation_rows(validations: list[dict]) -> list[dict]:
+    """Flatten validation stamps into readable table rows."""
+    rows = []
+    for field in validations:
+        for result in field.get("results", []):
+            verdict = result.get("verdict", "NOT_APPLICABLE")
+            rows.append({
+                "Page": field.get("page"),
+                "Field": field.get("field_name"),
+                "Validation": result.get("validator", "Not applicable"),
+                "Status": verdict,
+                "Message": result.get("detail") or "—",
+                "Severity": "ERROR" if verdict == "FAIL" else "INFO",
+            })
+    return rows
+
+
+def _queue_workspace_job(state, fingerprint: str) -> bool:
+    if state.get("workspace_job_running"):
+        return False
+    state["workspace_job_running"] = True
+    state["workspace_pending_job"] = fingerprint
+    state.pop("workspace_job_error", None)
+    return True
+
+
+def _run_workspace_job(state, fingerprint: str, runner):
+    if (not state.get("workspace_job_running")
+            or state.get("workspace_pending_job") != fingerprint
+            or state.get("workspace_active_job")):
+        return None
+    state["workspace_active_job"] = fingerprint
+    try:
+        result = runner()
+        state["workspace_batch"] = result
+        return result
+    except Exception:
+        state["workspace_job_error"] = (
+            "Processing failed safely. Review the local terminal log and retry."
+        )
+        return None
+    finally:
+        state["workspace_job_running"] = False
+        state.pop("workspace_pending_job", None)
+        state.pop("workspace_active_job", None)
+
+
 def _style(st) -> None:
     st.markdown(
         """
@@ -316,13 +363,13 @@ def _uploaded_items(uploaded_files, max_pages):
 
 def _render_local_document(st, result, items):
     st.subheader("Document result")
-    completed = [row for row in result.get("documents", [])
+    processed = [row for row in result.get("documents", [])
                  if row["processing_status"] in workspace.PRODUCED_OUTPUT]
-    if not completed:
+    if not processed:
         st.info("Process a supported document to inspect its result.")
         return
     selected = st.selectbox(
-        "Document", completed,
+        "Document", processed,
         format_func=lambda row: f"{row['source_file']} · {row['processing_status']}",
         key="workspace_result_document",
     )
@@ -337,8 +384,11 @@ def _render_local_document(st, result, items):
             except IntakeError:
                 st.warning("Preview is unavailable; processing metadata remains visible.")
         st.metric("Pages", selected["page_count"])
-        st.metric("Unresolved fields", selected["unresolved_fields"])
+        st.metric("Unresolved fields", selected["unresolved_fields"]
+                  if selected["unresolved_fields"] is not None else "Unknown")
         st.metric("Latency", f"{selected['latency']['milliseconds'] / 1000:.2f} s")
+        for warning in selected["warnings"]:
+            st.warning(warning)
     with right:
         field_rows = []
         for page in selected["fields"]:
@@ -353,11 +403,16 @@ def _render_local_document(st, result, items):
         st.dataframe(field_rows, hide_index=True, width="stretch")
     evidence_tabs = st.tabs(["Validations", "Retries & governor", "Cost & latency"])
     with evidence_tabs[0]:
-        st.dataframe(selected["validations"], hide_index=True, width="stretch")
+        validation_rows = _validation_rows(selected["validations"])
+        if validation_rows:
+            st.dataframe(validation_rows, hide_index=True, width="stretch")
+        else:
+            st.info("No validation results were produced for this document.")
     with evidence_tabs[1]:
         st.write({
             "governor": selected["governor_summary"],
             "retry": selected["retry_summary"],
+            "resolution": selected.get("resolution_summary", {}),
             "escalation": selected["escalation_summary"],
         })
     with evidence_tabs[2]:
@@ -385,11 +440,13 @@ def _render_local_summary(st, batch):
         st.info("Run the selected inventory to create a batch summary.")
         return
     summary = batch["summary"]
-    columns = st.columns(5)
+    columns = st.columns(6)
     for column, (label, value) in zip(columns, (
         ("Files", summary["files"]), ("Pages", summary["pages"]),
-        ("Succeeded", summary["success"]), ("Failed", summary["failed"]),
-        ("Unresolved", summary["unresolved_fields"]),
+        ("Succeeded", summary["success"]), ("Partial", summary.get("partial", 0)),
+        ("Failed", summary["failed"] + summary.get("failed_extraction", 0)),
+        ("Unresolved", summary["unresolved_fields"]
+         if summary["unresolved_fields"] is not None else "Unknown"),
     )):
         column.metric(label, value)
     st.write({
@@ -425,26 +482,32 @@ def _local_workspace(st) -> None:
     st.success("Local workspace mode · folder access enabled · external providers disabled")
     st.warning("Authorized local data only. Do not expose this workspace through a public URL.")
 
+    running = bool(st.session_state.get("workspace_job_running"))
     st.subheader("Intake")
     workflow = st.radio(
         "Workflow", ["Process Documents", "Evaluate Dataset"], horizontal=True,
         help="Evaluation parses expected output only after document extraction finishes.",
+        disabled=running,
     )
     source = st.radio(
         "Input source", ["Single file", "Multiple files", "Local folder"], horizontal=True,
+        disabled=running,
     )
     max_pages = int(os.environ.get("CLAIMROUTE_MAX_PAGES", "100"))
     items = []
     if source == "Single file":
-        uploaded = st.file_uploader("Choose one local file", type=None, key="workspace_single")
+        uploaded = st.file_uploader(
+            "Choose one local file", type=None, key="workspace_single", disabled=running)
         items = _uploaded_items([uploaded] if uploaded else [], max_pages)
     elif source == "Multiple files":
         uploaded = st.file_uploader(
-            "Choose local files", type=None, accept_multiple_files=True, key="workspace_multiple")
+            "Choose local files", type=None, accept_multiple_files=True,
+            key="workspace_multiple", disabled=running)
         items = _uploaded_items(uploaded, max_pages)
     else:
-        folder = st.text_input("Local dataset/folder path", key="workspace_folder_path")
-        if st.button("Scan folder", type="primary"):
+        folder = st.text_input(
+            "Local dataset/folder path", key="workspace_folder_path", disabled=running)
+        if st.button("Scan folder", type="primary", disabled=running):
             try:
                 st.session_state["workspace_inventory"] = scan_folder(
                     folder, max_pages=max_pages)
@@ -466,6 +529,7 @@ def _local_workspace(st) -> None:
     selected_ids = st.multiselect(
         "Files included in this run", [item.safe_source_id for item in items],
         default=defaults,
+        disabled=running,
         format_func=lambda source_id: next(
             item.filename for item in items if item.safe_source_id == source_id),
     )
@@ -473,10 +537,19 @@ def _local_workspace(st) -> None:
 
     st.subheader("Processing queue")
     st.caption("Processing is synchronous. Optional stop is honored between documents.")
-    stop_after_first = st.checkbox("Stop after the first document in this run")
+    stop_after_first = st.checkbox(
+        "Stop after the first document in this run", disabled=running)
     queue_slot = st.empty()
     progress_bar = st.progress(0)
-    if st.button("Process selected files", type="primary", disabled=not selected):
+    fingerprint = workspace._job_id(
+        selected, f"{service.DEFAULT_MODE}:{workflow}") if selected else ""
+    clicked = st.button(
+        "Processing selected files…" if running else "Process selected files",
+        type="primary", disabled=running or not selected,
+    )
+    if clicked and _queue_workspace_job(st.session_state, fingerprint):
+        st.rerun()
+    if running and st.session_state.get("workspace_pending_job") == fingerprint:
         processed = {"count": 0}
 
         def on_progress(index, total, result):
@@ -488,13 +561,20 @@ def _local_workspace(st) -> None:
                 "Warning": "; ".join(result["warnings"]),
             }], hide_index=True, width="stretch")
 
-        batch = workspace.run_batch(
-            selected,
-            evaluate=workflow == "Evaluate Dataset",
-            progress=on_progress,
-            stop_requested=lambda: stop_after_first and processed["count"] >= 1,
+        st.info(f"Processing {len(selected)} selected document(s). Please wait.")
+        _run_workspace_job(
+            st.session_state,
+            fingerprint,
+            lambda: workspace.run_batch(
+                selected,
+                evaluate=workflow == "Evaluate Dataset",
+                progress=on_progress,
+                stop_requested=lambda: stop_after_first and processed["count"] >= 1,
+            ),
         )
-        st.session_state["workspace_batch"] = batch
+        st.rerun()
+    if st.session_state.get("workspace_job_error"):
+        st.error(st.session_state["workspace_job_error"])
     batch = st.session_state.get("workspace_batch")
     if batch:
         queue_slot.dataframe([{
