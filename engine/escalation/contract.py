@@ -158,26 +158,49 @@ class UsageMetadata:
 
 @dataclass
 class CostBreakdown:
-    """Measured and estimated spend, never blended into one number.
+    """Measured, reported and estimated spend, never blended into one number.
+
+    `reported_usd` = the amount the PROVIDER says it charged, when the provider
+    returns one (OpenRouter does; OpenAI does not). This is the only figure that
+    is an actual billed amount, so it outranks every local calculation and is
+    kept in its own field rather than overwriting `measured_usd`.
 
     `measured_usd` = provider-reported tokens priced from configs/prices.yaml. It
     is a LIST-PRICE COMPUTATION OVER REPORTED USAGE, not a billed invoice amount;
-    the distinction is kept in `basis` so no report can quietly promote it.
+    the distinction is kept in `basis` so no report can quietly promote it. It is
+    populated alongside `reported_usd` when a verified price row exists, so the
+    two can be compared — a large gap means our price row has drifted.
 
     `estimated_usd` is used only when the provider reported no usage. It covers
     text tokens alone and excludes image tokens (which are unknown), so it is an
     explicit LOWER BOUND — flagged as such rather than padded with a guess.
     """
-    basis: str = "unknown"                       # measured_usage | estimated_usage | unknown
+    # provider_reported | measured_usage | estimated_usage | unknown
+    basis: str = "unknown"
     measured_usd: Optional[float] = None
     estimated_usd: Optional[float] = None
+    reported_usd: Optional[float] = None
     price_row: str = ""
     estimate_excludes_image_tokens: bool = False
+
+    @property
+    def billed_usd(self) -> Optional[float]:
+        """The best available figure for money actually spent, or None.
+
+        Prefers the provider's own number. Never falls back to `estimated_usd`:
+        an estimate that excludes image tokens is a lower bound, and treating a
+        lower bound as spend would let a budget be overrun silently.
+        """
+        if self.reported_usd is not None:
+            return self.reported_usd
+        return self.measured_usd
 
     def to_dict(self) -> dict:
         return {"basis": self.basis, "price_row": self.price_row,
                 "measured_usd": self.measured_usd,
                 "estimated_usd": self.estimated_usd,
+                "reported_usd": self.reported_usd,
+                "billed_usd": self.billed_usd,
                 "estimate_excludes_image_tokens": self.estimate_excludes_image_tokens,
                 "estimate_is_lower_bound": self.estimate_excludes_image_tokens}
 
@@ -205,7 +228,9 @@ class MultimodalResult:
     """The single return type of the adapter. Success and every failure mode."""
     request_id: str
     provider: str = ""
-    model: str = ""
+    model: str = ""                              # the model REQUESTED
+    actual_model: str = ""                       # what the provider says it served
+    model_substituted: bool = False
     field_name: str = ""
     answer: Optional[ParsedAnswer] = None
     rejects: list = field(default_factory=list)

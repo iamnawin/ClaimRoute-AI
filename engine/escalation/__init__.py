@@ -10,8 +10,14 @@ importing or constructing a client cannot produce a network call.
 Layout:
     errors.py      typed failure categories + retryability
     contract.py    request/result types, strict parsing, grounding, usage, cost
-    providers/     transport adapters (one real: OpenAI) + deterministic fakes
+    providers/     transport adapters (OpenAI, OpenRouter) + deterministic fakes
     client.py      policy gate, bounded retries, hashing, safe audit record
+    live_policy.py spending guardrails for the real, paid provider path
+
+The live path is a further layer of "off". live_policy.LiveCallGovernor permits
+zero spending by default and requires tracked config, two environment flags, a
+key, synthetic input, a proven crop, an allowlisted vision model and remaining
+budget before a single paid call is authorised.
 """
 from __future__ import annotations
 
@@ -22,6 +28,8 @@ from engine.escalation.contract import (CostBreakdown, CropImage, MultimodalRequ
                                         ground_answer, parse_answer)
 from engine.escalation.errors import (RETRYABLE, ErrorCategory, MultimodalError,
                                       category_for_status)
+from engine.escalation.live_policy import (LiveCallGovernor, LiveCallOutcome,
+                                           LiveDecision, SpendLimits, fingerprint)
 from engine.escalation.providers import MultimodalProvider, ProviderCall, build_provider
 
 __all__ = [
@@ -31,4 +39,6 @@ __all__ = [
     "ErrorCategory", "MultimodalError", "RETRYABLE", "category_for_status",
     "parse_answer", "ground_answer",
     "build_request", "request_from_page", "build_provider", "load_config",
+    "LiveCallGovernor", "LiveCallOutcome", "LiveDecision", "SpendLimits",
+    "fingerprint",
 ]

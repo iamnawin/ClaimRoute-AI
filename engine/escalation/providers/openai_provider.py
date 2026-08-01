@@ -73,33 +73,7 @@ class OpenAIMultimodalProvider(MultimodalProvider):
             "response_format": {"type": "json_object"},
             "max_completion_tokens": self.max_output_tokens,
         }
-        req = urllib.request.Request(
-            self.endpoint, data=json.dumps(payload).encode(),
-            headers={"Authorization": f"Bearer {key}",
-                     "Content-Type": "application/json"})
-
-        t0 = time.perf_counter()
-        try:
-            with self._opener(req, timeout=timeout_s) as r:
-                status = getattr(r, "status", 200)
-                body_bytes = r.read()
-        except urllib.error.HTTPError as e:
-            raise self._http_error(e) from None
-        except (socket.timeout, TimeoutError) as e:
-            raise MultimodalError(ErrorCategory.TIMEOUT,
-                                  f"no response within {timeout_s}s") from None
-        except urllib.error.URLError as e:
-            # URLError wraps a socket timeout on some platforms.
-            if isinstance(getattr(e, "reason", None), (socket.timeout, TimeoutError)):
-                raise MultimodalError(ErrorCategory.TIMEOUT,
-                                      f"no response within {timeout_s}s") from None
-            raise MultimodalError(ErrorCategory.NETWORK_ERROR,
-                                  f"{type(e).__name__}") from None
-        except Exception as e:                    # never leak an uncategorised failure
-            raise MultimodalError(ErrorCategory.UNKNOWN_PROVIDER_ERROR,
-                                  f"{type(e).__name__}") from None
-
-        latency_ms = (time.perf_counter() - t0) * 1000
+        status, body_bytes, latency_ms = self._perform(payload, key, timeout_s)
 
         try:
             body = json.loads(body_bytes.decode())
@@ -119,6 +93,49 @@ class OpenAIMultimodalProvider(MultimodalProvider):
         return ProviderCall(raw_text=text or "",
                             usage=self._usage(body.get("usage") or {}),
                             latency_ms=latency_ms, http_status=status)
+
+    # ----------------------------------------------------------- transport
+
+    def extra_headers(self) -> dict:
+        """Provider-specific headers. Never carries credentials."""
+        return {}
+
+    def _perform(self, payload: dict, key: str,
+                 timeout_s: float) -> tuple[int, bytes, float]:
+        """One HTTP round trip with every failure categorised.
+
+        Kept separate from invoke() so an OpenAI-compatible provider reuses this
+        exact error mapping rather than restating it — two adapters must not be
+        able to disagree about what a 429 or a socket timeout means.
+        """
+        req = urllib.request.Request(
+            self.endpoint, data=json.dumps(payload).encode(),
+            headers={"Authorization": f"Bearer {key}",
+                     "Content-Type": "application/json",
+                     **self.extra_headers()})
+
+        t0 = time.perf_counter()
+        try:
+            with self._opener(req, timeout=timeout_s) as r:
+                status = getattr(r, "status", 200)
+                body_bytes = r.read()
+        except urllib.error.HTTPError as e:
+            raise self._http_error(e) from None
+        except (socket.timeout, TimeoutError):
+            raise MultimodalError(ErrorCategory.TIMEOUT,
+                                  f"no response within {timeout_s}s") from None
+        except urllib.error.URLError as e:
+            # URLError wraps a socket timeout on some platforms.
+            if isinstance(getattr(e, "reason", None), (socket.timeout, TimeoutError)):
+                raise MultimodalError(ErrorCategory.TIMEOUT,
+                                      f"no response within {timeout_s}s") from None
+            raise MultimodalError(ErrorCategory.NETWORK_ERROR,
+                                  f"{type(e).__name__}") from None
+        except Exception as e:                    # never leak an uncategorised failure
+            raise MultimodalError(ErrorCategory.UNKNOWN_PROVIDER_ERROR,
+                                  f"{type(e).__name__}") from None
+
+        return status, body_bytes, (time.perf_counter() - t0) * 1000
 
     # -------------------------------------------------------------- errors
 

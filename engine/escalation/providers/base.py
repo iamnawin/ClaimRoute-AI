@@ -13,11 +13,12 @@ retryability.
 """
 from __future__ import annotations
 
+import hashlib
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from typing import Optional
 
-from engine.escalation.contract import MultimodalRequest, UsageMetadata
+from engine.escalation.contract import REQUIRED_KEYS, MultimodalRequest, UsageMetadata
 
 
 @dataclass
@@ -26,11 +27,22 @@ class ProviderCall:
 
     `raw_text` is transient: the client hashes it, parses it, and drops it. It is
     never persisted, logged, or placed in an audit record.
+
+    `reported_cost_usd` is the provider's own charge for this call, when it
+    returns one. None means the provider did not report a cost — which stays
+    unknown rather than being defaulted to zero, because a zero would understate
+    spend against a budget.
+
+    `actual_model` is the model the provider says it actually served. It can
+    differ from the model requested (aggregators substitute), so it is recorded
+    separately instead of assuming the request was honoured.
     """
     raw_text: str
     usage: UsageMetadata = field(default_factory=UsageMetadata)
     latency_ms: float = 0.0
     http_status: Optional[int] = None
+    reported_cost_usd: Optional[float] = None
+    actual_model: str = ""
 
     def __repr__(self) -> str:                  # keep bodies out of tracebacks
         return (f"ProviderCall(chars={len(self.raw_text)}, "
@@ -84,3 +96,15 @@ Rules:
 - Never report a value from a neighbouring box.
 - If you cannot see the contents, return {{"value": null, "visible": false, "confidence": 0.0}}.
 - Do not add explanation, markdown, or any key beyond the three above."""
+
+
+def _digest(text: str) -> str:
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()[:12]
+
+
+# Derived, not hand-maintained. Editing the prompt or the response schema changes
+# these automatically, so a duplicate-call fingerprint computed under the old
+# wording can never match one computed under the new wording — a stale cached
+# answer cannot survive a contract change just because nobody bumped a constant.
+PROMPT_VERSION = _digest(PROMPT_TEMPLATE)
+SCHEMA_VERSION = _digest(",".join(sorted(REQUIRED_KEYS)))

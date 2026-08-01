@@ -208,7 +208,12 @@ class MultimodalClient:
         result.raw_sha256 = hashlib.sha256(call.raw_text.encode("utf-8",
                                                                 "replace")).hexdigest()
         result.usage = call.usage or UsageMetadata()
-        result.cost = self._cost(provider, request, result.usage)
+        result.cost = self._cost(provider, request, result.usage, call)
+        if call.actual_model and call.actual_model != result.model:
+            # An aggregator served something other than what was asked for.
+            # Recorded, never silently accepted as equivalent.
+            result.model_substituted = True
+            result.actual_model = call.actual_model
 
         payload, rejects = parse_answer(call.raw_text)
         if payload is None:
@@ -260,8 +265,14 @@ class MultimodalClient:
 
     # --------------------------------------------------------------- cost
 
-    def _cost(self, provider, request, usage: UsageMetadata) -> CostBreakdown:
-        """Measured and estimated spend, kept apart.
+    def _cost(self, provider, request, usage: UsageMetadata,
+              call=None) -> CostBreakdown:
+        """Reported, measured and estimated spend, kept apart.
+
+        Precedence is deliberate. A cost the PROVIDER reports is an actual
+        charge and wins outright; when it exists we still compute the local
+        list-price figure alongside it (when a verified price row exists) so the
+        two can be compared rather than one quietly replacing the other.
 
         Measured means provider-reported tokens priced from configs/prices.yaml.
         It is a list-price computation over reported usage, NOT a billed invoice
@@ -270,6 +281,21 @@ class MultimodalClient:
         image-token count to make the number look complete would be a cost lie.
         """
         price_row = provider.price_row or provider.model
+        reported = getattr(call, "reported_cost_usd", None) if call else None
+
+        def _local() -> Optional[float]:
+            """List price over reported usage, or None when either is missing."""
+            if not usage.billable_known:
+                return None
+            try:
+                return price_call(price_row, usage.input_tokens, usage.output_tokens)
+            except KeyError:
+                return None
+
+        if reported is not None:
+            return CostBreakdown(basis="provider_reported", price_row=price_row,
+                                 reported_usd=reported, measured_usd=_local())
+
         try:
             if usage.billable_known:
                 return CostBreakdown(
@@ -298,6 +324,8 @@ class MultimodalClient:
             **request.safe_dict(),
             "provider": result.provider,
             "model": result.model,
+            "actual_model": result.actual_model,
+            "model_substituted": result.model_substituted,
             "enabled": self.enabled,
             "called_provider": result.called_provider,
             "attempts": result.attempts,
@@ -314,7 +342,9 @@ class MultimodalClient:
         }
 
         if self._ledger is not None:
-            measured = result.cost.measured_usd or 0.0
+            # billed_usd prefers the provider's own charge and never falls back
+            # to the image-excluding estimate, which is only a lower bound.
+            measured = result.cost.billed_usd or 0.0
             self._ledger.log(
                 doc_id=request.doc_id or "unknown", page_id=request.page_id,
                 field_name=request.field_name,
