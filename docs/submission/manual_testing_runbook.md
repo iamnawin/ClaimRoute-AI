@@ -1,6 +1,6 @@
 # ClaimRoute AI manual testing runbook
 
-Status: documentation-only guidance for `integrate/final-submission` at `829b2eb`.
+Status: manually validated on `integrate/final-submission` from baseline `68f7bf3` on 2026-08-01.
 
 This runbook separates safe synthetic and declared development work from protected organiser
 inputs. It never requires a real provider, OpenRouter, a network call, or a holdout rerun.
@@ -65,6 +65,51 @@ uv run --python .venv\Scripts\python.exe python -m pytest tests\test_day10.py te
 These tests do not read the organiser folder. They cover upload validation, UI workflows, final and
 audit JSON separation, multipage TIFF decoding, Tier B selection logic, structured output, and
 resumable synthetic batch receipts.
+
+## Manual validation receipt
+
+The receipt below records what was executed from the submission branch. `AppTest` means the
+repository's installed Streamlit test runtime rendered and interacted with the real app module; it
+does not mean a frozen evaluator was rerun. No extracted field values were printed or retained.
+
+Validation commands used:
+
+```powershell
+uv run --python .venv\Scripts\python.exe python -m pytest tests\test_day10.py tests\test_day11_ui.py tests\test_official_dataset.py tests\test_day8.py -q
+```
+
+Result: `39 passed in 61.27s`.
+
+The three-tier UI pass used `streamlit.testing.v1.AppTest` against `app/streamlit_app.py`, selected
+the named bundled example in each tier, clicked **Run extraction**, parsed the final and audit JSON
+payloads, and asserted the visible tabs, download controls, dashboard headings, and frozen-evidence
+warning. The local launch command was separately started on port `8511`; `/_stcore/health`
+returned HTTP `200` with body `ok`, after which the process was stopped.
+
+| Test | Exact input | Command or UI steps | Expected result | Actual result | Status | Output path | Warning | Demo screenshot needed |
+|---|---|---|---|---|---|---|---|---|
+| Streamlit clean workflow | Bundled synthetic `cms1500_42_0000 / clean` | Start Streamlit; choose bundled sample and Balanced; click **Run extraction**. Validation used the equivalent `AppTest` selection and click. | Five result tabs and a completed synthetic receipt | No UI exception; 46 fields; five tabs; two download controls | PASS | Session receipt; optional browser Downloads | Screenshot-safe mode must remain on | Yes: Results plus safe-data banner |
+| Streamlit noisy workflow | Bundled synthetic `cms1500_42_0000 / noisy` | Same steps with the noisy selector | Fresh degraded-tier receipt | No UI exception; 46 fields; five tabs; two download controls | PASS | Session receipt; optional browser Downloads | Offline-oracle usage estimates may be nonzero; they are not external calls | Yes: Results or field evidence |
+| Streamlit ugly workflow | Bundled synthetic `cms1500_42_0000 / ugly` | Same steps with the ugly selector | Fresh difficult-tier receipt | No UI exception; 46 fields; five tabs; two download controls | PASS | Session receipt; optional browser Downloads | Routing may differ with local OCR; do not overwrite frozen evidence | Yes: routing/evidence path |
+| Final JSON download contract | Any of the three completed bundled runs | Click **Download final JSON**; validation parsed the exact payload supplied to that control | Valid JSON with `document`, `fields`, and `operating_mode` only | Control present on all three runs; payload parsed with exactly those top-level keys | PASS | Browser-configured Downloads folder; `*-final.json` | Contains synthetic values; do not treat it as official evidence | No; show the button, not file contents |
+| Audit JSON download contract | Any of the three completed bundled runs | Click **Download audit JSON**; validation parsed the exact payload supplied to that control | Audit sections present; duplicate `final_output` absent | Control present on all three runs; required sections present and duplicate absent | PASS | Browser-configured Downloads folder; `*-audit.json` | Keep exported synthetic values out of official evidence | No; show the button, not file contents |
+| Accuracy dashboard | Same three completed runs | Open **Operating modes** and **Benchmark** | Accuracy tables/frontier and frozen-evidence boundary are visible | `Accuracy-cost frontier` rendered and frozen synthetic warning appeared on all runs | PASS | Rendered UI only; data comes from committed summaries | Not official or real-claim accuracy | Yes: Benchmark with warning visible |
+| Cost dashboard | Same three completed runs | Open **Cost & performance** | Measured local/API and projected API/automated bases remain separated | Dashboard rendered on all runs; local/measured bases were `MEASURED`, forecasts `PROJECTED` | PASS | Rendered UI only; audit JSON contains cost detail | Noisy/ugly may record offline-oracle token estimates | Yes: cost cards with basis badges |
+| Supported raster uploads | In-memory 12x12 no-PHI synthetic PNG, JPEG, and one-page TIFF | Call the existing `service.inspect_upload(..., synthetic_confirmed=True)` contract | All three supported formats accepted as one page | PNG, JPEG, and TIFF accepted; detected format and one page matched | PASS | Console only; temporary decoder storage self-deletes | UI still requires the synthetic/no-PHI checkbox and 10 MB maximum | No |
+| PDF rejection | In-memory placeholder named `synthetic.pdf` | Pass to the existing upload validator | Rejected before decoding as unsupported | Rejected with the supported-type guidance | PASS | Console only | PDF is not an accepted upload type | No |
+| Multipage TIFF boundary | In-memory three-frame no-PHI synthetic TIFF | Pass to the Streamlit upload validator, then the official adapter decoder | UI rejects three pages; adapter returns three decoded frames | UI reported the one-page limit; adapter decoded three RGB pages | PASS | Console only | Adapter capability does not make multipage TIFF a UI feature | No |
+| Existing fixed-folder batch contract | Synthetic fixtures exercised by `tests/test_day8.py` | Run the focused pytest command above | Filtering, limits, resume keys, JSONL, JSON, and CSV behavior pass | All Day 8 contract tests passed within the 39-test run | PASS | Pytest console; test outputs use temporary paths | This is fixed-tree finite evaluation, not arbitrary-folder ingestion or watching | No |
+| Tier A control | Manifest-declared development subset; protected holdout remains unopened | Inspect runner and split contract only; allowed command is in the A/B/C/D matrix below | Development-only command identified; holdout has no authorized command | Boundary verified from source; development evaluator not run; holdout documents not accessed | PASS | None from this validation | Never resolve or open holdout entries | No |
+| Tier B control | Masked selection fixtures and committed aggregate receipt | Run focused pytest; parse only `per_tier.B` presence read-only | Selection/attachment contracts pass; receipt remains readable | Tests passed and Tier B committed section parsed | PASS | Pytest console; committed receipt unchanged | No Tier-B-only official runner exists | No |
+| Tier C control | Frozen aggregate receipt only | Parse the frozen receipt fields read-only; do not invoke the holdout module | Existing receipt readable with external-call field; no rerun | Receipt parsed; no Tier C document or holdout runner accessed | PASS | `eval/results/official_ub04_holdout_summary.json` unchanged | Consumed holdout must never be rerun | No |
+| Tier D control | Committed aggregate receipt only | Parse only `per_tier.D` presence read-only | Existing limited Tier D aggregate remains readable | Tier D committed section parsed; no fresh official evaluator run | PASS | `eval/official/results/official_sample_summary.json` unchanged | No split or Tier-D-only development command exists | No |
+| Synthetic automated folder demo | Fixed `data/generated/<form>/<tier>/...` calibration tree | Use the two Day 8 commands below only in a disposable repository copy | Finite discovery, processing, resume, JSONL records, and JSON/CSV summary | Contract passed in tests; fresh batch deliberately not run on this evidence-bearing branch | BLOCKED | Disposable copy's `eval/results/day8_escalation_*` files | Protection boundary/configuration constraint, not an application defect | Yes: terminal completion plus summary table |
+| Visual browser capture during this validation | Local Streamlit app only | Connect the integrated validation browser | Interactive screenshots can be captured | Browser runtime exited because a user-level Node ESM setting conflicts with its bootstrap; app health and `AppTest` remained successful | BLOCKED | None | Configuration issue in validation tooling, not ClaimRoute | Yes: capture manually before demo |
+
+No executed test failed. The two `BLOCKED` rows are classified as configuration/protection
+constraints: the first preserves fixed evidence paths, and the second affects only the validation
+browser bootstrap. Neither is evidence of a ClaimRoute application defect. No user-error condition
+was observed.
 
 ## Testing matrix
 
