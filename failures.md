@@ -1,173 +1,131 @@
-# failures.md — PHI-safe defect register
+# ClaimRoute integration defect register
 
-Active defect register for the local intake/extraction workspace.
+This register contains PHI-safe engineering evidence only. Record statuses, counts,
+latencies, commit identifiers, and safe hash prefixes. Never record extracted values,
+OCR text, organiser filenames, source images, crops, expected records, credentials, or
+machine-specific absolute paths.
 
-**Recording rules.** This file records only safe metadata: safe document identifiers
-(content hash prefixes), statuses, counts, latencies, root causes and fix status. It must
-never contain extracted patient values, OCR text, organiser filenames, crops, images,
-expected records, or API keys.
+Safety boundaries:
 
----
+- Tier A holdout documents are protected and must not be opened or evaluated.
+- The consumed Tier C holdout must not be rerun; inspect only its frozen receipt.
+- Authorized development documents remain outside the repository.
+- External providers remain disabled unless a separate, explicit live-test approval is given.
 
-## D-001 — Monochrome claim scans were routed as `unstructured` and reported `COMPLETED`
+## Current integration baseline
 
-| Attribute | Value |
-|---|---|
-| Safe document id | `5858cb1e596e` |
-| Observed status (before) | `COMPLETED` |
-| Document type (before) | `unstructured` |
-| Page count | 1 |
-| Extracted fields (before) | 0 |
-| Validations (before) | 0 |
-| Retry count (before) | 0 |
-| Unresolved fields (before) | 0 |
-| Pending escalation (before) | 0 |
-| External provider calls | 0 |
-| Stage latency (before) | ~2–3 s total (decode + router only; no OCR ladder ran) |
-| Severity | High — a silent false success |
-| Fix status | **FIXED** (routing + status contract) |
+- Integration commit: `43b5ee65842d6c5b5110b2d9243f0ef1be1b833f`
+- Test reconciliation commit: `ccc3ea292fcca01d719f7c510d92d87d659b8375`
+- Full regression result: **451 passed, 3 skipped**
+- External calls during integration validation: **0**
+- Protected holdout access during integration validation: **0**
 
-### Root cause
+## Historical evidence attribution
 
-Two independent defects compounded into a silent false success.
+### Naveen local-intake branch at `e31fcd0`
 
-1. **Routing.** `engine/router.py` fingerprints claim forms by their *red dropout ink*
-   (`red_mask`, `router.py:29` requires `r-g>20 and r-b>20`). A monochrome or 1-bit scan has
-   `R==G==B`, so the mask is empty and the red-ink fraction is exactly `0.000000`, below
-   `RED_FRACTION_MIN = 0.0015`. The router therefore returns `unstructured`
-   (`router.py:118-121`), and `engine/extract.py:61-62` returns an **empty page immediately**,
-   before any OCR runs.
+- Automated result: **233 passed, 1 skipped**.
+- Synthetic-safe intake verified PNG, JPEG, TIFF, multipage TIFF, PDF,
+  numeric-extension TIFF, recursive folder discovery, duplicate detection,
+  corrupt-file isolation, and JSON/CSV exports.
+- The first authorized-development manual run decoded a one-page TIFF but returned
+  `document_type=unstructured`, no fields, and `COMPLETED`. That run exposed D-001;
+  it was not a successful extraction.
+- External provider calls: **0**.
 
-   The monochrome-capable adapter (`eval/official/extraction.py`) that exists precisely for
-   these scans was reachable **only** when the containing folder was named `Group A`–`Group D`
-   (`app/workspace.py:_official_tier`). Routing therefore depended on a filesystem path
-   convention rather than on document content.
+### Bhavya status/routing branch at `d022c54`
 
-2. **Status semantics.** `_unify_receipts` hardcoded `processing_status: "COMPLETED"`, and
-   `unresolved_fields` was computed by iterating the extracted fields — so a document with
-   zero fields reported zero unresolved fields and clean success.
+- Added content-based monochrome form routing and removed the Group A-D folder-name
+  dependency.
+- Added honest document status semantics and PARTIAL-result visibility.
+- Authorized-development verification produced a CMS-1500 result with non-empty fields,
+  validations, governor decisions, and zero external calls. Only safe aggregate counts
+  were retained.
+- This branch also exposed retry OCR as the dominant latency stage; see D-002.
 
-Measured on the authorized development document: red-ink fraction `0.000000`, router verdict
-`unstructured`.
+## D-001 - Monochrome claim routed as `unstructured` and falsely completed
 
-### Fix
-
-- `app/workspace.py` — when the red-ink router abstains on page 1, route by content through
-  the official monochrome adapter instead of by parent folder name (`_red_router_abstains`,
-  and `form="auto"` resolved from CMS/UB marker scores).
-- `app/workspace.py` — `_document_status()` makes an empty extraction `FAILED_EXTRACTION` and
-  an extraction with unresolved required fields `PARTIAL`. `COMPLETED` now means what it says.
-- `app/workspace.py` — `_batch_status()` returns `COMPLETED_WITH_REVIEW` when any document is
-  `PARTIAL` or `FAILED_EXTRACTION`; `COMPLETED_WITH_ERRORS` is retained for hard failures.
-- `app/workspace.py` / `app/streamlit_app.py` — `PARTIAL` documents keep contributing to batch
-  summary metrics, evaluation and the result selector rather than disappearing from the UI.
-- Claim-page abstention now reports `FAILED_EXTRACTION` instead of `COMPLETED`.
-
-### Validation
-
-| Attribute | Value (after) |
-|---|---|
-| Document type | `cms1500` |
-| Processing status | `PARTIAL` |
-| Extracted fields | 41 (36 with non-empty values) |
-| Validation rows | 41 — verdicts `PASS` 24, `FAIL` 17, `INAPPLICABLE` 4 |
-| Governor summary | `ACCEPT` 17, `ACCEPT_WITH_FLAG` 6, `ESCALATE` 18 |
-| Fields retried | 29 |
-| Unresolved fields | 18 |
-| External provider calls | 0 |
-| Evidence semantics | `official_monochrome_adapter` |
-| Regression tests | `tests/test_workspace_status_contract.py` — 7 tests |
-
----
-
-## D-002 — Retry OCR dominates latency (OPEN, not fixed here)
-
-| Attribute | Value |
-|---|---|
-| Safe document id | `5858cb1e596e` |
-| Observed status | `PARTIAL` (correct) |
-| Total latency | ~130 s |
-| Fix status | **OPEN — blocked by the frozen-evidence restriction** |
-
-### Measured stage latency
-
-| Stage | Latency | Share |
-|---|---|---|
-| retry OCR | 115.2 s | 97.3 % |
-| preprocessing | 2.8 s | 2.3 % |
-| crop generation | 0.22 s | 0.2 % |
-| registration | 0.21 s | 0.2 % |
-| normalization / validation / governor | < 0.02 s | ~0 % |
-
-Retry OCR decomposes into a **second full-page pass** (`shared_page` profile, 55.6 s) plus
-per-field crop retries (58.4 s across 20 fields that actually invoked; 9 fields already
-early-exit at ~0 ms via `should_stop_retry`). A separate primary full-page pass costs 13.6 s.
+Status: **RESOLVED**
 
 ### Root cause
 
-Two full-page OCR passes run per document, and the per-field crop retries use the `paddle`
-engine. On this machine a small crop measures ~2.3 s under paddle versus ~0.25 s under
-tesseract — roughly 9× — so crop-level engine choice, not process launch overhead, is the cost.
+The color router fingerprints red dropout ink. Monochrome scans have no red-channel
+separation, so the router returned `unstructured`. The monochrome-capable adapter was
+reachable only through a Group A-D folder convention. Separately, the workspace hardcoded
+`COMPLETED`, so an empty field set produced a false success with zero unresolved fields.
 
-### Why it is not fixed here
+### Resolution
 
-The three files that would have to change — `eval/official/extraction.py`,
-`eval/official/ocr_retry.py` and `eval/official/ocr_retry_profiles.yaml` — are all listed in
-`FREEZE_FILES` (`eval/official/freeze_readiness.py:8-20`). Editing them changes
-`eval/results/official_cms1500_freeze_manifest_candidate.json` and therefore modifies frozen
-benchmark evidence, which the current task explicitly forbids. Optimization needs an explicit
-decision to re-freeze.
+- Route red-router abstentions through content-based CMS-1500/UB-04 marker detection.
+- Use `form="auto"`; folder names never decide claim form type.
+- Zero meaningful fields -> `FAILED_EXTRACTION`.
+- Fields with unresolved applicable values -> `PARTIAL`.
+- Fully resolved fields -> `COMPLETED`.
+- A batch containing `FAILED` or `FAILED_EXTRACTION` -> `COMPLETED_WITH_ERRORS`.
+- A PARTIAL-only batch -> `COMPLETED_WITH_REVIEW`.
+- PARTIAL outputs remain selectable and evaluable.
+- INAPPLICABLE fields do not inflate unresolved counts.
 
-### Candidate optimizations (for that decision)
+### Current verification
 
-1. Reuse the primary OCR word list for the `shared_page` retry pass instead of re-running a
-   second full-page OCR (~55 s).
-2. Use tesseract rather than paddle for small field crops (~9× on measured crops).
-3. Cache preprocessing per crop/profile pair.
+Synthetic routing and status contracts pass for monochrome CMS-1500 pages in arbitrary,
+Group A, and nested folders, plus a color CMS-1500 inside a folder named `group c`.
+The authorized-development receipt reports CMS-1500, `PARTIAL`, 41 produced fields,
+11 unresolved, 14 inapplicable, 11 pending multimodal, and zero external calls. No
+extracted values were retained here.
 
----
+## D-002 - Retry OCR dominates local latency
 
-## COLLEAGUE ENVIRONMENT DIVERGENCE
+Status: **OPEN - frozen evaluation files prevent an in-scope optimization**
 
-Investigated on the assumption that this checkout was stale. **It was not.**
+The current authorized-development receipt records 50.469 seconds total latency, of
+which 46.729 seconds is retry OCR. Earlier branch measurements showed the same pattern:
+a second full-page OCR pass and per-field crop retries dominate processing time.
 
-| Attribute | Expected | Actual on this system | Verdict |
-|---|---|---|---|
-| Canonical base | `2350bb6` | present (`merge-base --is-ancestor` → 0) | match |
-| OpenRouter final | `2f695c9` | present — it *is* `HEAD` | match |
-| Branch | current work branch | `feat/openrouter-live-routing-final` | match |
-| `app/` sources | Naveen's latest | **byte-identical** (`git diff 2350bb6 HEAD -- app/` empty) | match |
-| Working tree | clean | clean; `git diff --check` → 0 | match |
-| Python executable | project venv | `.venv\Scripts\python.exe`, 3.12.13 | match |
-| Loaded app path | this repository | `…\ClaimRoute-AI\app\streamlit_app.py` | match |
-| `CLAIMROUTE_APP_MODE` | as needed | unset in Process/User/Machine scopes | n/a |
-| Stale Streamlit process | none | none; no listener on port 8501 | clean |
-| Streamlit cache reuse | none | no process was running; not a factor | clean |
-| OCR stack | functional | paddle OK, tesseract 5.4.0 OK, official template loads (7 entries) | healthy |
+The likely optimization points are in files covered by the official freeze manifest.
+Changing them would invalidate frozen evidence and therefore requires an explicit re-freeze
+decision. No optimization was attempted during integration.
 
-### Configuration differences found
+Candidate work after re-freeze approval:
 
-- `python` on `PATH` resolves to `C:\Python313\python.exe` (3.13.7), **not** the venv, and that
-  interpreter has **none** of the project dependencies installed. `python -m streamlit run …`
-  therefore only works with the venv activated. This did not cause the reported defect — a bare
-  system-python run cannot start at all — but it is a real footgun. Prefer
-  `.\.venv\Scripts\python.exe -m streamlit run app/streamlit_app.py`.
-- `engine/extract.py:26-27` opens `configs/*.yaml` via **relative** paths at import time, so the
-  process must be started from the repository root.
+1. Reuse primary full-page OCR words instead of repeating the shared-page pass.
+2. Benchmark the existing local OCR engines for small retry crops.
+3. Cache preprocessing by crop/profile only if measurement still justifies it.
 
-### Resolution performed
+## D-003 - Local UI omits full provider-state visibility
 
-No branch switch, fetch or environment repair was required. The behavioural divergence was not
-a code-version difference at all: it was **document placement**. The monochrome adapter was
-gated behind a `Group A`–`Group D` folder name, so the same bytes extracted correctly on one
-machine and silently produced nothing on another. Routing is now content-based, so folder
-naming no longer changes the result. See D-001.
+Status: **OPEN - presentation limitation**
 
-### Safety note
+The result shows pending multimodal, pending human review, and external-call counts, but
+does not expose all requested provider-state fields: eligibility, enabled policy, provider,
+configured model, credential availability, attempted flag, and reason not attempted.
+The local policy remains safe: provider calls are disabled and no data is sent.
 
-The authorized development document was initially placed inside the repository working tree,
-where it was **not ignored** and could have been committed by a `git add -A`. It has since been
-**moved outside the repository** (content verified unchanged by SHA-256 before and after the
-move), as `docs/submission/manual_testing_runbook.md` requires. The ignore rule for
-`authorized-development/`, `*.tif` and `*.tiff` is retained in `.gitignore` as a standing guard
-so a future local placement cannot be staged by accident.
+## D-004 - Batch summary and empty-evaluation display are incomplete
+
+Status: **OPEN - presentation/contract limitation**
+
+The batch UI shows files, pages, completed, partial, combined failures, unresolved, cost,
+and throughput. It does not separately display failed extraction, inapplicable, pending
+multimodal, human review, or external calls. When evaluation has zero valid pairs, the UI
+currently formats the missing accuracy as `0.00%`; it should instead state:
+
+`Accuracy unavailable - no valid evaluation pairs`
+
+The underlying unresolved count is numeric and does not display `Unknown` in current
+workspace results.
+
+## Environment-divergence finding
+
+The reported behavioral difference was not caused by stale application code. It was caused
+by the former folder-name routing gate: identical monochrome bytes followed different paths
+depending on placement. Content-based routing resolved that divergence.
+
+Two local execution constraints remain:
+
+- Start Streamlit with the project virtual-environment interpreter.
+- Start from the repository root because configuration paths are relative.
+
+The authorized development document was moved outside the repository after hash verification.
+Standing ignore rules for `authorized-development/`, TIFF inputs, generated submission outputs,
+and `tmp/` reduce the chance of accidental staging.

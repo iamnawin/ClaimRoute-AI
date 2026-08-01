@@ -49,3 +49,11 @@ authorized-development/
 eval/results/_smoke_*.jsonl
 eval/results/vision_cache.jsonl
 eval/frozen/_work/
+
+# Local verification and generated submission artefacts.
+tmp/
+submission/*.pdf
+submission/*.xlsx
+submission/*.mp4
+submission/*.zip
+submission/demo_assets/*.png
