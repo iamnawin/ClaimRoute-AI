@@ -12,12 +12,14 @@ from __future__ import annotations
 import json
 import os
 import time
+import hashlib
 import urllib.error
 import urllib.request
 
 from engine.cropper import crop_b64
 from engine.vision.base import (PROMPT, VisionEngine, VisionResponse,
-                                expectation_for, parse_response, price_call)
+                                VisionErrorType, expectation_for, parse_response,
+                                price_call)
 
 ENDPOINT = "https://api.openai.com/v1/chat/completions"
 TIMEOUT_S = 30
@@ -57,16 +59,41 @@ class OpenAIVisionEngine(VisionEngine):
         try:
             with urllib.request.urlopen(req, timeout=TIMEOUT_S) as r:
                 body = json.loads(r.read().decode())
-        except (urllib.error.URLError, TimeoutError, json.JSONDecodeError) as e:
+        except (urllib.error.URLError, TimeoutError, UnicodeDecodeError,
+                json.JSONDecodeError) as e:
+            if isinstance(e, TimeoutError):
+                error_type = VisionErrorType.TIMEOUT
+            elif isinstance(e, (UnicodeDecodeError, json.JSONDecodeError)):
+                error_type = VisionErrorType.INVALID_RESPONSE
+            else:
+                error_type = VisionErrorType.TRANSPORT
             return VisionResponse(None, "", 0.0, model=self.model,
                                   latency_ms=(time.perf_counter() - t0) * 1000,
-                                  parse_error=f"transport: {type(e).__name__}: {e}")
+                                  parse_error=f"transport: {type(e).__name__}: {e}",
+                                  error_type=error_type)
         ms = (time.perf_counter() - t0) * 1000
 
-        text = body["choices"][0]["message"]["content"]
+        if not isinstance(body, dict):
+            response = parse_response(json.dumps(body), self.model)
+            response.latency_ms = ms
+            return response
+
         usage = body.get("usage", {})
         in_tok = usage.get("prompt_tokens", 0)
         out_tok = usage.get("completion_tokens", 0)
+        try:
+            text = body["choices"][0]["message"]["content"]
+        except (KeyError, IndexError, TypeError):
+            return VisionResponse(
+                None, "", 0.0, model=self.model, latency_ms=ms,
+                input_tokens=in_tok, output_tokens=out_tok,
+                cost_usd=price_call(self.model, in_tok, out_tok),
+                raw_sha256=hashlib.sha256(
+                    json.dumps(body, sort_keys=True).encode("utf-8")
+                ).hexdigest(),
+                parse_error="no candidate text in response",
+                error_type=VisionErrorType.INVALID_RESPONSE,
+            )
 
         resp = parse_response(text, self.model)
         resp.input_tokens, resp.output_tokens = in_tok, out_tok

@@ -12,8 +12,10 @@ from __future__ import annotations
 
 import json
 import re
+import hashlib
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
+from enum import Enum
 from typing import Optional
 
 import yaml
@@ -65,6 +67,12 @@ EXPECTATIONS = {
 }
 
 
+class VisionErrorType(str, Enum):
+    TRANSPORT = "transport"
+    TIMEOUT = "timeout"
+    INVALID_RESPONSE = "invalid_response"
+
+
 def expectation_for(field_name: str) -> str:
     if field_name in EXPECTATIONS:
         return EXPECTATIONS[field_name]
@@ -90,8 +98,9 @@ class VisionResponse:
     output_tokens: int = 0
     latency_ms: float = 0.0
     cost_usd: float = 0.0
-    raw: str = ""
+    raw_sha256: str = ""
     parse_error: str = ""
+    error_type: VisionErrorType | None = None
     cached: bool = False
     rejects: list = field(default_factory=list)   # filled by the grounding check
 
@@ -109,21 +118,23 @@ def price_call(model: str, input_tokens: int, output_tokens: int) -> float:
 
 
 def parse_response(text: str, model: str) -> VisionResponse:
-    """Strict-ish JSON parse. A model that answers with prose fails HERE, and a
+    """Strict JSON parse. A model that answers with prose fails HERE, and a
     parse failure is a rejection, not a silent fallback to raw text."""
     blob = text.strip()
-    m = re.search(r"\{.*\}", blob, re.DOTALL)
-    if not m:
-        return VisionResponse(None, "", 0.0, model=model, raw=text,
-                              parse_error="no JSON object in response")
+    raw_sha256 = hashlib.sha256(text.encode("utf-8")).hexdigest()
     try:
-        d = json.loads(m.group(0))
+        d = json.loads(blob)
     except json.JSONDecodeError as e:
-        return VisionResponse(None, "", 0.0, model=model, raw=text,
-                              parse_error=f"invalid JSON: {e}")
-    if not isinstance(d, dict) or "value" not in d:
-        return VisionResponse(None, "", 0.0, model=model, raw=text,
-                              parse_error="missing required key 'value'")
+        return VisionResponse(None, "", 0.0, model=model, raw_sha256=raw_sha256,
+                              parse_error=f"invalid JSON: {e}",
+                              error_type=VisionErrorType.INVALID_RESPONSE)
+    required = {"value", "visible_text", "confidence", "reason"}
+    if not isinstance(d, dict) or set(d) != required:
+        return VisionResponse(
+            None, "", 0.0, model=model, raw_sha256=raw_sha256,
+            parse_error=f"response keys must be exactly {sorted(required)}",
+            error_type=VisionErrorType.INVALID_RESPONSE,
+        )
     try:
         conf = float(d.get("confidence", 0.0))
     except (TypeError, ValueError):
@@ -133,7 +144,7 @@ def parse_response(text: str, model: str) -> VisionResponse:
         visible_text=normalize_text(d.get("visible_text") or ""),
         confidence=max(0.0, min(1.0, conf)),
         reason=str(d.get("reason", ""))[:120],
-        model=model, raw=text,
+        model=model, raw_sha256=raw_sha256,
     )
 
 

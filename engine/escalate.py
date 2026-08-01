@@ -72,6 +72,7 @@ def _cache_put(key: str, resp) -> None:
         "confidence": resp.confidence, "reason": resp.reason,
         "input_tokens": resp.input_tokens, "output_tokens": resp.output_tokens,
         "cost_usd": resp.cost_usd, "parse_error": resp.parse_error,
+        "raw_sha256": resp.raw_sha256, "error_type": resp.error_type,
     }
     CACHE_PATH.parent.mkdir(parents=True, exist_ok=True)
     with CACHE_PATH.open("a", encoding="utf-8") as f:
@@ -82,11 +83,13 @@ def _cache_get(key: str):
     d = _load_cache().get(key)
     if d is None:
         return None
-    from engine.vision.base import VisionResponse
+    from engine.vision.base import VisionErrorType, VisionResponse
     r = VisionResponse(d["value"], d["visible_text"], d["confidence"],
                        reason=d.get("reason", ""))
     r.input_tokens, r.output_tokens = d["input_tokens"], d["output_tokens"]
     r.parse_error = d.get("parse_error", "")
+    r.raw_sha256 = d.get("raw_sha256", "")
+    r.error_type = VisionErrorType(d["error_type"]) if d.get("error_type") else None
     r.cost_usd = 0.0          # a cache hit costs nothing to serve
     r.cached = True
     return r
@@ -172,6 +175,8 @@ def escalate_field(fr: FieldResult, img, form: str, variant: int,
                meta={"rung": "multimodal", "model": model, "crop_sha": chash,
                      "input_tokens": resp.input_tokens,
                      "output_tokens": resp.output_tokens,
+                     "response_sha256": resp.raw_sha256,
+                     "error_type": resp.error_type,
                      "cached": resp.cached, "synthetic_data": synthetic,
                      "simulated": model == "offline-oracle"})
     rec["cost_usd"] = resp.cost_usd
