@@ -201,6 +201,24 @@ a bounded one. If the provider reports a different model than was requested,
 > Confirm the id is still listed and still image-capable on OpenRouter before the
 > live call; the allowlist is one line to edit.
 
+### Verification record
+
+Checked against `GET https://openrouter.ai/api/v1/models` (unauthenticated, free,
+no key sent, no charge) on **2026-08-01**, catalogue of 336 models:
+
+| Criterion | Result |
+| --- | --- |
+| exact model id exists | yes — `openai/gpt-5-nano` |
+| image input supported | yes — `input_modalities: [text, image, file]` |
+| not text-only | confirmed, image is an accepted input modality |
+| structured output supported | yes — `structured_outputs` and `response_format` both advertised |
+| pricing current | prompt `$0.05/M`, completion `$0.40/M` — exactly matches the `gpt-5-nano` row in `configs/prices.yaml` |
+| context length | 400,000 |
+
+The catalogue reports no separate per-image price for this model, which is why
+`image_tokens` stays unknown rather than being back-computed. Re-run this check
+before spending; it costs nothing and the answer changes without notice.
+
 ---
 
 ## 7. Cost precedence
