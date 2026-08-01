@@ -37,6 +37,12 @@ eval/official/diagnostics/
 .env
 .env.*
 !.env.example
+# Authorized organiser/development claim documents staged for a local run.
+# These are real claim images (potential PHI) and must never be committed;
+# the runbook asks that they live outside the repository entirely.
+authorized-development/
+*.tif
+*.tiff
 *.egg-info/
 .pytest_cache/
 .claude-flow/

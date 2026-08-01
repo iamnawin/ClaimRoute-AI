@@ -18,11 +18,22 @@ from engine.governor import field_policy
 from eval.official.evaluator import claimroute_expected, compare_fields
 from eval.official.extraction import local_ocr, structured_page, unstructured_fields
 from eval.official.linker import link_record
-from eval.official.pages import select_claim_pages
+from eval.official.pages import CMS_MARKERS, UB_MARKERS, _score, select_claim_pages
 from eval.official.parsers import parse_nsf_bytes, parse_ub_bytes
 
 
 PageProcessor = Callable[[object, str, str], dict]
+
+# Statuses that mean "this document produced extraction output". PARTIAL
+# documents did real work and must keep contributing to batch metrics.
+PRODUCED_OUTPUT = {"COMPLETED", "PARTIAL"}
+
+
+def _document_status(field_count: int, unresolved: int) -> str:
+    """An empty extraction is never a success, and unresolved work is never clean."""
+    if field_count == 0:
+        return "FAILED_EXTRACTION"
+    return "PARTIAL" if unresolved else "COMPLETED"
 
 
 def _default_page_processor(image, doc_id: str, mode: str) -> dict:
@@ -63,7 +74,7 @@ def _official_unstructured_result(item: IntakeFile, pages, texts, latency_ms: fl
         "source_role": item.role.value,
         "document_type": "unstructured",
         "page_count": len(pages),
-        "processing_status": "COMPLETED",
+        "processing_status": _document_status(len(fields), 0),
         "fields": [{"page": 1, "fields": fields}],
         "validations": [],
         "governor_summary": {"ACCEPT_WITH_FLAG": len(fields)},
@@ -73,7 +84,9 @@ def _official_unstructured_result(item: IntakeFile, pages, texts, latency_ms: fl
         "latency": {"milliseconds": round(latency_ms, 3)},
         "measured_cost": {"usd": round(_local_cost(latency_ms), 9)},
         "projected_cost": {"usd": round(_local_cost(latency_ms), 9)},
-        "warnings": ["Tier D uses limited label-driven extraction."],
+        "warnings": (["Tier D uses limited label-driven extraction."] if fields else
+                     ["Tier D label-driven extraction produced no fields; "
+                      "the page decoded but nothing was resolved."]),
         "evaluation": None,
         "evidence_semantics": "official_unstructured_adapter",
         "_group_key": item.group_key,
@@ -81,7 +94,8 @@ def _official_unstructured_result(item: IntakeFile, pages, texts, latency_ms: fl
     }
 
 
-def _process_official_item(item: IntakeFile, tier: str, mode: str) -> dict:
+def _process_official_item(item: IntakeFile, tier: str, mode: str,
+                           *, form: str | None = None) -> dict:
     started = time.perf_counter()
     try:
         pages = decode_pages(item.content, item.source_format)
@@ -97,7 +111,7 @@ def _process_official_item(item: IntakeFile, tier: str, mode: str) -> dict:
         if selection.status != "deterministic" or not selection.claim_pages:
             result = _failed_result(
                 item, "Claim-page selection abstained; no page was extracted.",
-                status="COMPLETED",
+                status="FAILED_EXTRACTION",
             )
             result.update({
                 "page_count": len(pages),
@@ -107,7 +121,11 @@ def _process_official_item(item: IntakeFile, tier: str, mode: str) -> dict:
             })
             return result
         page_index = selection.claim_pages[0]
-        form = "ub04" if tier == "C" else "cms1500"
+        if form == "auto":
+            form = ("ub04" if max((_score(text, UB_MARKERS) for text in texts), default=0)
+                    > max((_score(text, CMS_MARKERS) for text in texts), default=0)
+                    else "cms1500")
+        form = form or ("ub04" if tier == "C" else "cms1500")
         page_result = structured_page(
             pages[page_index], words_by_page[page_index], form,
             item.safe_source_id, preset=mode, run_retry=True,
@@ -193,7 +211,8 @@ def _unify_receipts(item: IntakeFile, receipts: list[dict]) -> dict:
         "source_role": item.role.value,
         "document_type": next(iter(document_types)) if len(document_types) == 1 else "mixed",
         "page_count": len(receipts),
-        "processing_status": "COMPLETED",
+        "processing_status": _document_status(
+            sum(len(page["fields"]) for page in fields), unresolved),
         "fields": fields,
         "validations": validations,
         "governor_summary": dict(sorted(governor.items())),
@@ -206,11 +225,26 @@ def _unify_receipts(item: IntakeFile, receipts: list[dict]) -> dict:
         "latency": {"milliseconds": round(latency, 3)},
         "measured_cost": {"usd": round(measured, 9)},
         "projected_cost": {"usd": round(projected, 9)},
-        "warnings": [],
+        "warnings": ([] if any(page["fields"] for page in fields) else
+                     ["The page decoded but no fields were extracted; "
+                      "this document was not successfully processed."]),
         "evaluation": None,
         "_group_key": item.group_key,
         "_linkage_text": " ".join(linkage_values),
     }
+
+
+def _red_router_abstains(item: IntakeFile) -> bool:
+    """True when the colour form-grid router cannot classify the first page."""
+    from engine.router import route
+    try:
+        first = decode_pages(item.content, item.source_format)[0]
+    except Exception:
+        return False
+    try:
+        return route(first)["document_type"] not in {"cms1500", "ub04"}
+    except Exception:
+        return False
 
 
 def process_item(item: IntakeFile, mode: str = service.DEFAULT_MODE,
@@ -223,6 +257,12 @@ def process_item(item: IntakeFile, mode: str = service.DEFAULT_MODE,
     official_tier = _official_tier(item.group_key)
     if official_tier and page_processor is None:
         return _process_official_item(item, official_tier, mode)
+    if page_processor is None and _red_router_abstains(item):
+        # The red-ink router only fingerprints colour dropout forms, so a
+        # monochrome scan reaches it with an empty mask and is dismissed as
+        # unstructured. Route by content instead of by parent folder name.
+        return _process_official_item(
+            item, "A" if (item.page_count or 1) == 1 else "B", mode, form="auto")
     processor = page_processor or _default_page_processor
     try:
         pages = decode_pages(item.content, item.source_format)
@@ -240,9 +280,20 @@ def _job_id(items: list[IntakeFile], mode: str) -> str:
     return f"batch-{hashlib.sha256(material.encode()).hexdigest()[:12]}"
 
 
+def _batch_status(results: list[dict]) -> str:
+    """A batch never claims clean success while any document needs attention."""
+    statuses = {result["processing_status"] for result in results}
+    if statuses & {"FAILED"}:
+        return "COMPLETED_WITH_ERRORS"
+    if statuses & {"PARTIAL", "FAILED_EXTRACTION"}:
+        return "COMPLETED_WITH_REVIEW"
+    return "COMPLETED"
+
+
 def summarize_results(results: list[dict]) -> dict:
     counts = Counter(result["processing_status"] for result in results)
-    completed = [result for result in results if result["processing_status"] == "COMPLETED"]
+    completed = [result for result in results
+                 if result["processing_status"] in PRODUCED_OUTPUT]
     pages = sum(result["page_count"] for result in completed)
     latency = sum(result["latency"]["milliseconds"] for result in completed)
     types = Counter(result["document_type"] for result in completed)
@@ -250,6 +301,8 @@ def summarize_results(results: list[dict]) -> dict:
         "files": len(results),
         "pages": pages,
         "success": counts["COMPLETED"],
+        "partial": counts["PARTIAL"],
+        "failed_extraction": counts["FAILED_EXTRACTION"],
         "failed": counts["FAILED"],
         "skipped": counts["SKIPPED"] + counts["DUPLICATE"],
         "cancelled": counts["CANCELLED"],
@@ -299,9 +352,7 @@ def run_batch(items: list[IntakeFile], mode: str = service.DEFAULT_MODE,
             progress(index, len(ordered), result)
     batch = {
         "batch_job_id": _job_id(ordered, mode),
-        "processing_status": "COMPLETED_WITH_ERRORS" if any(
-            result["processing_status"] == "FAILED" for result in results
-        ) else "COMPLETED",
+        "processing_status": _batch_status(results),
         "operating_mode": mode,
         "documents": results,
         "summary": summarize_results(results),
@@ -366,7 +417,7 @@ def evaluate_dataset(batch: dict, items: list[IntakeFile]) -> dict:
     all_critical = []
     linked = 0
     for result in batch["documents"]:
-        if result["processing_status"] != "COMPLETED":
+        if result["processing_status"] not in PRODUCED_OUTPUT:
             continue
         actual = _flatten_fields(result)
         group = result.get("_group_key", ".")

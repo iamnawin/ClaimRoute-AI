@@ -317,7 +317,7 @@ def _uploaded_items(uploaded_files, max_pages):
 def _render_local_document(st, result, items):
     st.subheader("Document result")
     completed = [row for row in result.get("documents", [])
-                 if row["processing_status"] == "COMPLETED"]
+                 if row["processing_status"] in workspace.PRODUCED_OUTPUT]
     if not completed:
         st.info("Process a supported document to inspect its result.")
         return
