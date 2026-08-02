@@ -45,8 +45,11 @@ Basis: 90 pages, 30 documents, 3168 evaluated fields, 3255 routed fields.
 | Documents evaluated | 30 | `MEASURED` `SYNTHETIC` | `final_benchmark_summary.json` | Yes | Yes | TBD | |
 | Evaluated fields | 3168 | `MEASURED` `SYNTHETIC` | `final_benchmark_summary.json` | Yes | Yes | TBD | |
 | Routed fields | 3255 | `MEASURED` `SYNTHETIC` | `final_benchmark_summary.json` | Yes | Yes | TBD | Differs from evaluated; do not interchange. |
-| **Precision** | **not computed** | `PENDING_EVIDENCE_REVIEW` | none | n/a | **No** | TBD | **Required by organiser. Absent from all frozen evidence.** See blocker below. |
-| **Recall** | **not computed** | `PENDING_EVIDENCE_REVIEW` | none | n/a | **No** | TBD | **Required by organiser. Absent from all frozen evidence.** See blocker below. |
+| True positives | 3106 | `MEASURED` `SYNTHETIC` (derived) | `final_benchmark_rows.jsonl` | Yes | Yes | TBD | Populated field, automated answer, matched ground truth. |
+| False positives | 3 | `MEASURED` `SYNTHETIC` (derived) | `final_benchmark_rows.jsonl` | Yes | Yes | TBD | Populated field, automated answer accepted, value wrong. |
+| False negatives | 59 | `MEASURED` `SYNTHETIC` (derived) | `final_benchmark_rows.jsonl` | Yes | Yes | TBD | Routed to `HUMAN_REVIEW`; no automated answer emitted. |
+| **Precision** | **0.99903506** | `MEASURED` `SYNTHETIC` (derived) | `final_benchmark_rows.jsonl` | Yes | Yes | TBD | TP / (TP + FP) = 3106 / 3109 = 99.9035%. |
+| **Recall** | **0.98135861** | `MEASURED` `SYNTHETIC` (derived) | `final_benchmark_rows.jsonl` | Yes | Yes | TBD | TP / (TP + FN) = 3106 / 3165 = 98.1359%. **Not** the exact-match rate. |
 
 ## Throughput and latency
 
@@ -129,19 +132,31 @@ from the frozen benchmark and official organiser evidence.
 
 ## Open blockers
 
-1. **Precision and recall are required and do not exist.** The organiser's Benchmark
-   Report explicitly lists both. No frozen artifact contains them; the summary carries
-   `field_accuracy` and `critical_field_accuracy` only. Two honest options, and the
-   decision has not been made:
-   - Derive them. `eval/frozen/final_benchmark_rows.jsonl` holds per-field truth,
-     candidate, and decision, which is likely sufficient. This requires a new eval
-     harness, a definition of what counts as a positive, and a re-freeze. Out of scope
-     for this documentation task.
-   - Declare them honestly in the XLSX as not separately computed, and state which metric
-     was used instead.
+1. ~~**Precision and recall are required and do not exist.**~~ **Resolved by derivation.
+   No re-freeze occurred.** `eval/frozen/final_benchmark_rows.jsonl` carries per-field
+   ground truth, final value, and final state, which is sufficient to count TP/FP/FN
+   directly. `scripts/submission/evidence.py::precision_recall` performs the count and
+   `tests/test_submission_evidence.py` guards it.
 
-   Do not enter `field_accuracy` into a cell labelled Precision or Recall. They are
-   different quantities.
+   Definition used: a *positive* is an automated answer the pipeline emitted without
+   human help. Of the 3168 evaluated fields, 3109 received one (2772 `ACCEPT` +
+   337 `ACCEPT_WITH_FLAG`) and 59 were routed to `HUMAN_REVIEW`.
+
+   | Count | Value | Meaning |
+   |---|---:|---|
+   | TP | 3106 | automated answer, matched ground truth |
+   | FP | 3 | automated answer accepted, value wrong |
+   | FN | 59 | no automated answer; routed to human review |
+
+   Each evaluated field falls in exactly one bucket, so **TP + FP + FN = 3168**, equal to
+   the frozen `evaluated_fields`. An earlier derivation counted a wrong accepted value as
+   *both* a false positive and a false negative, giving FN = 62, a total of 3171, and a
+   recall of 98.043% that was numerically identical to the exact-match rate. That was the
+   symptom of the double count. **Do not reintroduce FN = 62.**
+
+   `automated_exact_match_rate` (0.98042929 = 3106/3168) remains frozen and unchanged.
+   It is a different quantity from recall (0.98135861 = 3106/3165) and the two must not
+   be interchanged.
 
 2. **Component cost split (OCR / LLM / Vision / GPU / CPU) is partially unavailable.**
    The organiser asks for component-wise cost per page. Local compute is measured as one

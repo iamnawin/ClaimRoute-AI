@@ -51,8 +51,9 @@ class PrecisionRecall:
     - false negative: a required populated field was missed, left unresolved, or routed
       to human review without an automated answer
 
-    A wrong accepted value on a populated field counts once as a false positive (a wrong
-    value was emitted) and once as a false negative (the true value was not captured).
+    Each evaluated field falls in exactly one category, so TP + FP + FN equals the
+    frozen ``evaluated_fields`` denominator. A wrong accepted value is a false
+    positive only; it is one field that was answered wrongly, not two events.
     """
 
     true_positives: int
@@ -176,8 +177,10 @@ class Evidence:
             elif final_value and row.get("resolved_correctly"):
                 true_positives += 1
             elif final_value:
+                # A wrong accepted value is one field in one wrong category. Also
+                # counting it as a false negative would put a single field in two
+                # buckets and push TP+FP+FN past the frozen evaluated denominator.
                 false_positives += 1
-                false_negatives += 1
             else:
                 false_negatives += 1
 
