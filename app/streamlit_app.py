@@ -14,7 +14,7 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from app import dashboard, multimodal_permission, service, workspace
+from app import dashboard, multimodal_permission, preflight, service, workspace
 from app.intake import (FileRole, IntakeError, ScanState, decode_pages,
                         inspect_content, scan_folder)
 from engine.escalation.client import load_config, request_from_page
@@ -742,8 +742,16 @@ def _render_multimodal_permission(st, state: dict, document: dict, source) -> No
         enabled=enabled, confirmed=confirmed,
         synthetic_attested=synthetic_attested, request=request,
         governor=governor, calls_used=0)
+    # Shown BEFORE the run button. An approval receipt that appears after the
+    # money is spent is a log line, not an approval.
+    _render_dry_run(st, request, governor, config, key_base)
     if not status.can_run:
         st.caption(f"Blocked: {status.reason}")
+        if status.policy is not None:
+            named = multimodal_permission.failure_for_decision(
+                status.policy.decision.value)
+            if named.get("error_category"):
+                _render_failure_category(st, named)
 
     mode_label = service.MODE_LABELS.get(
         governor.resolved.mode, governor.resolved.mode.title())
@@ -826,6 +834,55 @@ def _render_multimodal_receipt(st, receipts: dict, calls_used: int) -> None:
         "Latency": f"{float(receipt.get('latency_ms') or 0) / 1000:.2f} s",
         "Final field outcome": receipt.get("final_field_outcome"),
     }], hide_index=True, width="stretch")
+    _render_failure_category(st, receipt)
+
+
+def _render_failure_category(st, receipt: dict) -> None:
+    """The named reason, not "multimodal failed".
+
+    A bad key, an exhausted balance, an unknown model id, a rate limit and an
+    answer that failed validation are five different problems for five
+    different people. One message for all five is what makes an operator guess,
+    and guessing about a paid path is expensive.
+
+    Nothing rendered here can carry payload: the category is an enum value and
+    the summary and action are fixed strings chosen by that enum.
+    """
+    category = receipt.get("error_category")
+    if not category:
+        return
+    summary = receipt.get("error_summary") or ""
+    action = receipt.get("required_action") or ""
+    body = f"**{category}**  \n{summary}"
+    if action:
+        body += f"  \nRequired action: {action}"
+    if receipt.get("error_retryable"):
+        body += "  \nThis condition is transient; one retry is safe."
+    else:
+        body += "  \nRetrying would reproduce this exact outcome."
+    body += ("  \nLocal OCR, retry, validation, human review and exports remain "
+             "available.")
+    # Validation rejection is a working provider and a correct refusal. Marking
+    # it as an error would report the safety net as a fault.
+    (st.warning if category == multimodal_permission.VALIDATION_REJECTED
+     else st.error)(body)
+
+
+def _render_dry_run(st, request, governor, config, key_base: str) -> None:
+    """The approval receipt, shown before consent rather than after billing."""
+    if request is None:
+        return
+    try:
+        receipt = preflight.dry_run_receipt(
+            request, governor=governor, config=config, mode=governor.mode)
+    except Exception as error:                  # noqa: BLE001 - reported, not raised
+        st.caption(f"Dry run unavailable: {type(error).__name__}")
+        return
+    with st.expander("Dry run - exactly what one call would send (safe metadata)"):
+        st.code(preflight.render_dry_run(receipt), language="text")
+        st.caption("Crop dimensions, byte count and a content hash only. The "
+                   "image, the prompt, the field value and the API key are "
+                   "never shown here or anywhere else.")
 
 
 def _style(st) -> None:

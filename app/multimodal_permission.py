@@ -12,7 +12,8 @@ from typing import Callable, Optional
 
 from engine.escalation.client import MultimodalClient
 from engine.escalation.contract import MultimodalRequest
-from engine.escalation.errors import MultimodalError
+from engine.escalation.errors import (RETRYABLE, ErrorCategory, MultimodalError,
+                                      explain)
 from engine.escalation.live_policy import (ConfigurationFlagError,
                                            LiveCallGovernor, LiveCallOutcome)
 from engine.escalation.providers import build_provider
@@ -213,11 +214,21 @@ def run_one_candidate(
         }
         client = client_factory(config=call_config, provider=provider, enabled=True)
         result = client.read_field(request)
-    except (KeyError, MultimodalError):
+    except (KeyError, MultimodalError) as error:
         governor.release()
+        # The category is preserved rather than flattened. "Provider
+        # construction failed safely" was true and useless: a missing key, an
+        # unconfigured provider entry and a refused model id all arrived as one
+        # sentence, and none of them named the thing to fix.
+        category = (error.category.value
+                    if isinstance(error, MultimodalError)
+                    else ErrorCategory.CONFIGURATION_ERROR.value)
+        detail = (error.detail if isinstance(error, MultimodalError)
+                  else f"provider entry missing: {error}")
         return _blocked_receipt(
-            request, governor, "Provider construction failed safely; no call was made.",
-            outcome), None
+            request, governor,
+            "Provider construction failed safely; no call was made.",
+            outcome, error_category=category, error_detail=detail), None
 
     governor.record_call(outcome, result)
     candidate = result.answer.value if result.answer is not None else None
@@ -250,6 +261,21 @@ def run_one_candidate(
         "healthcare_validators_passed": validators_passed,
         "final_field_outcome": "ACCEPTED" if accepted else "HUMAN_REVIEW_REQUIRED",
         "policy_decision": outcome.decision.value,
+        # WHY it failed, carried to the screen. The client already categorises
+        # every failure; the receipt used to drop that and leave the UI with
+        # nothing but "multimodal failed" to say. A bad key, an empty balance,
+        # a wrong model id and an outage need four different people to do four
+        # different things.
+        **_failure_fields(
+            result.error,
+            result.error_detail,
+            # A provider that answered but was rejected downstream is not a
+            # provider failure. Naming the stage that rejected it is what tells
+            # an operator whether to fix a key or look at the value.
+            fallback=("" if accepted else
+                      "VALIDATION_REJECTED" if result.ok and candidate
+                      else "INVALID_RESPONSE" if result.called_provider and not result.ok
+                      else "")),
         "raw_response_persisted": False,
         "crop_contents_persisted": False,
         "synthetic_crop_only": True,
@@ -334,6 +360,67 @@ def run_eligible_fields(
     return summary
 
 
+# Categories the UI must be able to show that are NOT provider transport
+# failures. They are outcomes of our own gates, and an operator needs them
+# named for the same reason: each implies a different next action.
+VALIDATION_REJECTED = "VALIDATION_REJECTED"
+BUDGET_BLOCKED = "BUDGET_BLOCKED"
+DUPLICATE_REQUEST_BLOCKED = "DUPLICATE_REQUEST_BLOCKED"
+
+_LOCAL_GUIDANCE = {
+    VALIDATION_REJECTED: (
+        "The provider answered and the answer failed healthcare validation.",
+        "The field stays unresolved and goes to human review. The call was "
+        "still made and is still counted and costed."),
+    BUDGET_BLOCKED: (
+        "A spend or call limit stopped this request before any call was made.",
+        "Nothing was billed. Raise the limit deliberately, or send this field "
+        "to human review."),
+    DUPLICATE_REQUEST_BLOCKED: (
+        "An identical request was already answered in this session.",
+        "The previous answer is reused. Nothing was billed a second time."),
+}
+
+# LiveDecision values that are really budget or duplicate outcomes, mapped so
+# the UI shows the operator-facing category rather than the internal enum.
+_DECISION_CATEGORIES = {
+    "BLOCKED_SESSION_BUDGET": BUDGET_BLOCKED,
+    "BLOCKED_DOCUMENT_BUDGET": BUDGET_BLOCKED,
+    "BLOCKED_FIELD_CALL_LIMIT": BUDGET_BLOCKED,
+    "BLOCKED_PAGE_CALL_LIMIT": BUDGET_BLOCKED,
+    "BLOCKED_DOCUMENT_CALL_LIMIT": BUDGET_BLOCKED,
+    "BLOCKED_BATCH_CALL_LIMIT": BUDGET_BLOCKED,
+    "BLOCKED_FIELD_PAID_ATTEMPTS": BUDGET_BLOCKED,
+    "BLOCKED_DUPLICATE_REQUEST": DUPLICATE_REQUEST_BLOCKED,
+    "REUSED_CACHED_RESULT": DUPLICATE_REQUEST_BLOCKED,
+}
+
+
+def _failure_fields(category, detail: str = "", *, fallback: str = "") -> dict:
+    """The safe, renderable explanation of one failure. Never payload-bearing."""
+    name = str(category or fallback or "")
+    if not name:
+        return {"error_category": "", "error_detail": "", "error_summary": "",
+                "required_action": "", "error_retryable": False}
+    if name in _LOCAL_GUIDANCE:
+        summary, action = _LOCAL_GUIDANCE[name]
+        retryable = False
+    else:
+        summary, action = explain(name)
+        try:
+            retryable = ErrorCategory(name) in RETRYABLE
+        except ValueError:
+            retryable = False
+    return {"error_category": name, "error_detail": str(detail or ""),
+            "error_summary": summary, "required_action": action,
+            "error_retryable": retryable}
+
+
+def failure_for_decision(decision: str) -> dict:
+    """Explain a governor refusal in the same shape as a provider failure."""
+    return _failure_fields(_DECISION_CATEGORIES.get(decision, ""))
+
+
 def _is_exhausted(outcome: LiveCallOutcome) -> bool:
     """True when a refusal means no further field can succeed either."""
     return outcome.decision.value in {
@@ -343,7 +430,8 @@ def _is_exhausted(outcome: LiveCallOutcome) -> bool:
 
 
 def _blocked_receipt(request: MultimodalRequest | None, governor: LiveCallGovernor,
-                     reason: str, outcome: LiveCallOutcome | None = None) -> dict:
+                     reason: str, outcome: LiveCallOutcome | None = None,
+                     *, error_category: str = "", error_detail: str = "") -> dict:
     # ``request`` is None when no eligible crop could be proven. That is a
     # refusal like any other and still has to leave an auditable receipt.
     return {
@@ -363,4 +451,12 @@ def _blocked_receipt(request: MultimodalRequest | None, governor: LiveCallGovern
         "crop_contents_persisted": False,
         "synthetic_crop_only": bool(request.synthetic) if request else False,
         "external_calls_made": 0,
+        # A refusal is a category too. Budget and duplicate blocks in
+        # particular are routinely mistaken for provider failures, and they are
+        # the two where nothing was billed and nothing is wrong.
+        **_failure_fields(
+            error_category
+            or _DECISION_CATEGORIES.get(
+                outcome.decision.value if outcome else "", ""),
+            error_detail),
     }
