@@ -481,11 +481,16 @@ def _run_retry_job(state: dict, fingerprint: str, source, *, runner=None):
 
 def _multimodal_session(state: dict) -> tuple[dict, LiveCallGovernor, dict]:
     session = state.setdefault("multimodal", {
-        "governor": None, "receipts": {}, "active_fingerprint": None,
+        "governor": None, "receipts": {}, "active_fingerprint": None, "mode": None,
     })
     config = load_config()
-    if session.get("governor") is None:
-        session["governor"] = LiveCallGovernor(config)
+    mode = state.get("operating_mode") or service.DEFAULT_MODE
+    # Rebuilding on a mode change is intentional: the governor holds the session
+    # spend counters AND the resolved model, and carrying counters from one
+    # model's spend across to another would misreport both.
+    if session.get("governor") is None or session.get("mode") != mode:
+        session["governor"] = LiveCallGovernor(config, mode=mode)
+        session["mode"] = mode
     return session, session["governor"], config
 
 
@@ -548,18 +553,28 @@ def _render_multimodal_permission(st, state: dict, document: dict, source) -> No
         return
 
     limits = governor.limits
+    resolved = governor.resolved
     st.warning("⚠ Paid multimodal AI calls enabled")
     st.markdown(
-        f"**Provider:** {governor.provider_name} · **Exact model:** `{governor.model}` · "
+        f"**Operating mode:** {service.MODE_LABELS.get(resolved.mode, resolved.mode.title())} · "
+        f"**Provider:** {governor.provider_name}  \n"
+        f"**Model alias:** `{resolved.alias or '—'}` → **Exact runtime model:** "
+        f"`{resolved.model_id or 'not configured'}`  \n"
+        f"**Image input supported:** {'yes' if resolved.supports_images else 'no'} · "
+        f"**Allowlisted:** {'yes' if resolved.allowlisted else 'no'} · "
         f"**Eligible fields:** {len(candidates)} · **Calls:** {calls_used}/"
         f"{multimodal_permission.UI_MAX_CALLS}  \n"
         f"**Session spend:** {_fmt_usd(governor.session_spend_usd)} / "
         f"{_fmt_usd(limits.max_session_spend_usd)} · **Document spend limit:** "
         f"{_fmt_usd(limits.max_document_spend_usd)}  \n"
-        "**Fallback models:** disabled · **Automatic retries:** disabled · "
-        "**Full-page requests:** blocked  \n"
+        f"**Fallback models:** {'allowed' if resolved.fallback_allowed else 'disabled'} · "
+        "**Automatic retries:** disabled · **Full-page requests:** blocked  \n"
         "**Organiser/PHI inputs:** blocked · **Input boundary:** synthetic crop only"
     )
+    # Surfaced before the consent checkboxes: an operator should learn the model
+    # is unusable without first attesting to anything.
+    if resolved.blocked_reason:
+        st.error(f"Model not usable: {resolved.blocked_reason}")
     synthetic_attested = st.checkbox(
         "I confirm this selected input is synthetic and contains no PHI or organiser data.",
         key=f"cr_multimodal_synthetic_{key_base}")

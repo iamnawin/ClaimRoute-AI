@@ -19,6 +19,7 @@ import yaml
 from app import service
 from app.intake import FileRole, IntakeFile, decode_pages
 from app.local_retry import retry_cms1500_page
+from engine.escalation.model_router import ModelRouter, load_models_config
 from engine.governor import field_policy, preset
 from engine.schemas import FieldState, ValidationStamp, Verdict
 from engine.validators import validate_field
@@ -239,24 +240,38 @@ def _ratio(numerator: int | float, denominator: int | float) -> float | None:
 
 
 def _provider_policy_snapshot(config: dict | None = None,
-                              env: dict | None = None) -> dict:
+                              env: dict | None = None,
+                              mode: str | None = None) -> dict:
     """Return safe provider availability metadata without constructing a client."""
     if config is None:
         config = yaml.safe_load((service.ROOT / "configs" / "multimodal_providers.yaml")
                                 .read_text(encoding="utf-8")) or {}
+        # Same attachment load_config() performs, so the default path resolves
+        # operating modes rather than falling back to the provider static model.
+        config.setdefault("operating_mode_models",
+                          load_models_config(service.ROOT / "configs"
+                                             / "multimodal_models.yaml"))
     live = config.get("live_provider") or {}
     provider_name = live.get("provider") or config.get("active_provider") or ""
     provider = (config.get("providers") or {}).get(provider_name) or {}
-    model = provider.get("model") or ""
     key_env = provider.get("api_key_env") or ""
     values = os.environ if env is None else env
     enabled = bool(config.get("enabled", False) and live.get("enabled", False))
     credential_available = bool(key_env and str(values.get(key_env) or "").strip())
 
+    # The model shown must be the one the mode would actually send, not the
+    # provider entry's static id. Those differed, which is what put
+    # `openai/gpt-5-nano` on screen for every operating mode.
+    resolved = ModelRouter(provider_config=config).resolve(
+        mode or service.DEFAULT_MODE)
+    model = resolved.model_id
+
     if not enabled:
         reason = "disabled by policy"
     elif not model:
         reason = "model not configured"
+    elif resolved.blocked_reason:
+        reason = resolved.blocked_reason
     elif not credential_available:
         reason = "credential missing"
     else:
@@ -265,6 +280,10 @@ def _provider_policy_snapshot(config: dict | None = None,
         "provider_enabled": enabled,
         "provider_name": provider_name,
         "configured_model": model,
+        "operating_mode": resolved.mode,
+        "model_alias": resolved.alias,
+        "model_supports_images": resolved.supports_images,
+        "model_allowlisted": resolved.allowlisted,
         "credential_available": credential_available,
         "external_call_attempted": False,
         "external_call_count": 0,
@@ -570,7 +589,9 @@ def _unify_receipts(item: IntakeFile, receipts: list[dict]) -> dict:
     projected_input_cost = projected_output_cost = 0.0
     linkage_values = []
     field_count = 0
-    provider_policy = _provider_policy_snapshot()
+    provider_policy = _provider_policy_snapshot(
+        mode=receipts[0].get("operating_mode", {}).get("key", service.DEFAULT_MODE)
+        if receipts else service.DEFAULT_MODE)
     for page_number, receipt in enumerate(receipts, 1):
         receipt_mode = receipt.get("operating_mode", {}).get("key", service.DEFAULT_MODE)
         routing_policy = mode_policy(receipt_mode)

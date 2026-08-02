@@ -1,5 +1,25 @@
-# Proposed OpenRouter routing. Documentation-only placeholder: runtime code does
-# not load this file, and external providers remain disabled for local documents.
+# Model selection: WHICH model each operating mode uses.
+#
+# LOADED AT RUNTIME by engine/escalation/model_router.py. This file decides the
+# exact model id per operating mode; configs/multimodal_providers.yaml decides
+# how to reach a provider (endpoint, key env, timeouts, limits, budgets) and
+# which models are APPROVED to be billed. A model named here is a selection, not
+# an authorisation.
+#
+# `enabled: false` here does not gate spending — configs/multimodal_providers.yaml
+# (`enabled`, `live_provider.enabled`) plus two environment flags do that. It
+# records that the model ids below are not yet verified against OpenRouter's
+# catalogue.
+#
+# UNVERIFIED IDS. Every id below is `status: proposed_unverified` and is absent
+# from live_provider.model_allowlist, so each one RESOLVES (the UI can name it)
+# but is BLOCKED before any call. Promoting one to billable takes three
+# deliberate steps, in order:
+#   1. confirm the id exists and accepts images on openrouter.ai/models
+#   2. add a price row to configs/prices.yaml
+#   3. add it to live_provider.model_allowlist with vision: true
+# Adding an unverified id to the allowlist is how you get billed for a model
+# nobody chose. Do not skip step 1.
 version: 1
 status: proposed_unverified
 enabled: false

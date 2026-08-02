@@ -49,7 +49,13 @@ def load_config(path: Path | str = CONFIG_PATH) -> dict:
     if not p.exists():
         raise MultimodalError(ErrorCategory.CONFIGURATION_ERROR,
                               f"missing config {p}")
-    return yaml.safe_load(p.read_text(encoding="utf-8")) or {}
+    cfg = yaml.safe_load(p.read_text(encoding="utf-8")) or {}
+    # Attach the operating-mode -> model table so the loaded config is
+    # self-contained. ModelRouter reads it from here rather than from disk,
+    # so a hand-built config keeps whatever model its author intended.
+    from engine.escalation.model_router import load_models_config
+    cfg.setdefault("operating_mode_models", load_models_config())
+    return cfg
 
 
 def build_request(crop, field_name: str, *, source_page_px=None, region_px=None,

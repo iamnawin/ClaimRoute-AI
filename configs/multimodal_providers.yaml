@@ -13,7 +13,11 @@
 
 enabled: false
 
-active_provider: openai
+# Must agree with live_provider.provider below. These disagreed (openai here,
+# openrouter there), which meant the UI and the live-call governor could name
+# different providers for the same run. live_provider.provider is authoritative
+# for the live path; this key is the fallback for callers that predate it.
+active_provider: openrouter
 
 request_policy:
   # Crops only, never full pages. This mirrors model_policy.send_full_pages_externally
@@ -59,6 +63,11 @@ providers:
     # OpenRouter is an aggregator, so the model id is namespaced and explicit.
     # There is no default in code: a guessed id on an aggregator is how you get
     # billed for something nobody chose.
+    #
+    # NOT the model selector. configs/multimodal_models.yaml chooses the model
+    # per operating mode; this value is used ONLY when the selected mode has no
+    # entry there. It previously overrode every mode, which is why Economy,
+    # Balanced, and Accuracy all resolved to this one id.
     model: openai/gpt-5-nano
     endpoint: https://openrouter.ai/api/v1/chat/completions
     # Fixed by the adapter. A spec cannot point this at another variable and

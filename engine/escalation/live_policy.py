@@ -208,13 +208,23 @@ class LiveCallGovernor:
 
     def __init__(self, config: Optional[dict] = None, *,
                  env: Optional[dict] = None,
-                 adapter_enabled: Optional[bool] = None):
+                 adapter_enabled: Optional[bool] = None,
+                 mode: Optional[str] = None,
+                 router: Optional["ModelRouter"] = None):
         cfg = config or {}
         self._live = cfg.get("live_provider") or {}
         self._request_policy = cfg.get("request_policy") or {}
         self._providers = cfg.get("providers") or {}
         self._env = env
         self._adapter_enabled_override = adapter_enabled
+
+        # Model selection belongs to the router, not to the provider entry. The
+        # governor still re-checks the allowlist itself in _check_model: a
+        # resolved model is a proposal, and this class does not trust it.
+        from engine.escalation.model_router import DEFAULT_MODE, ModelRouter
+        self.mode = (mode or DEFAULT_MODE).strip().lower()
+        self._router = router if router is not None else ModelRouter(
+            provider_config=cfg)
 
         self.limits = SpendLimits.from_config(self._live.get("limits"))
         self._counters = _Counters()
@@ -245,9 +255,23 @@ class LiveCallGovernor:
         return spec.get("api_key_env") or DEFAULT_KEY_ENV
 
     @property
+    def resolved(self):
+        """The full model selection for this session's operating mode.
+
+        Recomputed rather than cached so a mode change between renders cannot
+        leave a stale model id authorising a call for the wrong mode.
+        """
+        return self._router.resolve(self.mode)
+
+    @property
     def model(self) -> str:
-        spec = self._providers.get(self.provider_name) or {}
-        return spec.get("model", "")
+        """The exact model id this session will send.
+
+        Resolved from the operating mode. Falls back to the provider entry's
+        static `model:` only when the mode has no configured alias — the router
+        owns that decision, so this property has one source, not two.
+        """
+        return self.resolved.model_id
 
     # ---------------------------------------------------------------- model
 

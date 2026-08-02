@@ -186,7 +186,14 @@ def test_unresolved_fields_are_partial_and_routed_to_review_without_sending():
         "multimodal_eligible": True,
         "provider_enabled": False,
         "provider_name": "openrouter",
-        "configured_model": "openai/gpt-5-nano",
+        # The default (balanced) operating mode's model, resolved from
+        # configs/multimodal_models.yaml. This previously read the provider
+        # entry's static id, so every mode reported openai/gpt-5-nano.
+        "configured_model": "google/gemini-2.5-flash-lite",
+        "operating_mode": "balanced",
+        "model_alias": "gemini_flash_lite",
+        "model_supports_images": True,
+        "model_allowlisted": False,
         "credential_available": bool(os.environ.get("OPENROUTER_API_KEY")),
         "external_call_attempted": False,
         "external_call_count": 0,
@@ -208,10 +215,12 @@ def test_provider_state_distinguishes_disabled_missing_key_and_missing_model():
     disabled = workspace._provider_policy_snapshot(
         {**base, "enabled": False}, env={"SYNTHETIC_TEST_KEY": "not-rendered"})
     missing_key = workspace._provider_policy_snapshot(base, env={})
+    # "No model" now means nothing resolves: a mode with no entry in
+    # multimodal_models.yaml AND no static model on the provider to fall back to.
     no_model = workspace._provider_policy_snapshot({
         **base,
         "providers": {"openrouter": {"api_key_env": "SYNTHETIC_TEST_KEY"}},
-    }, env={"SYNTHETIC_TEST_KEY": "not-rendered"})
+    }, env={"SYNTHETIC_TEST_KEY": "not-rendered"}, mode="no-such-mode")
 
     assert disabled["reason_not_attempted"] == "disabled by policy"
     assert disabled["final_workflow_state"] == "HUMAN_REVIEW_REQUIRED"

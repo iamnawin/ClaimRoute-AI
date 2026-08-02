@@ -81,13 +81,13 @@ def run_one_candidate(
         return _blocked_receipt(request, governor, outcome.reason, outcome), None
 
     try:
-        provider_spec = (config.get("providers") or {})[governor.provider_name]
-        if provider_spec.get("model") != governor.model:
-            governor.release()
-            return _blocked_receipt(
-                request, governor,
-                "Configured provider model does not match the authorized exact model.",
-                outcome), None
+        # The provider spec supplies TRANSPORT only (endpoint, key env, token
+        # cap). The model comes from the governor's mode resolution and is
+        # written over any static `model:` in the spec, so a stale provider
+        # entry cannot redirect a call the mode did not select.
+        provider_spec = dict((config.get("providers") or {})[governor.provider_name])
+        provider_spec["model"] = governor.model
+        provider_spec.setdefault("price_row", governor.model)
         provider = provider_builder(governor.provider_name, provider_spec)
         if getattr(provider, "model", governor.model) != governor.model:
             governor.release()
