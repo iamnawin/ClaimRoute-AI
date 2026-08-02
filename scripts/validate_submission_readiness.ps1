@@ -138,18 +138,26 @@ if ($demoState -eq 'RECORDING_REQUIRED') {
 
 # -- 2. Deep artifact validation ----------------------------------------------
 
+$artifactsFailed = $false
 $py = Join-Path $RepoRoot '.venv\Scripts\python.exe'
-if (Test-Path -LiteralPath $py) {
-    $validator = Join-Path $RepoRoot 'scripts\submission\validate_artifacts.py'
-    $out = & $py $validator 2>&1
+$validator = Join-Path $RepoRoot 'scripts\submission\validate_artifacts.py'
+if (-not (Test-Path -LiteralPath $py)) {
+    Add-Row 'Artifact deep validation' 'SKIPPED' '.venv python not found'
+} elseif (-not (Test-Path -LiteralPath $validator)) {
+    Add-Row 'Artifact deep validation' 'SKIPPED' 'scripts/submission/validate_artifacts.py not found'
+} elseif ($demoState -eq 'RECORDING_REQUIRED' -and $execState -ne 'VALID') {
+    # Nothing generated yet; deep validation would only restate that.
+    Add-Row 'Artifact deep validation' 'SKIPPED' 'No generated artifacts to inspect'
+} else {
+    $out = & $py $validator
     if ($LASTEXITCODE -eq 0) {
         $line = ($out | Select-String -Pattern 'checks passed' | Select-Object -First 1)
         Add-Row 'Artifact deep validation' 'PASS' "$line"
     } else {
-        Add-Row 'Artifact deep validation' 'FAIL' 'scripts/submission/validate_artifacts.py reported failures'
+        $artifactsFailed = $true
+        $failed = ($out | Select-String -Pattern '^\s*FAIL' | Select-Object -First 3) -join '; '
+        Add-Row 'Artifact deep validation' 'FAIL' $failed
     }
-} else {
-    Add-Row 'Artifact deep validation' 'SKIPPED' '.venv python not found'
 }
 
 # -- 3. Evidence register ------------------------------------------------------
@@ -157,8 +165,16 @@ if (Test-Path -LiteralPath $py) {
 $register = Join-Path $RepoRoot 'docs\submission\EVIDENCE_REGISTER.md'
 if (Test-Path -LiteralPath $register) {
     $text = Get-Content -LiteralPath $register -Raw
-    if ($text -match '0\.99903506' -and $text -match '0\.98042929') {
-        Add-Row 'Evidence register' 'CURRENT' 'Precision and recall match derived frozen values'
+    # Recall is 0.98135861 (TP/(TP+FN) = 3106/3165). 0.98042929 is the automated
+    # exact-match rate (3106/3168); it stays in the register under its own name but
+    # must never be the recall figure. See the resolved blocker in that file.
+    $hasPrecision = $text -match '0\.99903506'
+    $hasRecall    = $text -match '0\.98135861'
+    $staleRecall  = $text -match '(?s)\|\s*\*\*Recall\*\*\s*\|[^|]*0\.98042929'
+    if ($staleRecall) {
+        Add-Row 'Evidence register' 'STALE' 'Recall row carries the exact-match rate (FN=62 regression)'
+    } elseif ($hasPrecision -and $hasRecall) {
+        Add-Row 'Evidence register' 'CURRENT' 'Precision 0.99903506, recall 0.98135861, TP+FP+FN=3168'
     } else {
         Add-Row 'Evidence register' 'STALE' 'Derived precision/recall not found as expected'
     }
@@ -183,6 +199,36 @@ if ($srcMissing.Count -eq 0) {
     Add-Row 'Source upload readiness' 'READY' 'All 4 upload documents present'
 } else {
     Add-Row 'Source upload readiness' 'INCOMPLETE' "Missing: $($srcMissing -join ', ')"
+}
+
+# -- 4b. Packaging controls ------------------------------------------------------
+
+$controlDocs = @(
+    'docs\submission\PACKAGING_RUNBOOK.md',
+    'docs\submission\DELIVERY_CHECKLIST.md',
+    'docs\submission\README_SUBMISSION.md',
+    'docs\submission\EVIDENCE_REGISTER.md'
+)
+$controlMissing = @($controlDocs | Where-Object { -not (Test-Path -LiteralPath (Join-Path $RepoRoot $_)) })
+if ($controlMissing.Count -eq 0) {
+    Add-Row 'Packaging controls' 'READY' 'Runbook, delivery checklist, README and register present'
+} else {
+    Add-Row 'Packaging controls' 'INCOMPLETE' "Missing: $($controlMissing -join ', ')"
+}
+
+# -- 4c. Recording package -------------------------------------------------------
+
+$recDir = Join-Path $RepoRoot 'submission\working\demo_assets'
+$recRequired = @(
+    'DEMO_SCRIPT.md', 'DEMO_CLICK_PATH.md', 'RECORDING_CHECKLIST.md',
+    'FAILURE_TALK_TRACKS.md', 'SCREENSHOT_CHECKLIST.md', 'DEMO_DATA_MANIFEST.md',
+    'README.md'
+)
+$recMissing = @($recRequired | Where-Object { -not (Test-Path -LiteralPath (Join-Path $recDir $_)) })
+if ($recMissing.Count -eq 0) {
+    Add-Row 'Recording package' 'READY' "$($recRequired.Count) documents present; recording can proceed"
+} else {
+    Add-Row 'Recording package' 'INCOMPLETE' "Missing: $($recMissing -join ', ')"
 }
 
 # -- 5. Docker ------------------------------------------------------------------
@@ -272,29 +318,46 @@ if (Test-Path -LiteralPath $zipPath) {
 
 $Rows | Format-Table -AutoSize -Wrap
 
+# A missing recording is an expected state, not a validation failure. It keeps the
+# package blocked, but the readiness run itself still succeeds so this script can be
+# used as a green pre-recording gate. Anything genuinely wrong exits non-zero.
+$awaitingRecording = ($demoState -eq 'RECORDING_REQUIRED')
+
 $blocking = @()
 if ($execState  -ne 'VALID') { $blocking += 'Executive Summary invalid' }
 if ($archState  -ne 'VALID') { $blocking += 'Architecture invalid' }
 if ($benchState -ne 'VALID') { $blocking += 'Benchmark invalid' }
-if ($demoState  -eq 'RECORDING_REQUIRED') { $blocking += 'Demo MP4 not recorded' }
-if ($demoState -notlike 'VALID*' -and $demoState -ne 'RECORDING_REQUIRED') { $blocking += "Demo MP4 $demoState" }
+if ($demoState -notlike 'VALID*' -and -not $awaitingRecording) { $blocking += "Demo MP4 $demoState" }
 if ($secretHits.Count    -gt 0) { $blocking += 'Secret scan failed' }
 if ($organiserHits.Count -gt 0) { $blocking += 'Organiser-data scan failed' }
+if ($srcMissing.Count     -gt 0) { $blocking += 'Source upload documents incomplete' }
+if ($controlMissing.Count -gt 0) { $blocking += 'Packaging control documents incomplete' }
+if ($recMissing.Count     -gt 0) { $blocking += 'Recording package incomplete' }
+if ($artifactsFailed) { $blocking += 'Artifact deep validation failed' }
 
 Write-Host '----------------------------------------------------------------'
-if ($blocking.Count -eq 0) {
+if ($blocking.Count -gt 0) {
+    Write-Host ' FINALIZATION ELIGIBILITY: NOT ELIGIBLE' -ForegroundColor Yellow
+    foreach ($b in $blocking) { Write-Host "   - $b" }
+} elseif ($awaitingRecording) {
+    Write-Host ' FINALIZATION ELIGIBILITY: BLOCKED_ONLY_BY_MP4' -ForegroundColor Cyan
+    Write-Host ''
+    Write-Host ' Everything that can be prepared without a human is prepared.'
+    Write-Host ' Remaining manual action:'
+    Write-Host '   1. Record the demo and save it as submission/final/03_Demo.mp4'
+    Write-Host '   2. Delete submission/final/README_RECORDING_REQUIRED.txt'
+    Write-Host '   3. Re-run this script, then scripts/finalize_submission.ps1'
+} else {
     Write-Host ' FINALIZATION ELIGIBILITY: ELIGIBLE' -ForegroundColor Green
     if ($markerPresent) {
         Write-Host ' Delete README_RECORDING_REQUIRED.txt, then run finalize_submission.ps1'
     } else {
         Write-Host ' Run scripts/finalize_submission.ps1'
     }
-} else {
-    Write-Host ' FINALIZATION ELIGIBILITY: NOT ELIGIBLE' -ForegroundColor Yellow
-    foreach ($b in $blocking) { Write-Host "   - $b" }
 }
 Write-Host '----------------------------------------------------------------'
 Write-Host ''
 
+# Exit 0 for both ELIGIBLE and BLOCKED_ONLY_BY_MP4; non-zero only for real defects.
 if ($blocking.Count -eq 0) { exit 0 }
 exit 1
