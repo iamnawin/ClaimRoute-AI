@@ -41,6 +41,7 @@ Design decisions that are load-bearing:
 """
 from __future__ import annotations
 
+import copy
 import hashlib
 import os
 from dataclasses import dataclass, field
@@ -403,6 +404,20 @@ class LiveCallGovernor:
 
         self._in_flight = fp
         return LiveCallOutcome(LiveDecision.ALLOW, "all guardrails satisfied", **base)
+
+    def preview_authorization(
+            self, request: MultimodalRequest, *, model: Optional[str] = None,
+            page_id: str = "", doc_id: str = "") -> LiveCallOutcome:
+        """Run every live-policy check without reserving or charging a call.
+
+        The UI uses this only to explain whether its action can be enabled. The
+        real execution path must call :meth:`authorize` again immediately before
+        transport. A deep copy prevents duplicate counters, cached-result
+        accounting, and the in-flight marker from being changed by rendering.
+        """
+        probe = copy.deepcopy(self)
+        return probe.authorize(
+            request, model=model, page_id=page_id, doc_id=doc_id)
 
     def _check_crop(self, request: MultimodalRequest) -> str:
         """-> refusal reason, or "" when the image is a proven field crop."""

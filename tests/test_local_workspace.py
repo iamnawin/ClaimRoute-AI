@@ -1260,14 +1260,13 @@ def test_results_actions_are_truthful_when_provider_is_disabled(monkeypatch):
     app.run(timeout=30)
 
     multimodal = next(button for button in app.button
-                      if button.label == "Multimodal unavailable")
+                      if button.label == "Run one eligible synthetic field")
     assert multimodal.disabled is True
     provider_message = next(message.value for message in app.info
-                            if "Multimodal escalation unavailable" in message.value)
-    assert "Provider disabled by policy." in provider_message
-    assert "1 eligible field(s) were not sent." in provider_message
-    assert "External calls: 0." in provider_message
-    assert "No data left this machine." in provider_message
+                            if "AI calls disabled" in message.value)
+    assert provider_message == "AI calls disabled. No data will leave this machine."
+    assert next(toggle for toggle in app.toggle
+                if toggle.label == "Enable paid multimodal AI calls").value is False
     assert any(widget.label == "Filter fields" and widget.value.startswith("All fields")
                for widget in app.selectbox)
     assert not any(button.label == "Retry unresolved fields" for button in app.button)
