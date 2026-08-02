@@ -59,6 +59,17 @@ DEFAULT_KEY_ENV = "OPENROUTER_API_KEY"
 _TRUE = {"1", "true", "yes", "on"}
 
 
+class ModeError(TypeError):
+    """The caller passed something that is not an operating mode.
+
+    A TypeError subclass on purpose: passing a non-mode is a programmer defect,
+    not a runtime policy state, and it must keep failing loudly for callers that
+    already catch TypeError. It carries a readable message so the UI's
+    containment boundary can name the problem instead of rendering a redacted
+    "TypeError" with no detail, which is exactly how this class came to exist.
+    """
+
+
 class LiveDecision(str, Enum):
     """Every way a live-call authorisation can end. Exhaustive on purpose."""
 
@@ -222,7 +233,21 @@ class LiveCallGovernor:
         # governor still re-checks the allowlist itself in _check_model: a
         # resolved model is a proposal, and this class does not trust it.
         from engine.escalation.model_router import DEFAULT_MODE, ModelRouter
-        self.mode = (mode or DEFAULT_MODE).strip().lower()
+        # `mode` is normalised rather than trusted. Callers hand this straight
+        # through from UI state, and the receipt shape for an operating mode is
+        # a dict ({"key": ..., "label": ...}) while the batch shape is a bare
+        # string. Accepting both here keeps one supported contract at the call
+        # site instead of making every caller remember which shape it holds.
+        if isinstance(mode, dict):
+            mode = mode.get("key")
+        if mode is not None and not isinstance(mode, str):
+            raise ModeError(
+                f"operating mode must be a string or a receipt dict with a "
+                f"'key', got {type(mode).__name__}")
+        # Strip BEFORE the default, not after: "   " is truthy, so the reverse
+        # order kept it and left self.mode == "", which resolved to the
+        # provider's static model instead of the default mode.
+        self.mode = (mode or "").strip().lower() or DEFAULT_MODE
         self._router = router if router is not None else ModelRouter(
             provider_config=cfg)
 

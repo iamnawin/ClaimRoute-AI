@@ -1486,3 +1486,234 @@ def test_mode_changes_multimodal_field_eligibility_without_enabling_calls():
     assert accuracy["provider_escalations"][0]["multimodal_eligible"] is True
     assert economy["escalation_summary"]["external_provider_calls"] == 0
     assert accuracy["escalation_summary"]["external_provider_calls"] == 0
+
+
+# --------------------------------------------------------------------------
+# Multimodal session lifecycle.
+#
+# _multimodal_session had no test at all, which is how a constructor mismatch
+# (LiveCallGovernor gained `mode`; the UI passed `mode=`) reached the browser as
+# a redacted TypeError that blanked the whole results page. These cover the
+# construction contract, the session cache, and the containment boundary.
+#
+# No test here makes, or can make, a network call.
+# --------------------------------------------------------------------------
+
+def test_multimodal_session_builds_a_governor_for_every_mode():
+    """The exact UI call path, for all three shipped operating modes."""
+    expected = {
+        "economy": "qwen/qwen3.7-flash",
+        "balanced": "google/gemini-3.5-flash-lite",
+        "accuracy": "qwen/qwen3.7-plus",
+    }
+    for mode, model_id in expected.items():
+        state = {"operating_mode": mode}
+        session, governor, config = streamlit_app._multimodal_session(state)
+        assert governor.mode == mode
+        assert governor.model == model_id
+        assert session["governor"] is governor
+        assert config["live_provider"]["enabled"] is False
+
+
+def test_multimodal_session_reuses_the_governor_for_an_unchanged_mode():
+    """Re-rendering must not silently reset spend and call counters."""
+    state = {"operating_mode": "balanced"}
+    _, first, _ = streamlit_app._multimodal_session(state)
+    first.calls_made = 2
+    first._counters.session_spend = 0.004
+
+    _, second, _ = streamlit_app._multimodal_session(state)
+
+    assert second is first
+    assert second.calls_made == 2
+    assert second.session_spend_usd == pytest.approx(0.004)
+
+
+def test_multimodal_session_rebuilds_the_governor_on_a_mode_change():
+    """A mode change must re-resolve the model.
+
+    Counters intentionally restart with the new governor: they are per-model
+    spend, and carrying one model's spend onto another misreports both.
+    """
+    state = {"operating_mode": "economy"}
+    _, economy, _ = streamlit_app._multimodal_session(state)
+    economy.calls_made = 1
+
+    state["operating_mode"] = "accuracy"
+    _, accuracy, _ = streamlit_app._multimodal_session(state)
+
+    assert accuracy is not economy
+    assert accuracy.model == "qwen/qwen3.7-plus"
+    assert state["multimodal"]["mode"] == "accuracy"
+
+
+def test_multimodal_session_defaults_when_no_mode_is_selected():
+    _, governor, _ = streamlit_app._multimodal_session({})
+    assert governor.mode == service.DEFAULT_MODE
+
+
+def test_multimodal_session_error_boundary_names_the_reason(monkeypatch):
+    """A broken provider config degrades to a reason, not an exception."""
+    from engine.escalation.errors import ErrorCategory, MultimodalError
+
+    def broken(*args, **kwargs):
+        raise MultimodalError(ErrorCategory.CONFIGURATION_ERROR,
+                              "missing configs/multimodal_providers.yaml")
+
+    monkeypatch.setattr(streamlit_app, "load_config", broken)
+    session, governor, config, reason = streamlit_app._multimodal_session_or_error(
+        {"operating_mode": "balanced"})
+
+    assert (session, governor, config) == (None, None, None)
+    assert "CONFIGURATION_ERROR" in reason
+    # The diagnostic names config and mode only - never a credential value.
+    assert "OPENROUTER_API_KEY" not in reason
+
+
+def test_multimodal_session_error_boundary_catches_a_bad_mode_type(monkeypatch):
+    _, governor, _, reason = streamlit_app._multimodal_session_or_error(
+        {"operating_mode": 5})
+    assert governor is None
+    assert "ModeError" in reason
+
+
+def test_multimodal_session_error_boundary_passes_a_healthy_config_through():
+    session, governor, config, reason = streamlit_app._multimodal_session_or_error(
+        {"operating_mode": "balanced"})
+    assert reason == ""
+    assert governor.model == "google/gemini-3.5-flash-lite"
+
+
+def test_missing_api_key_does_not_break_the_session(monkeypatch):
+    """No credential is a blocked call, not a crash."""
+    monkeypatch.delenv("OPENROUTER_API_KEY", raising=False)
+    _, governor, _, reason = streamlit_app._multimodal_session_or_error(
+        {"operating_mode": "balanced"})
+    assert reason == ""
+    assert governor.calls_made == 0
+
+
+def test_result_page_survives_a_broken_multimodal_config(monkeypatch):
+    """The whole results page must not die with the multimodal panel.
+
+    This is the regression for the reported crash: _render_multimodal_permission
+    raised through _render_local_document and Streamlit replaced the entire page
+    with a redacted TypeError, destroying finished local results the panel had
+    no part in producing.
+    """
+    from engine.escalation.errors import ErrorCategory, MultimodalError
+
+    monkeypatch.setenv("CLAIMROUTE_APP_MODE", "local_workspace")
+    monkeypatch.delenv("OPENROUTER_API_KEY", raising=False)
+    item = inspect_content("synthetic.png", _image_bytes())
+    batch = workspace.run_batch(
+        [item], processor=lambda item, mode: workspace.process_item(
+            item, page_processor=lambda *args: _unresolved_receipt()))
+
+    def broken(*args, **kwargs):
+        raise MultimodalError(ErrorCategory.CONFIGURATION_ERROR, "config unreadable")
+
+    # Patched at the source module, not on `streamlit_app`: AppTest re-executes
+    # the app file as a fresh module, so an attribute set on the already-imported
+    # one is not the object the running app binds.
+    import engine.escalation.client as escalation_client
+    monkeypatch.setattr(escalation_client, "load_config", broken)
+    app = AppTest.from_file("app/streamlit_app.py", default_timeout=30)
+    state = _workspace_ui_state(item, batch)
+    state["active_tab"] = "Results"
+    # The panel only renders for an opened document, which is the state the
+    # reported crash occurred in.
+    state["selected_result_id"] = item.safe_source_id
+    app.session_state[streamlit_app.WORKSPACE_STATE_KEY] = state
+
+    app.run(timeout=30)
+
+    # The page rendered rather than being replaced by an exception screen.
+    assert not app.exception
+    assert any("Multimodal provider unavailable" in w.value for w in app.warning)
+    # And the local work the panel never touched is still on screen.
+    assert any(tab.label == "Results" for tab in app.tabs)
+    assert any(button.label.startswith("Download") for button in app.button) or \
+        len(app.get("download_button")) > 0
+
+
+def test_multimodal_session_opens_no_socket(monkeypatch):
+    """Constructing the governor must never touch the network.
+
+    Guarded at the socket layer rather than by inspecting the config, so a
+    future adapter that dials on construction fails here instead of billing.
+    """
+    import socket
+
+    def forbidden(*args, **kwargs):
+        raise AssertionError("multimodal session attempted a network connection")
+
+    monkeypatch.setattr(socket.socket, "connect", forbidden)
+    monkeypatch.setattr(socket.socket, "connect_ex", forbidden)
+    monkeypatch.setattr(socket, "create_connection", forbidden)
+
+    for mode in ("economy", "balanced", "accuracy"):
+        _, governor, _, reason = streamlit_app._multimodal_session_or_error(
+            {"operating_mode": mode})
+        assert reason == ""
+        assert governor.calls_made == 0
+        # preview_authorization runs every gate; it must also stay offline.
+        assert governor.session_report()["calls_made"] == 0
+
+
+def _unresolved_receipt_for(mode):
+    page = PageResult("safe", "p1", "cms1500", quality_score=0.9)
+    field = FieldResult("safe", "p1", "patient_dob", None, FieldState.ESCALATE, 0.2)
+    field.attempts = [Attempt("primary_ocr", "stub", None, 0.2),
+                      Attempt("retry_ocr", "stub", None, 0.2)]
+    page.fields = {"patient_dob": field}
+    page.decisions = {"patient_dob": [("RETRY", "test"),
+                                      ("ESCALATE", "retry exhausted")]}
+    return service.build_receipt(page, [], mode, 10.0,
+                                 source_kind="local_workspace")
+
+
+@pytest.mark.parametrize(("mode", "alias", "model_id"), [
+    ("economy", "qwen_flash", "qwen/qwen3.7-flash"),
+    ("balanced", "gemini_35_flash_lite", "google/gemini-3.5-flash-lite"),
+    ("accuracy", "qwen_plus", "qwen/qwen3.7-plus"),
+])
+def test_permission_panel_renders_the_mode_model_end_to_end(
+        monkeypatch, mode, alias, model_id):
+    """Drive the real Streamlit runtime, the way the crash was found.
+
+    The panel must name the model the SELECTED mode resolves to. The batch is
+    built in the same mode on purpose: _sync_workspace_controls intentionally
+    restores the mode recorded on the batch receipt, because the results on
+    screen describe the run that produced them, not a later sidebar selection.
+    """
+    monkeypatch.setenv("CLAIMROUTE_APP_MODE", "local_workspace")
+    monkeypatch.delenv("OPENROUTER_API_KEY", raising=False)
+    monkeypatch.delenv("CLAIMROUTE_MULTIMODAL_ENABLED", raising=False)
+    monkeypatch.delenv("CLAIMROUTE_LIVE_PROVIDER_TEST", raising=False)
+
+    item = inspect_content("synthetic.png", _image_bytes())
+    batch = workspace.run_batch(
+        [item], mode,
+        processor=lambda i, m: workspace.process_item(
+            i, mode=m, page_processor=lambda *a: _unresolved_receipt_for(m)))
+
+    app = AppTest.from_file("app/streamlit_app.py", default_timeout=60)
+    state = _workspace_ui_state(item, batch, mode=mode)
+    state["active_tab"] = "Results"
+    state["selected_result_id"] = item.safe_source_id
+    app.session_state[streamlit_app.WORKSPACE_STATE_KEY] = state
+    app.run(timeout=60)
+
+    # No TypeError: this whole path is what the reported traceback walked.
+    assert not app.exception
+    app.get("toggle")[0].set_value(True).run(timeout=60)
+    assert not app.exception
+
+    panel = " ".join(block.value for block in app.markdown)
+    assert f"`{model_id}`" in panel
+    assert f"`{alias}`" in panel
+    assert "**Allowlisted:** yes" in panel
+    assert "**Image input supported:** yes" in panel
+    # Exports survive alongside the panel, and nothing was sent.
+    assert len(app.get("download_button")) >= 1

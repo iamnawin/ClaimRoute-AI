@@ -411,3 +411,84 @@ def test_price_overlay_does_not_shadow_frozen_rows():
         assert merged["vision_models"][row] == value
     assert merged["compute"] == frozen["compute"]
     assert merged["human_review"] == frozen["human_review"]
+
+
+# --------------------------------------------------------------------------
+# Constructor contract.
+#
+# The defect these cover: app/streamlit_app.py:_multimodal_session called
+# LiveCallGovernor(config, mode=mode) against a class whose __init__ did not yet
+# accept `mode`, raising
+#   TypeError: LiveCallGovernor.__init__() got an unexpected keyword argument 'mode'
+# on the results screen. Call site and class were updated in the same commit, so
+# the repository was never broken - but the UI path had NO test, so nothing
+# proved the two agreed. These tests are that proof.
+# --------------------------------------------------------------------------
+
+def test_governor_accepts_mode_for_every_shipped_operating_mode():
+    """The exact constructor call the UI makes, for all three modes."""
+    for mode, (alias, model_id) in EXPECTED.items():
+        governor = LiveCallGovernor(REPO_PROVIDERS, mode=mode)
+        assert governor.mode == mode
+        assert governor.model == model_id
+        assert governor.resolved.alias == alias
+
+
+def test_governor_defaults_to_the_configured_default_mode():
+    """An absent or empty mode falls back to DEFAULT_MODE, never to nothing."""
+    for absent in (None, "", "   "):
+        assert LiveCallGovernor(REPO_PROVIDERS, mode=absent).mode == DEFAULT_MODE
+    assert LiveCallGovernor(REPO_PROVIDERS).mode == DEFAULT_MODE
+
+
+def test_governor_normalises_mode_case_and_whitespace():
+    assert LiveCallGovernor(REPO_PROVIDERS, mode="  ECONOMY ").mode == "economy"
+
+
+def test_governor_accepts_the_receipt_shaped_operating_mode():
+    """`operating_mode` is a bare string on a batch and a dict on a receipt.
+
+    app/service.py:build_receipt writes {"key": ..., "label": ...} while
+    workspace.run_batch writes the string. Both reach the UI, so the constructor
+    accepts both rather than making each call site remember which it holds.
+    """
+    governor = LiveCallGovernor(
+        REPO_PROVIDERS, mode={"key": "economy", "label": "Economy"})
+    assert governor.mode == "economy"
+    assert governor.model == EXPECTED["economy"][1]
+
+
+def test_governor_rejects_a_non_mode_with_a_clear_typed_error():
+    from engine.escalation.live_policy import ModeError
+
+    for bad in (5, ["economy"], object()):
+        with pytest.raises(ModeError) as excinfo:
+            LiveCallGovernor(REPO_PROVIDERS, mode=bad)
+        assert "operating mode must be a string" in str(excinfo.value)
+    # A TypeError subclass, so callers already catching TypeError still see it
+    # and a genuine programmer defect cannot be mistaken for a policy refusal.
+    assert issubclass(ModeError, TypeError)
+
+
+def test_unknown_mode_is_not_silently_resolved_to_the_static_model():
+    """A mode the table does not define is a typo, not a model selection.
+
+    It previously fell through to the provider's static `model:` and reported
+    usable=True, so a mistyped mode would have billed a model nobody chose.
+    """
+    resolved = LiveCallGovernor(REPO_PROVIDERS, mode="turbo").resolved
+    assert resolved.usable is False
+    assert "not defined in configs/multimodal_models.yaml" in resolved.blocked_reason
+
+
+def test_absent_model_table_still_degrades_to_the_provider_static_model():
+    """The unknown-mode rejection must not break a partial checkout.
+
+    load_models_config() returns {} for a missing file on purpose. With no mode
+    table at all there is no typo to detect, so the pre-existing static-model
+    fallback has to survive.
+    """
+    resolved = ModelRouter(models_config={},
+                           provider_config=REPO_PROVIDERS).resolve("balanced")
+    assert resolved.model_id == "openai/gpt-5-nano"
+    assert "not defined in" not in resolved.blocked_reason

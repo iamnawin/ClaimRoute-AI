@@ -175,7 +175,9 @@ class ModelRouter:
         pointing at an alias that does not exist) raises, because that is an
         authoring error rather than a runtime state the UI should render.
         """
-        mode = (mode or DEFAULT_MODE).strip().lower()
+        # Stripped before the default is applied: "   " is truthy, so the
+        # reverse order yields an empty mode that matches no entry in the table.
+        mode = (mode or "").strip().lower() or DEFAULT_MODE
         mode_cfg = self._modes.get(mode)
 
         # No mode table at all, or a mode the file does not know: fall back to
@@ -184,10 +186,20 @@ class ModelRouter:
         if not mode_cfg:
             model_id = self._provider_static_model()
             entry = self.allowlist_entry(model_id)
-            reason = "" if entry else (
-                f"{model_id!r} is not on live_provider.model_allowlist "
-                f"{self.allowlisted_ids()}" if model_id
-                else "no model configured for this mode and no provider model set")
+            # A mode the table does not define, when the table EXISTS, is a
+            # typo, not a request for the provider's static model. Resolving
+            # it silently reported usable: true for a model the operator never
+            # selected, so the selection is named unusable instead. An absent
+            # table stays a legitimate degraded path (see load_models_config).
+            if self._modes:
+                reason = (f"operating mode {mode!r} is not defined in "
+                          f"configs/multimodal_models.yaml operating_modes "
+                          f"{sorted(self._modes)}")
+            else:
+                reason = "" if entry else (
+                    f"{model_id!r} is not on live_provider.model_allowlist "
+                    f"{self.allowlisted_ids()}" if model_id
+                    else "no model configured for this mode and no provider model set")
             return ResolvedModel(
                 mode=mode, alias="", model_id=model_id,
                 supports_images=bool(entry and entry.get("vision") is True),

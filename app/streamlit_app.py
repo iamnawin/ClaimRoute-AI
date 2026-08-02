@@ -1,10 +1,13 @@
 """ClaimRoute Day 10 Streamlit demo."""
 from __future__ import annotations
 
+import logging
 import os
 from pathlib import Path
 import sys
 import time
+
+import yaml
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 
@@ -15,7 +18,11 @@ from app import dashboard, multimodal_permission, service, workspace
 from app.intake import (FileRole, IntakeError, ScanState, decode_pages,
                         inspect_content, scan_folder)
 from engine.escalation.client import load_config, request_from_page
-from engine.escalation.live_policy import LiveCallGovernor
+from engine.escalation.errors import MultimodalError
+from engine.escalation.live_policy import LiveCallGovernor, ModeError
+from engine.escalation.model_router import ModelResolutionError
+
+logger = logging.getLogger(__name__)
 
 
 BATCH_COUNTERS = {
@@ -494,6 +501,32 @@ def _multimodal_session(state: dict) -> tuple[dict, LiveCallGovernor, dict]:
     return session, session["governor"], config
 
 
+def _multimodal_session_or_error(state: dict):
+    """(session, governor, config, "") or (None, None, None, reason).
+
+    The multimodal panel is one optional block on a page whose real work -
+    extraction, validation, review, exports - is already finished and local. A
+    provider-configuration defect used to raise through _render_local_document
+    and blank the entire results page, so a feature that makes no calls at all
+    could destroy the output of the run.
+
+    Only the initialization boundary is contained, and only into a named reason.
+    This is not a general except-and-continue: the governor's own refusals stay
+    typed outcomes, and a programmer defect still reaches the log below with its
+    full traceback rather than being smoothed into "unavailable".
+    """
+    try:
+        session, governor, config = _multimodal_session(state)
+        return session, governor, config, ""
+    except (MultimodalError, ModeError, ModelResolutionError,
+            OSError, yaml.YAMLError) as exc:
+        # exc carries config paths, mode names, and model ids - never crop
+        # bytes, extracted values, or credentials. Logged with the traceback so
+        # the defect stays diagnosable instead of being hidden by the fallback.
+        logger.exception("multimodal permission panel unavailable")
+        return None, None, None, f"{type(exc).__name__}: {exc}"
+
+
 def _eligible_multimodal_fields(document: dict) -> list[dict]:
     eligible = {
         (row["page"], row["field_name"])
@@ -533,7 +566,16 @@ def _replace_multimodal_document(state: dict, document: dict) -> None:
 
 def _render_multimodal_permission(st, state: dict, document: dict, source) -> None:
     candidates = _eligible_multimodal_fields(document)
-    session, governor, config = _multimodal_session(state)
+    session, governor, config, init_error = _multimodal_session_or_error(state)
+    if init_error:
+        st.warning(
+            "**Multimodal provider unavailable.**  \n"
+            "Reason: configuration initialization failed.  \n"
+            "Local OCR, validation, retry, review and exports remain available. "
+            "No external call was attempted."
+        )
+        st.caption(f"Diagnostic: {init_error}")
+        return
     receipts = session.setdefault("receipts", {})
     if not candidates and not receipts:
         return
