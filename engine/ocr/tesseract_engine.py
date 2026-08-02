@@ -48,8 +48,22 @@ class TesseractEngine(OcrEngine):
     PSM_PAGE = 3
     PSM_BLOCK = 6
 
-    def extract(self, img: Image.Image, psm: int | None = None) -> list[OcrWord]:
+    # One character alone in a box ("M", "1") is read far more reliably when the
+    # engine is told to expect exactly that.
+    PSM_LINE = 7
+    PSM_CHAR = 10
+
+    def extract(self, img: Image.Image, psm: int | None = None,
+                whitelist: str | None = None) -> list[OcrWord]:
+        """``whitelist`` restricts the character set for one field crop.
+
+        A date box cannot contain letters and an NPI box cannot contain
+        punctuation; saying so turns a misread glyph into the right glyph
+        instead of a validator failure downstream.
+        """
         config = f"--psm {psm}" if psm is not None else ""
+        if whitelist:
+            config = f"{config} -c tessedit_char_whitelist={whitelist}".strip()
         data = pytesseract.image_to_data(img, config=config,
                                          output_type=pytesseract.Output.DICT)
         self.last_raw = data
