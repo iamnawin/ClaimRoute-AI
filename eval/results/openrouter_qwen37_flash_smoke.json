@@ -1,0 +1,107 @@
+{
+  "ts": "2026-08-02T06:04:49.308556+00:00",
+  "provider": "openrouter",
+  "requested_model": "qwen/qwen3.7-flash",
+  "actual_model_used": "qwen/qwen3.7-flash",
+  "model_substituted": false,
+  "http_or_provider_outcome": "ok",
+  "error_detail": "",
+  "called_provider": true,
+  "attempts": 1,
+  "structured_response_valid": true,
+  "rejects": [],
+  "visible": true,
+  "confidence": 1.0,
+  "grounding_result": "accepted",
+  "healthcare_validators": [
+    {
+      "validator": "npi_checksum",
+      "verdict": "PASS",
+      "detail": ""
+    }
+  ],
+  "healthcare_validators_passed": true,
+  "governor_outcome": {
+    "decision": "ALLOW",
+    "reason": "all guardrails satisfied",
+    "fingerprint": "62646fe1405177ede28d50953d13d4e0",
+    "field_name": "billing_provider_npi",
+    "model": "qwen/qwen3.7-flash",
+    "doc_id": "smoke_90211",
+    "page_id": "p1",
+    "allowed": true,
+    "route_to_human_review": false,
+    "reused_from": "",
+    "avoided_cost_usd": null
+  },
+  "usage": {
+    "input_tokens": 276,
+    "output_tokens": 77,
+    "image_tokens": "unknown",
+    "cached_tokens": 0,
+    "reasoning_tokens": 38
+  },
+  "cost": {
+    "basis": "provider_reported",
+    "price_row": "qwen-3.7-flash",
+    "measured_usd": 1.829e-05,
+    "estimated_usd": null,
+    "reported_usd": 1.829e-05,
+    "billed_usd": 1.829e-05,
+    "estimate_excludes_image_tokens": false,
+    "estimate_is_lower_bound": false
+  },
+  "provider_reported_cost_usd": 1.829e-05,
+  "locally_calculated_cost_usd": 1.829e-05,
+  "locally_calculated_cost_basis": "configs/prices.yaml row 'qwen-3.7-flash'",
+  "latency_ms": 3856.93,
+  "provider_latency_ms": [
+    3855.33
+  ],
+  "session_spend_before_usd": 0.0,
+  "session_spend_after_usd": 1.829e-05,
+  "session": {
+    "provider": "openrouter",
+    "model": "qwen/qwen3.7-flash",
+    "calls_made": 1,
+    "paid_calls_avoided": 0,
+    "measured_incremental_usd": 1.829e-05,
+    "projected_uncached_usd": 1.829e-05,
+    "cache_savings_usd": 0.0,
+    "session_spend_usd": 1.829e-05,
+    "session_remaining_usd": 0.01998171,
+    "limits": {
+      "max_calls_per_field": 1,
+      "max_calls_per_page": 2,
+      "max_calls_per_document": 3,
+      "max_calls_per_batch": 5,
+      "max_paid_attempts_per_field": 1,
+      "max_session_spend_usd": 0.02,
+      "max_document_spend_usd": 0.005,
+      "allow_fallback_models": false,
+      "allow_parallel_paid_calls": false,
+      "allow_automatic_reruns": false
+    }
+  },
+  "raw_response_sha256": "0f96a78d363a63f051d96249c59143d40786391d67c68bf624f48d634e4bb415",
+  "raw_response_persisted": false,
+  "crop": {
+    "crop_sha256": "8d107726e81ff9d6ce24961bcbb2cd1bad0c15ac39bc648764c062802effc6d6",
+    "crop_px": [
+      252,
+      96
+    ],
+    "crop_bytes": 8712,
+    "region_px": [
+      84,
+      32
+    ],
+    "source_page_px": [
+      1700,
+      2200
+    ],
+    "page_fraction": 0.000719
+  },
+  "openrouter_balance_usd": null,
+  "external_calls_made": 1
+}
