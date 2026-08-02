@@ -47,22 +47,24 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Optional
 
-from engine.escalation.live_policy import (DEFAULT_KEY_ENV, LIVE_TEST_ENV,
+from engine.escalation.live_policy import (DEFAULT_KEY_ENV,
+                                           LIVE_CONFIG_ENABLED_ENV,
+                                           LIVE_TEST_ENV,
                                            MULTIMODAL_ENABLED_ENV,
-                                           LiveCallGovernor)
+                                           ConfigurationFlagError,
+                                           LiveCallGovernor, LiveDecision,
+                                           parse_optional_flag)
 
 # The documented truthy set, shared with live_policy so the gate and the panel
 # cannot disagree about what "true" means.
 TRUE_VALUES = ("1", "true", "yes", "on")
 FALSE_VALUES = ("0", "false", "no", "off")
 
-
-class ConfigurationFlagError(ValueError):
-    """An environment flag held a value that is neither true nor false.
-
-    Raised rather than defaulted. The operator believes they configured
-    something; telling them it is off would be a lie they cannot debug.
-    """
+# Defined in live_policy and re-exported here. One definition, so a flag the
+# gate refuses cannot be a flag the panel accepts. Existing importers of
+# `readiness.ConfigurationFlagError` keep working.
+__all__ = ["ConfigurationFlagError", "ProviderReadiness", "ReadinessState",
+           "evaluate_readiness", "parse_flag"]
 
 
 def parse_flag(name: str, raw) -> bool:
@@ -71,20 +73,12 @@ def parse_flag(name: str, raw) -> bool:
     Case-insensitive and whitespace-safe. Unset and empty are false, because an
     absent variable is a genuine "not configured" rather than a typo. Anything
     else raises.
+
+    The two-state view of :func:`live_policy.parse_optional_flag`, for the gates
+    where "unset" and "off" genuinely mean the same thing. The override in
+    LIVE_CONFIG_ENABLED_ENV is the one place they do not.
     """
-    if raw is None:
-        return False
-    text = str(raw).strip().lower()
-    if text == "":
-        return False
-    if text in TRUE_VALUES:
-        return True
-    if text in FALSE_VALUES:
-        return False
-    raise ConfigurationFlagError(
-        f"{name} must be one of {', '.join(TRUE_VALUES)} (true) or "
-        f"{', '.join(FALSE_VALUES)} (false), case-insensitive. Fix the value "
-        f"and restart the application.")
+    return parse_optional_flag(name, raw) is True
 
 
 class ReadinessState(str, Enum):
@@ -128,6 +122,24 @@ class ProviderReadiness:
     # they have not picked.
     input_eligible: Optional[bool] = None
 
+    # --- the two facts "External enabled: Yes/No" used to swallow -----------
+    #
+    # READY still means what it always meant: nothing in the OPERATOR's setup is
+    # missing. That is not the same question as "may this call happen", and
+    # rendering one boolean for both is what let a correctly-configured operator
+    # read a green panel and then meet a refusal it never predicted.
+    #
+    # `live_path_enabled` is the configuration/override gate on its own.
+    # `paid_execution_authorized` is the governor's verdict for THIS input.
+    # Neither widens anything: both are reported, and authorize() re-checks all
+    # of it before transport.
+    live_path_enabled: bool = False
+    paid_execution_authorized: bool = False
+    # The governor's typed decision when execution is not authorized, so the
+    # panel can name the exact gate instead of paraphrasing it. Empty when a
+    # call would be permitted, or when no input has been selected to judge.
+    blocking_reason: str = ""
+
     def diagnostics(self) -> dict:
         """The PHI-safe gate report, suitable for an on-screen expander.
 
@@ -140,12 +152,15 @@ class ProviderReadiness:
             MULTIMODAL_ENABLED_ENV: self.adapter_flag,
             LIVE_TEST_ENV: self.live_test_flag,
             "CONFIG_PROVIDER_ENABLED": self.config_enabled,
+            LIVE_CONFIG_ENABLED_ENV: self.live_path_enabled,
+            "CONFIG_LIVE_PATH_ENABLED": self.live_path_enabled,
             "SELECTED_MODE": self.operating_mode,
             "SELECTED_MODEL": self.model,
             "MODEL_ALLOWLISTED": self.model_allowlisted,
             "MODEL_IMAGE_CAPABLE": self.model_image_capable,
             "INPUT_ELIGIBLE": self.input_eligible,
             "PROVIDER_READY": self.ready,
+            "PAID_EXECUTION_AUTHORIZED": self.paid_execution_authorized,
             "BLOCKING_REASON": self.state.value,
         }
 
@@ -161,7 +176,36 @@ class ProviderReadiness:
                 "config_enabled": self.config_enabled,
                 "model_allowlisted": self.model_allowlisted,
                 "model_image_capable": self.model_image_capable,
-                "input_eligible": self.input_eligible}
+                "input_eligible": self.input_eligible,
+                "live_path_enabled": self.live_path_enabled,
+                "paid_execution_authorized": self.paid_execution_authorized,
+                "blocking_reason": self.blocking_reason}
+
+    def status_panel(self) -> list[dict]:
+        """The separated status rows, in the operator's repair order.
+
+        Six independent facts, never folded into one "External enabled" boolean.
+        Each row is a fact this process actually checked; nothing here is
+        inferred from another row, because the row that gets inferred is always
+        the one that turns out to be wrong.
+        """
+        return [
+            {"label": "Provider credentials",
+             "value": "Available" if self.key_present else "Missing"},
+            {"label": "Adapter enabled",
+             "value": "Yes" if self.adapter_flag or self.config_enabled else "No"},
+            {"label": "Live-test permission",
+             "value": "Yes" if self.live_test_flag or self.config_enabled else "No"},
+            {"label": "Configuration live path",
+             "value": "Enabled" if self.live_path_enabled else "Disabled"},
+            {"label": "Input eligibility",
+             "value": ("No input selected" if self.input_eligible is None else
+                       "Approved synthetic crop" if self.input_eligible else
+                       "Synthetic crop required")},
+            {"label": "Paid execution authorized",
+             "value": "Yes" if self.paid_execution_authorized else "No"},
+            {"label": "Blocking reason", "value": self.blocking_reason or "-"},
+        ]
 
 
 def evaluate_readiness(*, config: dict, env: Optional[dict] = None,
@@ -197,11 +241,15 @@ def evaluate_readiness(*, config: dict, env: Optional[dict] = None,
     key_present = bool(str(_get(key_env) or "").strip())
 
     # 0. Malformed flags before anything else. A value nobody can interpret must
-    #    not be interpreted.
+    #    not be interpreted. The activation override is parsed here too, so a
+    #    typo in it is reported as the configuration error it is rather than
+    #    quietly leaving the live path shut for a reason nobody can see.
     try:
         adapter_flag = parse_flag(MULTIMODAL_ENABLED_ENV,
                                   _get(MULTIMODAL_ENABLED_ENV))
         live_test_flag = parse_flag(live_test_env, _get(live_test_env))
+        live_override = parse_optional_flag(LIVE_CONFIG_ENABLED_ENV,
+                                            _get(LIVE_CONFIG_ENABLED_ENV))
     except ConfigurationFlagError as error:
         return ProviderReadiness(
             state=ReadinessState.CONFIGURATION_ERROR, ready=False,
@@ -213,6 +261,13 @@ def evaluate_readiness(*, config: dict, env: Optional[dict] = None,
 
     config_enabled = bool(config.get("enabled", False)
                           and live.get("enabled", False))
+
+    # The paid path's own gate, reported as its own fact. Same resolution the
+    # governor performs, borrowed rather than restated: a second copy of "is the
+    # live path open?" is a second thing to keep in sync, and the one that
+    # drifts is always the one on screen.
+    live_path_enabled = (live_override if live_override is not None
+                         else bool(live.get("enabled", False)))
 
     # Resolve the model the selected mode would actually send. Structural
     # authoring errors surface as a state, not a traceback on a results page.
@@ -232,7 +287,8 @@ def evaluate_readiness(*, config: dict, env: Optional[dict] = None,
             provider_name=provider_name, operating_mode=mode or "",
             key_env=key_env, key_present=key_present,
             adapter_flag=adapter_flag, live_test_flag=live_test_flag,
-            config_enabled=config_enabled)
+            config_enabled=config_enabled, live_path_enabled=live_path_enabled,
+            blocking_reason=ReadinessState.INITIALIZATION_ERROR.value)
 
     # The router reads image support from the model table; the governor reads it
     # from the allowlist entry's checked `vision:` declaration. A call needs
@@ -250,7 +306,8 @@ def evaluate_readiness(*, config: dict, env: Optional[dict] = None,
               "key_present": key_present, "adapter_flag": adapter_flag,
               "live_test_flag": live_test_flag, "config_enabled": config_enabled,
               "model_allowlisted": allowlisted,
-              "model_image_capable": image_capable}
+              "model_image_capable": image_capable,
+              "live_path_enabled": live_path_enabled}
 
     # Gate order is the operator's REPAIR order, not the governor's cost order.
     # Each answer is the next thing they must change, so the most categorical
@@ -277,7 +334,7 @@ def evaluate_readiness(*, config: dict, env: Optional[dict] = None,
             required_action=(f"Set {MULTIMODAL_ENABLED_ENV}=true before starting "
                              "the application, or enable the approved live-provider "
                              "configuration."),
-            **common)
+            blocking_reason=ReadinessState.DISABLED.value, **common)
 
     # 2. Explicit live-test permission. Deliberately separate from the adapter
     #    flag so enabling the adapter for a fake provider can never turn a paid
@@ -289,6 +346,7 @@ def evaluate_readiness(*, config: dict, env: Optional[dict] = None,
                     "permission is disabled."),
             required_action=(f"Set {live_test_env}=true before starting the "
                              "application."),
+            blocking_reason=ReadinessState.TEST_PERMISSION_REQUIRED.value,
             **common)
 
     # 3. Model. The allowlist is approval to bill; a model missing from it, or
@@ -306,7 +364,7 @@ def evaluate_readiness(*, config: dict, env: Optional[dict] = None,
             required_action=("Choose an operating mode whose model is "
                              "allowlisted and image-capable, or add the model to "
                              "live_provider.model_allowlist after verifying it."),
-            **common)
+            blocking_reason=ReadinessState.MODEL_NOT_ALLOWED.value, **common)
 
     # 4. Credential. Last of the configuration gates: everything above it is a
     #    decision the operator makes once, and this is the one they make per
@@ -319,7 +377,7 @@ def evaluate_readiness(*, config: dict, env: Optional[dict] = None,
                              "application, then restart it. Local OCR, "
                              "validation, retry, review and exports remain "
                              "available without it."),
-            **common)
+            blocking_reason=ReadinessState.MISSING_KEY.value, **common)
 
     # 5. The selected input, when there is one. Absence of a selection is not a
     #    refusal — the panel must be able to say "ready" before anything is
@@ -334,20 +392,58 @@ def evaluate_readiness(*, config: dict, env: Optional[dict] = None,
                 required_action=("Select an approved synthetic field crop. Only "
                                  "those may be sent under the current safety "
                                  "policy."),
-                input_eligible=False, **common)
+                input_eligible=False,
+                blocking_reason=ReadinessState.INPUT_INELIGIBLE.value, **common)
+
+        # The operator's setup is complete AND this input is eligible. Whether a
+        # call may actually happen is a different question with a different
+        # owner, so it is asked of the owner rather than inferred from the four
+        # gates above. `preview_authorization` runs every live-policy check on a
+        # deep copy: no counter moves, no fingerprint is reserved, no money is
+        # committed by rendering a panel.
+        decision = _paid_execution_decision(config, values, request, mode)
         return ProviderReadiness(
             state=ReadinessState.READY, ready=True,
             reason=_ready_reason(resolved_mode, model),
-            required_action="", input_eligible=True, **common)
+            required_action="", input_eligible=True,
+            paid_execution_authorized=decision.allowed,
+            blocking_reason="" if decision.allowed else decision.decision.value,
+            **common)
 
+    # No input selected. Readiness can still be READY — "nothing chosen" is not
+    # a refusal — but nothing can be AUTHORIZED without something to authorise,
+    # so the live path is reported on its own and execution stays unauthorised.
     return ProviderReadiness(
         state=ReadinessState.READY, ready=True,
         reason=_ready_reason(resolved_mode, model),
-        required_action="", input_eligible=None, **common)
+        required_action="", input_eligible=None,
+        paid_execution_authorized=False,
+        blocking_reason=("" if live_path_enabled
+                         else LiveDecision.BLOCKED_LIVE_PATH_DISABLED.value),
+        **common)
 
 
 def _ready_reason(mode: str, model: str) -> str:
     return f"Provider ready. Mode: {mode}. Model: {model}."
+
+
+def _paid_execution_decision(config: dict, env: Optional[dict], request,
+                             mode: Optional[str]):
+    """The governor's verdict for this exact input, without reserving anything.
+
+    Borrowed, never reimplemented. A panel that computed its own answer here
+    would be a second authority on spending, and the two would disagree on the
+    day it mattered. A failure to construct the governor is reported as a
+    refusal rather than raised: this runs on a render path.
+    """
+    try:
+        governor = LiveCallGovernor(config, env=env, mode=mode)
+        return governor.preview_authorization(request, model=governor.model)
+    except Exception:                           # noqa: BLE001 - reported, not raised
+        from engine.escalation.live_policy import LiveCallOutcome
+        return LiveCallOutcome(
+            LiveDecision.BLOCKED_LIVE_PATH_DISABLED,
+            "authorisation could not be evaluated")
 
 
 def _input_refusal(config: dict, env: Optional[dict], request) -> str:

@@ -320,6 +320,15 @@ def _provider_policy_snapshot(config: dict | None = None,
         "readiness_reason": readiness.reason,
         "readiness_required_action": readiness.required_action,
         "readiness_diagnostics": readiness.diagnostics(),
+        # The dimensions "External enabled: Yes/No" used to swallow. Carried
+        # separately because they answer separate questions: whether the paid
+        # path is switched on is not whether this document may be sent, and a
+        # panel that reports one number for both is wrong in one of the two
+        # cases every time.
+        "live_path_enabled": readiness.live_path_enabled,
+        "paid_execution_authorized": readiness.paid_execution_authorized,
+        "blocking_reason": readiness.blocking_reason,
+        "readiness_status_panel": readiness.status_panel(),
     }
 
 
@@ -336,7 +345,9 @@ def _multimodal_eligible(field_name: str, routing_policy: dict) -> bool:
 # Keys the typed readiness contract adds to the provider snapshot. Document-level
 # only; see _provider_escalation.
 _READINESS_KEYS = ("provider_ready", "readiness_state", "readiness_reason",
-                   "readiness_required_action", "readiness_diagnostics")
+                   "readiness_required_action", "readiness_diagnostics",
+                   "live_path_enabled", "paid_execution_authorized",
+                   "blocking_reason", "readiness_status_panel")
 
 
 def _provider_escalation(page: int, field: dict, policy: dict,
@@ -774,9 +785,17 @@ def _unify_receipts(item: IntakeFile, receipts: list[dict]) -> dict:
                  "fields were extracted, so it was not successfully processed."]
                 if empty_extraction else [])
     if pending_multimodal:
+        # States a fact this function can actually verify — that local
+        # processing sent nothing — rather than asserting the provider is
+        # disabled. It used to claim "external providers are disabled"
+        # unconditionally, which stayed on screen verbatim after the live path
+        # was legitimately activated, contradicting the provider panel two
+        # inches away. Whether the path is open is the readiness contract's
+        # answer, and this is not that answer.
         warnings.append(
-            f"{pending_multimodal} field(s) pending escalation; external providers are "
-            "disabled and no data was sent."
+            f"{pending_multimodal} field(s) pending escalation; local processing "
+            "sent no data externally. See the provider status panel for whether "
+            "escalation is currently authorised."
         )
     if pending_human_review:
         warnings.append(f"{pending_human_review} field(s) require human review.")

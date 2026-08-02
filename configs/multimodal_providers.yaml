@@ -82,7 +82,7 @@ providers:
 # limit is set for a first smoke test rather than for production throughput.
 #
 # Default behaviour permits ZERO spending. A paid call requires all of:
-#   1. live_provider.enabled: true          (this file)
+#   1. live_provider.enabled: true          (this file, OR the override below)
 #   2. CLAIMROUTE_MULTIMODAL_ENABLED=true   (environment)
 #   3. CLAIMROUTE_LIVE_PROVIDER_TEST=true   (environment)
 #   4. OPENROUTER_API_KEY present           (environment)
@@ -94,6 +94,21 @@ providers:
 # Any one missing means no call, a typed outcome, and the field goes to human
 # review. See engine/escalation/live_policy.py.
 live_provider:
+  # STAYS FALSE. Do not set this to true to run a test.
+  #
+  # CLAIMROUTE_LIVE_PROVIDER_CONFIG_ENABLED=true is the supported way to
+  # authorise one session for approved synthetic field crops. It leaves this
+  # file closed, so the authorisation expires with the terminal instead of
+  # travelling with the clone to every machine and every document.
+  #
+  # Precedence: unset defers to this key; true opens the path for one process;
+  # false closes it even here. The environment may open a gate this file leaves
+  # closed and may close one it opened — never the reverse, because the file
+  # travels and the environment does not.
+  #
+  # Editing this to true is still a legitimate, reviewable act. It is simply not
+  # the right tool for a single approved synthetic call, and it is the wrong
+  # tool for a demo machine.
   enabled: false
   provider: openrouter
   # Environment flag that must ALSO be true. Separate from the adapter's own

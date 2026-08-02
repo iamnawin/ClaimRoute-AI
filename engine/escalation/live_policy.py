@@ -56,7 +56,68 @@ MULTIMODAL_ENABLED_ENV = "CLAIMROUTE_MULTIMODAL_ENABLED"
 LIVE_TEST_ENV = "CLAIMROUTE_LIVE_PROVIDER_TEST"
 DEFAULT_KEY_ENV = "OPENROUTER_API_KEY"
 
+# The one runtime activation override for `live_provider.enabled`.
+#
+# Every other gate on this path already had an operator-reachable route to "on".
+# This one did not: it was read straight out of the tracked YAML, so authorising
+# a SINGLE approved synthetic crop meant editing a file that then travels with
+# the clone, to every machine, for every document. The safe act and the
+# dangerous act were the same edit, which is why the committed default kept
+# being the thing standing between a demo and a bill.
+#
+# Precedence, the same order the rest of this repository documents:
+#
+#     secure environment override  ->  application configuration  ->  safe default
+#
+# The environment may OPEN a gate the file leaves closed, and may CLOSE one the
+# file opened. A shipped file can never open a gate the environment closed,
+# because the file travels and the environment does not.
+#
+# THIS REPLACES ONE BOOLEAN. Synthetic attestation, crop provenance, the model
+# allowlist, both budgets, duplicate protection and explicit UI consent are
+# untouched by it. An activation switch that also relaxed the input policy would
+# be an exfiltration path with a friendly name.
+LIVE_CONFIG_ENABLED_ENV = "CLAIMROUTE_LIVE_PROVIDER_CONFIG_ENABLED"
+
 _TRUE = {"1", "true", "yes", "on"}
+_FALSE = {"0", "false", "no", "off"}
+
+
+class ConfigurationFlagError(ValueError):
+    """An environment flag held a value that is neither true nor false.
+
+    Raised rather than defaulted. The operator believes they configured
+    something; telling them it is off would be a lie they cannot debug.
+
+    Defined here rather than in readiness.py because the gate and the panel must
+    agree on what "true" means, and readiness.py imports this module. It stays
+    importable from both.
+    """
+
+
+def parse_optional_flag(name: str, raw) -> Optional[bool]:
+    """Parse one documented boolean, keeping "unset" distinct from "false".
+
+    The tri-state is load-bearing for an override. Reading an absent variable as
+    False would make the override unable to express "leave the tracked file in
+    charge"; reading it as True would open the gate on every machine that never
+    set it. Only an explicit, documented value decides anything.
+
+    Case-insensitive and whitespace-safe. Anything undocumented raises.
+    """
+    if raw is None:
+        return None
+    text = str(raw).strip().lower()
+    if text == "":
+        return None
+    if text in _TRUE:
+        return True
+    if text in _FALSE:
+        return False
+    raise ConfigurationFlagError(
+        f"{name} must be one of {', '.join(sorted(_TRUE))} (true) or "
+        f"{', '.join(sorted(_FALSE))} (false), case-insensitive. Fix the value "
+        f"and restart the application.")
 
 
 class ModeError(TypeError):
@@ -295,6 +356,25 @@ class LiveCallGovernor:
         return self._flag(self._live.get("live_test_env", LIVE_TEST_ENV))
 
     @property
+    def live_path_enabled(self) -> bool:
+        """`live_provider.enabled`, with the documented runtime override applied.
+
+        THE ONE ANSWER. readiness.py, the UI enablement checklist and
+        :meth:`authorize` all read this property rather than the raw YAML key,
+        so a panel can no longer report the live path open while the gate has it
+        shut — which is precisely how an operator with every switch set
+        correctly met a refusal the screen did not predict.
+
+        Raises ConfigurationFlagError on a malformed override. Callers that must
+        not raise catch it and report a typed refusal; see :meth:`authorize`.
+        """
+        override = parse_optional_flag(LIVE_CONFIG_ENABLED_ENV,
+                                       self._getenv(LIVE_CONFIG_ENABLED_ENV))
+        if override is not None:
+            return override
+        return bool(self._live.get("enabled", False))
+
+    @property
     def credential_available(self) -> bool:
         """True when the key variable is set. The value is never returned."""
         return bool((self._getenv(self.key_env) or "").strip())
@@ -373,9 +453,24 @@ class LiveCallGovernor:
             return LiveCallOutcome(decision, reason, **base)
 
         # 1-4. Switched on, and credentialed.
-        if not bool(self._live.get("enabled", False)):
-            return no(LiveDecision.BLOCKED_LIVE_PATH_DISABLED,
-                      "live_provider.enabled is false in configs/multimodal_providers.yaml")
+        #
+        # A malformed override becomes a typed refusal rather than an exception.
+        # Every other refusal on this path is a typed outcome, and the one flag
+        # nobody can interpret must not be the one path that raises through the
+        # UI — nor may it be read as "on".
+        try:
+            live_path_on = self.live_path_enabled
+        except ConfigurationFlagError as error:
+            return no(LiveDecision.BLOCKED_LIVE_PATH_DISABLED, str(error))
+        if not live_path_on:
+            override = self._getenv(LIVE_CONFIG_ENABLED_ENV)
+            return no(
+                LiveDecision.BLOCKED_LIVE_PATH_DISABLED,
+                f"{LIVE_CONFIG_ENABLED_ENV} is set to a false value, which "
+                f"closes the live path regardless of configuration"
+                if str(override or "").strip() else
+                "live_provider.enabled is false in configs/multimodal_providers.yaml "
+                f"and {LIVE_CONFIG_ENABLED_ENV} is not set")
 
         adapter_on = (self._adapter_enabled_override
                       if self._adapter_enabled_override is not None

@@ -13,7 +13,8 @@ from typing import Callable, Optional
 from engine.escalation.client import MultimodalClient
 from engine.escalation.contract import MultimodalRequest
 from engine.escalation.errors import MultimodalError
-from engine.escalation.live_policy import LiveCallGovernor, LiveCallOutcome
+from engine.escalation.live_policy import (ConfigurationFlagError,
+                                           LiveCallGovernor, LiveCallOutcome)
 from engine.escalation.providers import build_provider
 from engine.schemas import Verdict
 from engine.validators import validate_field
@@ -66,9 +67,10 @@ def enablement_blockers(*, governor: LiveCallGovernor, config: dict,
         Blocker(
             "provider_configuration",
             "Provider configuration enabled",
-            bool(config.get("enabled", False) and live.get("enabled", False)),
-            "configs/multimodal_providers.yaml must set both enabled: true and "
-            "live_provider.enabled: true",
+            _live_path_open(governor),
+            "configs/multimodal_providers.yaml sets live_provider.enabled: "
+            "false; set CLAIMROUTE_LIVE_PROVIDER_CONFIG_ENABLED=true to "
+            "authorise this session without editing tracked configuration",
         ),
         Blocker(
             "environment_flag",
@@ -115,6 +117,22 @@ def enablement_blockers(*, governor: LiveCallGovernor, config: dict,
         ),
     ]
     return rows
+
+
+def _live_path_open(governor: LiveCallGovernor) -> bool:
+    """Whether the live path is open, asked of the governor rather than the file.
+
+    This row used to read the tracked YAML directly. That made it the one place
+    in the UI that could not see the activation override, so a session the
+    governor would have authorised still rendered "provider configuration
+    disabled" — and the toggle this row guards was never drawn at all. A
+    malformed override reads as closed here; the governor reports it properly
+    when the operator reaches the action.
+    """
+    try:
+        return governor.live_path_enabled
+    except ConfigurationFlagError:
+        return False
 
 
 def unmet(blockers: list[Blocker]) -> list[Blocker]:

@@ -660,6 +660,12 @@ def _render_multimodal_permission(st, state: dict, document: dict, source) -> No
               "available. No external call was attempted and no data left this "
               "machine."
         )
+        # Six independent facts, six rows. Collapsing them into "External
+        # enabled: No" is what sent an operator with a correct key, correct
+        # flags and an eligible crop to re-export variables that were already
+        # right: the one gate still shut was the only one the boolean dropped.
+        st.markdown("**Provider status**")
+        st.dataframe(readiness.status_panel(), hide_index=True, width="stretch")
         _render_readiness_diagnostics(st, readiness, key_base)
         st.button(
             "Enablement requirements not satisfied", disabled=True,
@@ -2263,7 +2269,8 @@ def _render_workspace_intake(st, state: dict, running: bool) -> None:
     # retry, and flag thresholds the governor actually applies. Labelling it a
     # "preview" would be false. The label names which rung is unavailable
     # instead, so the control reads as partially, not wholly, disabled.
-    ai_available = workspace._provider_policy_snapshot().get("provider_enabled")
+    provider_snapshot = workspace._provider_policy_snapshot()
+    ai_available = provider_snapshot.get("provider_enabled")
     mode = st.selectbox(
         "Operating mode", list(service.MODE_LABELS),
         format_func=(
@@ -2281,9 +2288,24 @@ def _render_workspace_intake(st, state: dict, running: bool) -> None:
         "accuracy": "Higher local acceptance threshold and no accept-with-flag shortcut.",
     }
     selected_policy = workspace.mode_policy(mode)
-    st.caption(f"{mode_help[mode]} Runtime accept threshold: "
-               f"{selected_policy['accept_threshold']:.2f}. External calls enabled: "
-               f"{'Yes (governed)' if ai_available else 'No'}.")
+    # Three unrelated facts used to share one sentence here: which fields a mode
+    # escalates, the local CONFIDENCE threshold, and whether the paid path is
+    # open. Read together they scanned as one verdict — operators reported
+    # "runtime exceeded threshold" as a reason external calls were off, which it
+    # never was. Accept threshold is a confidence number from
+    # configs/operating_modes.yaml. It is not a timer, it does not measure
+    # latency, and nothing routes a field to a paid provider because local
+    # processing was slow.
+    st.caption(f"{mode_help[mode]} Local accept threshold (confidence, not "
+               f"latency): {selected_policy['accept_threshold']:.2f}.")
+    st.caption(
+        f"External provider — adapter: "
+        f"{'available' if ai_available else 'unavailable'} · "
+        f"configuration live path: "
+        f"{'enabled' if provider_snapshot.get('live_path_enabled') else 'disabled'} · "
+        f"paid execution: "
+        f"{'authorized per governed request' if provider_snapshot.get('live_path_enabled') else 'not authorized'}."
+    )
     if state.get("batch_results"):
         st.caption("Reset the session to change workflow or operating mode after processing.")
     st.session_state.setdefault("cr_input_source", state["input_source"])
