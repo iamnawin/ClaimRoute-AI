@@ -55,7 +55,7 @@ def permission_status(*, enabled: bool, confirmed: bool,
 
 
 def run_one_candidate(
-        request: MultimodalRequest, *, enabled: bool, confirmed: bool,
+        request: MultimodalRequest | None, *, enabled: bool, confirmed: bool,
         synthetic_attested: bool, governor: LiveCallGovernor, config: dict,
         calls_used: int, context: Optional[dict] = None,
         provider_builder: Callable = build_provider,
@@ -148,12 +148,14 @@ def run_one_candidate(
     return receipt, candidate if accepted else None
 
 
-def _blocked_receipt(request: MultimodalRequest, governor: LiveCallGovernor,
+def _blocked_receipt(request: MultimodalRequest | None, governor: LiveCallGovernor,
                      reason: str, outcome: LiveCallOutcome | None = None) -> dict:
+    # ``request`` is None when no eligible crop could be proven. That is a
+    # refusal like any other and still has to leave an auditable receipt.
     return {
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "fingerprint": outcome.fingerprint if outcome else "",
-        "field_name": request.field_name,
+        "field_name": request.field_name if request else "",
         "provider": governor.provider_name,
         "requested_model": governor.model,
         "called_provider": False,
@@ -165,6 +167,6 @@ def _blocked_receipt(request: MultimodalRequest, governor: LiveCallGovernor,
         "reason": reason,
         "raw_response_persisted": False,
         "crop_contents_persisted": False,
-        "synthetic_crop_only": bool(request.synthetic),
+        "synthetic_crop_only": bool(request.synthetic) if request else False,
         "external_calls_made": 0,
     }

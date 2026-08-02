@@ -98,6 +98,37 @@ def test_default_off_and_unconfirmed_states_make_zero_client_calls():
     assert governor.calls_made == 0
 
 
+def test_ineligible_candidate_is_refused_with_a_receipt_not_an_exception():
+    """An unprovable crop is a refusal, not a crash.
+
+    ``permission_status`` already contemplates ``request is None``, so the
+    execution path must refuse it the same way and still leave a receipt. A
+    traceback here would lose the audit record for a blocked attempt.
+    """
+    config, env = _config()
+    governor = LiveCallGovernor(config, env=env)
+    client_calls = []
+
+    class NeverClient:
+        def __init__(self, **kwargs):
+            client_calls.append(kwargs)
+
+    receipt, value = multimodal_permission.run_one_candidate(
+        None, enabled=True, confirmed=True, synthetic_attested=True,
+        governor=governor, config=config, calls_used=0,
+        client_factory=NeverClient)
+
+    assert receipt["external_calls_made"] == 0
+    assert receipt["final_field_outcome"] == "HUMAN_REVIEW_REQUIRED"
+    assert receipt["policy_decision"] == "BLOCKED_UI_PERMISSION"
+    assert receipt["reason"] == "No eligible crop could be proven."
+    assert receipt["field_name"] == ""
+    assert receipt["synthetic_crop_only"] is False
+    assert value is None
+    assert client_calls == []
+    assert governor.calls_made == 0
+
+
 def test_missing_key_and_non_synthetic_input_block_action():
     config, no_key = _config(key=False)
     missing = multimodal_permission.permission_status(
