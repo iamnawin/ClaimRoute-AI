@@ -11,7 +11,7 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from app import multimodal_permission, service, workspace
+from app import dashboard, multimodal_permission, service, workspace
 from app.intake import (FileRole, IntakeError, ScanState, decode_pages,
                         inspect_content, scan_folder)
 from engine.escalation.client import load_config, request_from_page
@@ -44,7 +44,8 @@ BATCH_COUNTERS = {
 }
 
 WORKSPACE_STATE_KEY = "claimroute_workspace"
-WORKSPACE_TABS = ["Intake & Run", "Results", "Human Review", "Accuracy", "Cost"]
+WORKSPACE_TABS = ["Dashboard", "Intake & Run", "Results", "Human Review",
+                  "Accuracy", "Cost"]
 
 EVALUATION_COUNTERS = {
     "documents_found": "Documents found",
@@ -330,7 +331,7 @@ def _new_workspace_state(session_state) -> dict:
         "evaluation_summary": (batch or {}).get("evaluation"),
         "cost_summary": ((batch or {}).get("summary") or {}).get("cost_dashboard"),
         "input_source": session_state.get("workspace_source", "Single file"),
-        "active_tab": "Intake & Run",
+        "active_tab": WORKSPACE_TABS[0],
     }
 
 
@@ -629,23 +630,62 @@ def _style(st) -> None:
         """
         <style>
         :root {
-          --cr-bg: oklch(0.985 0 0);
-          --cr-surface: oklch(0.965 0.008 188);
-          --cr-surface-strong: oklch(0.925 0.022 188);
-          --cr-line: oklch(0.865 0.018 188);
-          --cr-ink: oklch(0.225 0.025 200);
-          --cr-muted: oklch(0.400 0.022 200);
+          --cr-bg: oklch(0.975 0.004 250);
+          --cr-surface: oklch(1 0 0);
+          --cr-surface-strong: oklch(0.955 0.010 250);
+          --cr-line: oklch(0.905 0.012 250);
+          --cr-ink: oklch(0.245 0.030 258);
+          --cr-muted: oklch(0.520 0.025 258);
           --cr-primary: oklch(0.455 0.105 188);
-          --cr-primary-soft: oklch(0.925 0.035 188);
+          --cr-primary-soft: oklch(0.940 0.030 188);
+          --cr-navy: oklch(0.235 0.055 264);
+          --cr-navy-deep: oklch(0.195 0.055 264);
+          --cr-navy-ink: oklch(0.965 0.010 250);
+          --cr-navy-muted: oklch(0.760 0.030 255);
+          --cr-ok: oklch(0.560 0.130 155);
+          --cr-warn: oklch(0.660 0.140 75);
+          --cr-err: oklch(0.560 0.170 25);
+          --cr-info: oklch(0.545 0.135 255);
+          --cr-radius: 14px;
+          --cr-shadow: 0 1px 2px oklch(0.245 0.030 258 / .06),
+                       0 8px 24px oklch(0.245 0.030 258 / .05);
         }
         .stApp { background: var(--cr-bg); color: var(--cr-ink); }
+        .block-container { padding-top: 2.2rem; }
+
+        /* Dark navy rail. Every control on it is a real control. */
         [data-testid="stSidebar"] {
-          background: var(--cr-surface);
-          border-right: 1px solid var(--cr-line);
+          background: var(--cr-navy);
+          border-right: 1px solid var(--cr-navy-deep);
         }
         [data-testid="stSidebar"] [data-testid="stSidebarContent"] {
           padding-top: 1.35rem;
         }
+        [data-testid="stSidebar"] * { color: var(--cr-navy-ink); }
+        [data-testid="stSidebar"] [data-testid="stCaptionContainer"],
+        [data-testid="stSidebar"] label { color: var(--cr-navy-muted); }
+        [data-testid="stSidebar"] hr { border-color: oklch(1 0 0 / .12); }
+        [data-testid="stSidebar"] [data-testid="stMetricValue"] {
+          font-size: 1.35rem; color: var(--cr-navy-ink);
+        }
+        [data-testid="stSidebar"] .stButton button {
+          background: oklch(1 0 0 / .10); border: 1px solid oklch(1 0 0 / .22);
+        }
+        [data-testid="stSidebar"] .stButton button:hover:not(:disabled) {
+          background: oklch(1 0 0 / .18);
+        }
+        .cr-rail-status {
+          display: flex; align-items: center; gap: .5rem; padding: .5rem .65rem;
+          border-radius: 10px; background: oklch(1 0 0 / .08);
+          border: 1px solid oklch(1 0 0 / .14);
+          font-size: .82rem; font-weight: 650; margin-bottom: .35rem;
+        }
+        .cr-rail-status i {
+          width: .55rem; height: .55rem; border-radius: 50%; flex: 0 0 auto;
+        }
+        .cr-rail-status.ok i { background: var(--cr-ok); }
+        .cr-rail-status.warn i { background: var(--cr-warn); }
+        .cr-rail-status.info i { background: var(--cr-info); }
         h1, h2, h3 { color: var(--cr-ink); letter-spacing: -0.02em; text-wrap: balance; }
         p, label, [data-testid="stCaptionContainer"] { color: var(--cr-muted); }
         .cr-header { max-width: 68ch; margin-bottom: 1.2rem; }
@@ -697,10 +737,135 @@ def _style(st) -> None:
           background-color: var(--cr-primary) !important;
           border-color: var(--cr-primary) !important;
         }
-        div[data-testid="stMetric"] { padding: .35rem 0; }
+        div[data-testid="stMetric"] {
+          padding: .8rem .9rem; background: var(--cr-surface);
+          border: 1px solid var(--cr-line); border-radius: var(--cr-radius);
+          box-shadow: var(--cr-shadow);
+        }
+        [data-testid="stSidebar"] div[data-testid="stMetric"] {
+          background: oklch(1 0 0 / .08); border-color: oklch(1 0 0 / .14);
+          box-shadow: none;
+        }
+        [data-testid="stDataFrame"] {
+          border: 1px solid var(--cr-line); border-radius: var(--cr-radius);
+          overflow: hidden; box-shadow: var(--cr-shadow);
+        }
+        [data-testid="stExpander"] details {
+          border: 1px solid var(--cr-line); border-radius: var(--cr-radius);
+          background: var(--cr-surface);
+        }
+
+        /* ---- dashboard ---- */
+        .cr-dash-head {
+          display: flex; flex-wrap: wrap; align-items: flex-start;
+          justify-content: space-between; gap: 1rem; margin: .2rem 0 1.1rem;
+        }
+        .cr-dash-head h2 { font-size: 1.55rem; margin: 0 0 .25rem; }
+        .cr-dash-head p { margin: 0; font-size: .92rem; }
+        .cr-chips { display: flex; flex-wrap: wrap; gap: .4rem; }
+        .cr-chip {
+          display: inline-flex; align-items: baseline; gap: .35rem;
+          padding: .34rem .62rem; border-radius: 999px;
+          background: var(--cr-surface); border: 1px solid var(--cr-line);
+          font-size: .78rem; font-weight: 700; color: var(--cr-ink);
+          box-shadow: var(--cr-shadow);
+        }
+        .cr-chip em {
+          font-style: normal; font-weight: 600; color: var(--cr-muted);
+          font-size: .72rem; text-transform: uppercase; letter-spacing: .04em;
+        }
+        .cr-chip-ok { border-color: oklch(0.560 0.130 155 / .45); }
+        .cr-chip-warn { border-color: oklch(0.660 0.140 75 / .5); }
+        .cr-grid { display: grid; gap: .7rem; margin-bottom: 1.1rem; }
+        .cr-grid-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+        .cr-grid-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+        .cr-card {
+          background: var(--cr-surface); border: 1px solid var(--cr-line);
+          border-radius: var(--cr-radius); box-shadow: var(--cr-shadow);
+          padding: .85rem .95rem;
+        }
+        .cr-kpi { display: flex; flex-direction: column; gap: .18rem; }
+        .cr-kpi-label {
+          font-size: .78rem; font-weight: 700; color: var(--cr-muted);
+          text-transform: uppercase; letter-spacing: .04em;
+        }
+        .cr-kpi-value {
+          font-size: 1.75rem; line-height: 1.1; font-weight: 780;
+          letter-spacing: -0.02em; color: var(--cr-ink);
+        }
+        .cr-kpi-detail { font-size: .8rem; color: var(--cr-muted); line-height: 1.35; }
+        .cr-kpi .cr-basis { align-self: flex-start; margin-top: .35rem; }
+        .cr-funnel {
+          display: flex; flex-wrap: wrap; align-items: stretch; gap: .4rem;
+          margin-bottom: .8rem;
+        }
+        .cr-step {
+          flex: 1 1 140px; background: var(--cr-surface);
+          border: 1px solid var(--cr-line); border-radius: var(--cr-radius);
+          padding: .7rem .75rem; box-shadow: var(--cr-shadow);
+        }
+        .cr-step-name {
+          display: block; font-size: .74rem; font-weight: 700;
+          text-transform: uppercase; letter-spacing: .04em; color: var(--cr-muted);
+        }
+        .cr-step-value {
+          display: block; font-size: 1.35rem; font-weight: 760; color: var(--cr-ink);
+          line-height: 1.2;
+        }
+        .cr-step-unit { display: block; font-size: .76rem; color: var(--cr-muted); }
+        .cr-step-doc { background: var(--cr-primary-soft); }
+        .cr-bar-row {
+          display: grid; grid-template-columns: minmax(0, 12rem) 1fr auto;
+          align-items: center; gap: .7rem; padding: .3rem 0;
+          font-size: .85rem; color: var(--cr-ink);
+        }
+        .cr-bar-track {
+          height: .55rem; border-radius: 999px; background: var(--cr-surface-strong);
+          overflow: hidden;
+        }
+        .cr-bar-fill { display: block; height: 100%; background: var(--cr-primary); }
+        .cr-bar-value { font-variant-numeric: tabular-nums; color: var(--cr-muted); }
+        .cr-health { display: flex; flex-direction: column; gap: .3rem; }
+        .cr-health-row {
+          display: flex; align-items: center; gap: .6rem; padding: .5rem .7rem;
+          background: var(--cr-surface); border: 1px solid var(--cr-line);
+          border-radius: 10px; font-size: .85rem;
+        }
+        .cr-health-row i {
+          width: .55rem; height: .55rem; border-radius: 50%; flex: 0 0 auto;
+        }
+        .cr-health-row .cr-state { margin-left: auto; font-weight: 700; }
+        .cr-health-row .cr-detail {
+          color: var(--cr-muted); font-size: .78rem;
+          overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+        }
+        .cr-state-ok i, .cr-state-ok .cr-state { color: var(--cr-ok); }
+        .cr-state-ok i { background: var(--cr-ok); }
+        .cr-state-info i { background: var(--cr-info); }
+        .cr-state-info .cr-state { color: var(--cr-info); }
+        .cr-state-warn i { background: var(--cr-warn); }
+        .cr-state-warn .cr-state { color: var(--cr-warn); }
+        .cr-state-err i { background: var(--cr-err); }
+        .cr-state-err .cr-state { color: var(--cr-err); }
+        .cr-empty {
+          padding: 1.1rem; border: 1px dashed var(--cr-line);
+          border-radius: var(--cr-radius); color: var(--cr-muted);
+          background: var(--cr-surface); font-size: .88rem;
+        }
+        .cr-note { font-size: .8rem; color: var(--cr-muted); line-height: 1.5; }
+
+        @media (max-width: 1100px) {
+          .cr-grid-4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        }
+        @media (max-width: 900px) {
+          .cr-grid-3 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        }
         @media (max-width: 767px) {
           .cr-app-header { align-items: flex-start; flex-direction: column; gap: .75rem; }
           .cr-app-header h1 { font-size: 1.7rem; }
+          .cr-grid-3, .cr-grid-4 { grid-template-columns: minmax(0, 1fr); }
+          .cr-bar-row { grid-template-columns: minmax(0, 1fr) auto; }
+          .cr-bar-track { grid-column: 1 / -1; }
         }
         @media (prefers-reduced-motion: reduce) {
           * { scroll-behavior: auto !important; transition: none !important; }
@@ -1013,6 +1178,240 @@ def _render_coverage(st, result: dict) -> None:
     st.bar_chart([{"Band": band.title(), "Fields": count}
                   for band, count in coverage["confidence_distribution"].items()],
                  x="Band", y="Fields")
+
+
+_HEALTH_TONES = {
+    "Healthy": "ok", "Available": "ok", "Disabled by policy": "info",
+    "Not configured": "info", "Warning": "warn", "Unavailable": "err",
+}
+
+DASHBOARD_EMPTY_STATE = "No documents have been processed in this session yet."
+
+
+def _card_value(card: dict) -> str:
+    if card["kind"] == "percent":
+        return _fmt_pct_or_unavailable(card["value"])
+    if card["kind"] == "usd":
+        return _fmt_usd(card["value"])
+    return f"{int(card['value'] or 0):,}"
+
+
+def _provider_value(row: dict) -> str:
+    value = row["value"]
+    if row["kind"] == "bool":
+        return _yes_no(value)
+    if isinstance(value, str):
+        return value
+    if row["kind"] == "usd":
+        return _fmt_usd(value)
+    if row["kind"] == "seconds":
+        return f"{float(value):.3f} s"
+    return f"{int(value):,}"
+
+
+def _chip(label: str, value: str, tone: str = "neutral") -> str:
+    return f'<span class="cr-chip cr-chip-{tone}"><em>{label}</em>{value}</span>'
+
+
+def _open_document_in_results(session_state, state: dict, source_id: str) -> None:
+    """Dashboard rows stay selectable by handing the id to the Results tab."""
+    state["selected_result_id"] = source_id
+    session_state["cr_result_document"] = source_id
+    _activate_workspace_tab(session_state, "Results")
+
+
+def _render_dashboard_header(st, state: dict, provider_state: dict,
+                             batch: dict | None) -> None:
+    mode = state["operating_mode"]
+    provider_tone = "warn" if provider_state.get("provider_enabled") else "ok"
+    provider_value = ("Enabled - governed" if provider_state.get("provider_enabled")
+                      else "Disabled by policy")
+    chips = [
+        _chip("Operating mode", service.MODE_LABELS.get(mode, mode.title())),
+        _chip("Environment", dashboard.environment_label(app_mode())),
+        _chip("External provider", provider_value, provider_tone),
+        _chip("Session", batch["batch_job_id"] if batch else "No batch yet"),
+    ]
+    st.markdown(
+        '<div class="cr-dash-head"><div><h2>Dashboard</h2>'
+        '<p>Real-time overview of document processing, accuracy, and cost</p></div>'
+        f'<div class="cr-chips">{"".join(chips)}</div></div>',
+        unsafe_allow_html=True)
+
+
+def _render_dashboard_summary(st, summary: dict) -> None:
+    cards = "".join(
+        '<div class="cr-card cr-kpi">'
+        f'<span class="cr-kpi-label">{card["label"]}</span>'
+        f'<strong class="cr-kpi-value">{_card_value(card)}</strong>'
+        f'<span class="cr-kpi-detail">{card["detail"]}</span>'
+        f'<span class="cr-basis">{card["basis"]}</span></div>'
+        for card in dashboard.summary_cards(summary))
+    st.markdown(f'<div class="cr-grid cr-grid-3">{cards}</div>',
+                unsafe_allow_html=True)
+
+
+def _render_dashboard_funnel(st, summary: dict, cost_dashboard: dict) -> None:
+    st.markdown("#### Processing overview")
+    steps = "".join(
+        f'<div class="cr-step{" cr-step-doc" if step["unit"] == "documents" else ""}">'
+        f'<span class="cr-step-name">{step["stage"]}</span>'
+        f'<span class="cr-step-value">{step["value"]:,}'
+        + (f' <small>/ {step["denominator"]:,}</small>'
+           if step["denominator"] else "")
+        + f'</span><span class="cr-step-unit">{step["unit"]} - {step["detail"]}'
+        '</span></div>'
+        for step in dashboard.funnel_stages(summary, cost_dashboard))
+    st.markdown(f'<div class="cr-funnel">{steps}</div>', unsafe_allow_html=True)
+    st.caption("Document counts and field counts are separate units and never "
+               "share a denominator.")
+    progress = dashboard.coverage_progress(summary)
+    if progress["value"] is None:
+        st.caption(progress["caption"])
+    else:
+        st.progress(progress["value"],
+                    text=f'{progress["label"]}: {_fmt_pct(progress["value"])} - '
+                         f'{progress["caption"]}')
+
+
+def _render_dashboard_cost(st, cost_dashboard: dict) -> None:
+    st.markdown("#### Cost breakdown")
+    rows = dashboard.cost_breakdown_rows(cost_dashboard)
+    st.dataframe([{
+        "Component": row["label"],
+        "Cost USD": _fmt_usd(row["value_usd"]),
+        "Evidence": row["basis"],
+        "Type": row["group"].upper(),
+    } for row in rows], hide_index=True, width="stretch")
+    st.caption(
+        f'Measured automated total {_fmt_usd(dashboard.measured_total(cost_dashboard))}. '
+        "The five MEASURED rows sum to that total. PROJECTED and ASSUMED rows are "
+        "not spend and are never added to it.")
+
+
+def _render_dashboard_documents(st, state: dict, documents: list[dict]) -> None:
+    st.markdown("#### Documents in this session")
+    rows = dashboard.recent_document_rows(documents)
+    if not rows:
+        st.markdown(f'<div class="cr-empty">{DASHBOARD_EMPTY_STATE}</div>',
+                    unsafe_allow_html=True)
+        return
+    st.dataframe([{
+        "Document": row["Document"],
+        "Type": row["Type"],
+        "Pages": row["Pages"],
+        "Status": row["Status"],
+        "Stage": row["Stage"],
+        "Validated coverage": _fmt_pct_or_unavailable(row["Validated coverage"]),
+        "Unresolved": row["Unresolved"],
+        "Total cost": _fmt_usd(row["Total cost"]),
+        "Processing time": f'{row["Processing time"]:.2f} s',
+    } for row in rows], hide_index=True, width="stretch")
+    labels = {row["safe_source_id"]: row["Document"] for row in rows}
+    selected = st.selectbox(
+        "Open a document", list(labels), format_func=labels.get,
+        key="cr_dashboard_document")
+    st.button("Open selected document in Results", width="stretch",
+              on_click=_open_document_in_results,
+              args=(st.session_state, state, selected))
+
+
+def _render_dashboard_escalations(st, summary: dict) -> None:
+    st.markdown("#### Escalations by field")
+    rows = dashboard.escalations_by_field(summary)
+    if not rows:
+        st.markdown(f'<div class="cr-empty">{dashboard.ESCALATIONS_EMPTY_STATE}</div>',
+                    unsafe_allow_html=True)
+        return
+    bars = "".join(
+        f'<div class="cr-bar-row"><span>{row["field_name"].replace("_", " ").title()}'
+        f'</span><span class="cr-bar-track"><span class="cr-bar-fill" '
+        f'style="width:{row["share"] * 100:.1f}%"></span></span>'
+        f'<span class="cr-bar-value">{row["count"]} - {row["share"]:.1%}</span></div>'
+        for row in rows)
+    st.markdown(bars, unsafe_allow_html=True)
+    st.caption(f"Share is of the {sum(row['count'] for row in rows)} unresolved "
+               "fields this run recorded.")
+
+
+def _render_dashboard_provider(st, state: dict, provider_state: dict) -> None:
+    st.markdown("#### Provider and model")
+    session = state.get("multimodal") or {}
+    receipts = list((session.get("receipts") or {}).values())
+    calls_used = sum(int(row.get("external_calls_made") or 0) for row in receipts)
+    called = [row for row in receipts if row.get("called_provider")]
+    usage = called[-1].get("usage") if called else None
+    latency = called[-1].get("latency_ms") if called else None
+    governor = session.get("governor")
+    rows = dashboard.provider_panel_rows(
+        provider_state,
+        session_report=governor.session_report() if governor is not None else None,
+        calls_used=calls_used, usage=usage, latency_ms=latency)
+    st.dataframe([{"Property": row["label"], "Value": _provider_value(row)}
+                  for row in rows], hide_index=True, width="stretch")
+    st.caption(dashboard.provider_panel_note(calls_used=calls_used))
+
+
+def _render_dashboard_projection(st, cost_dashboard: dict) -> None:
+    st.markdown("#### Cost projection")
+    rows = dashboard.projection_rows(cost_dashboard)
+    st.dataframe([{
+        "Volume": row["scale"],
+        "Automated": _fmt_cost({"value_usd": row["automated_usd"]}),
+        "Automated basis": row["automated_basis"],
+        "Human review": _fmt_cost({"value_usd": row["human_review_usd"]}),
+        "Human review basis": row["human_review_basis"],
+        "Total estimate": _fmt_cost({"value_usd": row["total_usd"]}),
+        "Total basis": row["total_basis"],
+    } for row in rows], hide_index=True, width="stretch")
+    st.caption(dashboard.PROJECTION_ASSUMPTION)
+
+
+def _render_dashboard_health(st, provider_state: dict, workspace_ready: bool) -> None:
+    st.markdown("#### System health")
+    probe = dashboard.probe_runtime()
+    rows = dashboard.system_health(
+        ocr_binary=probe["ocr_binary"], validator_fields=probe["validator_fields"],
+        provider_state=provider_state, workspace_ready=workspace_ready)
+    st.markdown(
+        '<div class="cr-health">' + "".join(
+            f'<div class="cr-health-row cr-state-{_HEALTH_TONES[row["state"]]}"><i></i>'
+            f'<span>{row["component"]}</span>'
+            f'<span class="cr-detail">{row["detail"]}</span>'
+            f'<span class="cr-state">{row["state"]}</span></div>'
+            for row in rows) + "</div>",
+        unsafe_allow_html=True)
+    st.caption("Only components this process can verify are listed. Hosted "
+               "databases, queue workers, and a managed provider gateway are "
+               "roadmap infrastructure and are not claimed here.")
+
+
+def _render_judge_dashboard(st, state: dict) -> None:
+    """The judge-facing landing view. Every value comes from this session."""
+    batch = state.get("batch_results")
+    provider_state = workspace._provider_policy_snapshot()
+    _render_dashboard_header(st, state, provider_state, batch)
+    if not batch:
+        st.markdown(f'<div class="cr-empty">{DASHBOARD_EMPTY_STATE} Add authorized '
+                    'local files in Intake &amp; Run; every card below fills from '
+                    'the batch receipt.</div>', unsafe_allow_html=True)
+        _render_dashboard_escalations(st, {})
+        _render_dashboard_provider(st, state, provider_state)
+        _render_dashboard_health(st, provider_state, workspace_ready=bool(state))
+        return
+    summary = batch["summary"]
+    cost_dashboard = summary["cost_dashboard"]
+    _render_dashboard_summary(st, summary)
+    _render_dashboard_funnel(st, summary, cost_dashboard)
+    left, right = st.columns([1.45, 1])
+    with left:
+        _render_dashboard_cost(st, cost_dashboard)
+        _render_dashboard_documents(st, state, batch["documents"])
+    with right:
+        _render_dashboard_escalations(st, summary)
+        _render_dashboard_provider(st, state, provider_state)
+    _render_dashboard_projection(st, cost_dashboard)
+    _render_dashboard_health(st, provider_state, workspace_ready=True)
 
 
 def _render_dashboard(st, batch: dict) -> None:
@@ -1615,14 +2014,25 @@ def _workspace_sidebar(st, state: dict) -> None:
         f'<div class="cr-mode">Mode: '
         f'{service.MODE_LABELS.get(state["operating_mode"], state["operating_mode"].title())}'
         '</div>', unsafe_allow_html=True)
-    st.sidebar.success("External providers disabled")
-    st.sidebar.caption("Authorized local data only. Keep this workspace on localhost.")
+    # Derived, never asserted: an enabled provider must not be reported as
+    # disabled just because the usual demo runs with it switched off.
+    provider_state = workspace._provider_policy_snapshot()
+    enabled = bool(provider_state.get("provider_enabled"))
+    st.sidebar.markdown(
+        f'<div class="cr-rail-status {"warn" if enabled else "ok"}"><i></i>'
+        f'{"External provider enabled - governed" if enabled else "External providers disabled"}'
+        '</div>', unsafe_allow_html=True)
+    st.sidebar.caption(
+        f'{dashboard.environment_label(app_mode())} - '
+        f'{provider_state.get("reason_not_attempted") or "no external call"}. '
+        "Authorized local data only. Keep this workspace on localhost.")
     batch = state.get("batch_results")
     if batch:
         st.sidebar.divider()
         st.sidebar.markdown(
             f"**Batch status:** {_batch_status_label(batch.get('processing_status'))}")
-        st.sidebar.metric("Documents", len(batch.get("documents", [])))
+        st.sidebar.metric("Documents", int(
+            (batch.get("summary") or {}).get("files") or 0))
         st.sidebar.metric("External calls", int(
             (batch.get("summary") or {}).get("external_calls") or 0))
     st.sidebar.divider()
@@ -1904,13 +2314,16 @@ def _local_workspace(st) -> None:
     state["active_tab"] = st.session_state.get("cr_workspace_tabs", WORKSPACE_TABS[0])
 
     with tabs[0]:
+        _render_judge_dashboard(st, state)
+
+    with tabs[1]:
         _render_workspace_intake(st, state, running)
         st.divider()
         _render_workspace_processing(st, state, running)
 
     batch = state.get("batch_results")
     items = state["inventory"]
-    with tabs[1]:
+    with tabs[2]:
         st.subheader("Results")
         st.markdown('<p class="cr-section-intro">Inspect extracted fields, evidence, routing '
                     'state, and document exports.</p>', unsafe_allow_html=True)
@@ -1929,7 +2342,7 @@ def _local_workspace(st) -> None:
         else:
             st.info("Process at least one document in Intake & Run.")
 
-    with tabs[2]:
+    with tabs[3]:
         st.subheader("Human Review")
         st.markdown('<p class="cr-section-intro">Resolve fields that could not be accepted '
                     'automatically. Corrections remain in this browser session.</p>',
@@ -1939,14 +2352,14 @@ def _local_workspace(st) -> None:
         else:
             st.info("Process at least one document in Intake & Run.")
 
-    with tabs[3]:
+    with tabs[4]:
         if batch:
             _render_accuracy_dashboard(st, batch)
         else:
             st.subheader("Accuracy")
             st.info("Process at least one document in Intake & Run.")
 
-    with tabs[4]:
+    with tabs[5]:
         if batch:
             _render_cost_dashboard(st, batch)
         else:

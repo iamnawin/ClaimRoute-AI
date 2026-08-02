@@ -602,7 +602,7 @@ def test_local_workspace_ui_uses_connected_tabs_and_status_only_sidebar(monkeypa
     assert [item.label for item in app.radio] == ["Workflow", "Input source"]
     assert len(app.get("file_uploader")) == 1
     assert [tab.label for tab in app.tabs] == [
-        "Intake & Run", "Results", "Human Review", "Accuracy", "Cost"]
+        "Dashboard", "Intake & Run", "Results", "Human Review", "Accuracy", "Cost"]
     assert not app.sidebar.radio
     assert [button.label for button in app.sidebar.button] == ["Reset session"]
 

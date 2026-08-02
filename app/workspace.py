@@ -48,6 +48,14 @@ RESOLVED_FIELD_STATES = {
 
 # Local-workspace correction overlay. The frozen official template preserves
 # the full Box 14 band; review and retry need only its lower date value cells.
+# Enterprise volumes the architecture document projects against. The rate comes
+# from the batch that was actually processed; the scale is the only assumption.
+_PROJECTION_SCALES = {
+    "one_million_pages": 1_000_000,
+    "ten_million_pages": 10_000_000,
+    "hundred_million_pages": 100_000_000,
+}
+
 _CMS1500_VALUE_REGION_RULES = {
     "admission_date": {
         "fractions": (0.0, 0.55, 0.75, 1.0),
@@ -848,6 +856,7 @@ def cost_dashboard_metrics(results: list[dict], evaluation: dict | None = None) 
                         for row in processed)
     review_cost_per_field = _human_review_cost_per_field()
     projected_per_page = _ratio(projected_total, pages)
+    review_per_page = _ratio(review_fields * review_cost_per_field, pages)
     calibration = service.load_calibration_summary()
     return {
         "components": {
@@ -880,12 +889,22 @@ def cost_dashboard_metrics(results: list[dict], evaluation: dict | None = None) 
             "total": _cost(review_fields * review_cost_per_field, "ASSUMED"),
         },
         "enterprise_projection": {
-            "one_million_pages": _cost(
-                projected_per_page * 1_000_000 if projected_per_page is not None else None,
-                "PROJECTED"),
-            "ten_million_pages": _cost(
-                projected_per_page * 10_000_000 if projected_per_page is not None else None,
-                "PROJECTED"),
+            name: _cost(projected_per_page * scale
+                        if projected_per_page is not None else None, "PROJECTED")
+            for name, scale in _PROJECTION_SCALES.items()
+        },
+        # Human review is an assumed rate, so it is projected in its own block
+        # and never folded into the automated cost above.
+        "human_review_projection": {
+            name: _cost(review_per_page * scale
+                        if review_per_page is not None else None, "ASSUMED")
+            for name, scale in _PROJECTION_SCALES.items()
+        },
+        "total_projection": {
+            name: _cost((projected_per_page + (review_per_page or 0)) * scale
+                        if projected_per_page is not None else None,
+                        "PROJECTED + ASSUMED")
+            for name, scale in _PROJECTION_SCALES.items()
         },
         "counters": {
             "total_fields": total_fields,
