@@ -147,13 +147,30 @@ class UsageMetadata:
         return self.input_tokens is not None and self.output_tokens is not None
 
     def to_dict(self) -> dict:
-        return {k: (UNKNOWN if v is None else v) for k, v in {
+        """Serialise WITHOUT changing the type of what is being serialised.
+
+        Unknown counts stay None, which is `null` in JSON — the same "unknown"
+        the dataclass above declares and the audit record has always meant.
+
+        This used to substitute the string "unknown" for None. The intent was
+        right and is unchanged: an absent count must never become 0, because a
+        zero reads as a measurement and an unmetered call that appears to cost
+        nothing is how a budget check passes something it should have stopped.
+        The ENCODING was wrong: it put a string in a field typed Optional[int],
+        so every reader that trusted the schema and did arithmetic on it raised
+        ValueError. The Cost dashboard is the one that found it.
+
+        None carries "unknown" without lying about the type. Consumers keep
+        using `is None` to test availability, exactly as they do on the
+        dataclass fields themselves.
+        """
+        return {
             "input_tokens": self.input_tokens,
             "output_tokens": self.output_tokens,
             "image_tokens": self.image_tokens,
             "cached_tokens": self.cached_tokens,
             "reasoning_tokens": self.reasoning_tokens,
-        }.items()}
+        }
 
 
 @dataclass

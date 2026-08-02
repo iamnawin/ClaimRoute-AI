@@ -200,7 +200,11 @@ def test_absent_token_categories_stay_unknown():
     assert call.usage.image_tokens is None
     assert call.usage.cached_tokens is None
     assert call.usage.reasoning_tokens is None
-    assert call.usage.to_dict()["image_tokens"] == "unknown"
+    # Serialising must not change the type of what it serialises. The dataclass
+    # says None; the dict says None. It used to say the string "unknown", which
+    # is how a token field ended up holding something no reader could count.
+    assert call.usage.to_dict()["image_tokens"] is None
+    assert call.usage.to_dict()["image_tokens"] != 0
 
 
 def test_detailed_token_categories_are_normalised_when_reported():

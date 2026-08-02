@@ -39,8 +39,98 @@ def environment_label(app_mode: str) -> str:
     return ENVIRONMENT_LABELS.get(app_mode, "Local Workspace")
 
 
+# What the screen says when a number was never measured. A LABEL, produced at
+# render time. It is deliberately not stored in any numeric contract: a display
+# string living in a token field is what took this page down in the first place.
+NOT_MEASURED = "Not measured"
+
+# Values a provider, a stored session, or a legacy receipt might use to mean
+# "no number here". Matched case-insensitively after stripping. They are read,
+# never written.
+_UNAVAILABLE_TEXT = frozenset({
+    "", "-", "--", "n/a", "na", "none", "null", "nil",
+    "unknown", "not measured", "not available", "not configured",
+})
+
+
+def safe_optional_int(value) -> int | None:
+    """-> an int, or None when the value is unavailable or not a count.
+
+    `int()` is not a parser and must not be used as one on provider metadata.
+    It raises on any non-numeric string, which is how "unknown" in a token field
+    became a ValueError that took down the whole Cost tab. It also accepts
+    booleans silently — `int(True)` is 1 — so a flag that arrived in the wrong
+    field would become a token count nobody could trace back.
+
+    This returns None for anything it cannot read as a whole number, and never
+    guesses. 0 is preserved as the measurement it is: "measured zero" and "never
+    measured" are different facts, and `value or 0` erased the difference.
+    """
+    if value is None or isinstance(value, bool):
+        return None
+    if isinstance(value, int):
+        return value
+    if isinstance(value, float):
+        # A non-integral or non-finite token count is malformed, not roundable.
+        # Rounding would invent a precision the provider never reported.
+        if value != value or value in (float("inf"), float("-inf")):
+            return None
+        return int(value) if value.is_integer() else None
+    if isinstance(value, str):
+        text = value.strip()
+        if text.lower() in _UNAVAILABLE_TEXT:
+            return None
+        try:
+            return int(text)
+        except ValueError:
+            pass
+        parsed = safe_optional_float(text)
+        return int(parsed) if parsed is not None and parsed.is_integer() else None
+    return None
+
+
+def safe_optional_float(value) -> float | None:
+    """-> a finite float, or None when the value is unavailable or not a number.
+
+    Same contract as :func:`safe_optional_int`. NaN and infinity are refused:
+    both propagate silently through arithmetic and comparisons, so a single
+    malformed cost figure would poison every total derived from it.
+    """
+    if value is None or isinstance(value, bool):
+        return None
+    if isinstance(value, (int, float)):
+        number = float(value)
+    elif isinstance(value, str):
+        text = value.strip()
+        if text.lower() in _UNAVAILABLE_TEXT:
+            return None
+        try:
+            number = float(text)
+        except ValueError:
+            return None
+    else:
+        return None
+    if number != number or number in (float("inf"), float("-inf")):
+        return None
+    return number
+
+
+def measured_or_label(value, label: str = NOT_MEASURED):
+    """The rendering rule, in one place: a number, or the honest label."""
+    return label if value is None else value
+
+
 def _int(value) -> int:
-    return int(value or 0)
+    """A counter that defaults to zero.
+
+    For values the application itself produced and which are genuinely a count
+    of things that happened — documents processed, calls made. Unreadable input
+    counts as none-of-them rather than raising, because a malformed field in one
+    row must not take down a page summarising every other row. Provider-reported
+    numbers use ``safe_optional_int`` instead, where absent must stay absent.
+    """
+    parsed = safe_optional_int(value)
+    return parsed if parsed is not None else 0
 
 
 def _ratio(numerator, denominator):
@@ -50,6 +140,17 @@ def _ratio(numerator, denominator):
 
 def _usd(cost: dict | None):
     return (cost or {}).get("value_usd")
+
+
+def _usd_float(cost: dict | None) -> float:
+    """A cost component as a float, treating unreadable as zero for a total.
+
+    Zero is correct HERE and only here: these rows partition a measured total
+    that was computed elsewhere, so a component nobody could read contributes
+    nothing to the sum rather than aborting the table. The basis column still
+    carries what kind of number it is.
+    """
+    return safe_optional_float(_usd(cost)) or 0.0
 
 
 # --------------------------------------------------------------- summary cards
@@ -165,21 +266,21 @@ def cost_breakdown_rows(cost_dashboard: dict) -> list[dict]:
     components = cost_dashboard.get("components") or {}
     rows = [{
         "label": label,
-        "value_usd": float(_usd(components.get(key)) or 0),
+        "value_usd": _usd_float(components.get(key)),
         "basis": (components.get(key) or {}).get("basis", "MEASURED"),
         "group": "measured",
     } for key, label in _MEASURED_COMPONENTS]
     projected = components.get("projected_api") or {}
     rows.append({
         "label": "Selective AI cost",
-        "value_usd": float(_usd(projected) or 0),
+        "value_usd": _usd_float(projected),
         "basis": projected.get("basis", "PROJECTED"),
         "group": "projected",
     })
     review = (cost_dashboard.get("human_review_estimate") or {}).get("total") or {}
     rows.append({
         "label": "Human review",
-        "value_usd": float(_usd(review) or 0),
+        "value_usd": _usd_float(review),
         "basis": review.get("basis", "ASSUMED"),
         "group": "assumed",
     })
@@ -188,7 +289,7 @@ def cost_breakdown_rows(cost_dashboard: dict) -> list[dict]:
 
 def measured_total(cost_dashboard: dict) -> float:
     components = cost_dashboard.get("components") or {}
-    return float(_usd(components.get("total_automated")) or 0)
+    return _usd_float(components.get("total_automated"))
 
 
 # ------------------------------------------------------------ recent documents
@@ -204,9 +305,11 @@ def recent_document_rows(documents: list[dict]) -> list[dict]:
         "Stage": row.get("processing_stage") or row.get("processing_status") or "QUEUED",
         "Validated coverage": (row.get("coverage") or {}).get("validated_coverage"),
         "Unresolved": _int(row.get("unresolved_fields")),
-        "Total cost": float((row.get("measured_cost") or {}).get("usd") or 0),
+        "Total cost": safe_optional_float(
+            (row.get("measured_cost") or {}).get("usd")) or 0.0,
         "Processing time": round(
-            float((row.get("latency") or {}).get("milliseconds") or 0) / 1000, 2),
+            (safe_optional_float(
+                (row.get("latency") or {}).get("milliseconds")) or 0.0) / 1000, 2),
     } for row in documents]
 
 
@@ -235,12 +338,25 @@ def provider_panel_rows(provider_state: dict, *, session_report: dict | None = N
 
     Anything not measured says so rather than showing a zero that reads like a
     result.
+
+    Every provider-reported number is read through ``safe_optional_int`` /
+    ``safe_optional_float``. Providers report different subsets, a stored
+    session can carry a receipt written by an older contract, and neither is
+    something this panel gets to assume. One unreadable field renders as
+    "Not measured"; it does not take down the tab, and it does not become a 0
+    that would read as a measurement nobody made.
     """
     report = session_report or {}
-    usage = usage or {}
+    usage = usage if isinstance(usage, dict) else {}
     measured_calls = _int(report.get("calls_made")) or _int(calls_used)
-    spend = report.get("measured_incremental_usd")
-    limit = (report.get("limits") or {}).get("max_session_spend_usd")
+    spend = safe_optional_float(report.get("measured_incremental_usd"))
+    limits = report.get("limits")
+    limit = safe_optional_float(
+        (limits or {}).get("max_session_spend_usd")
+        if isinstance(limits, dict) else None)
+    latency_s = safe_optional_float(latency_ms)
+    input_tokens = safe_optional_int(usage.get("input_tokens"))
+    output_tokens = safe_optional_int(usage.get("output_tokens"))
     return [
         {"label": "Configured provider", "kind": "text",
          "value": provider_state.get("provider_name") or "Not configured"},
@@ -255,17 +371,16 @@ def provider_panel_rows(provider_state: dict, *, session_report: dict | None = N
         {"label": "Measured external calls", "kind": "count",
          "value": measured_calls},
         {"label": "Measured input tokens", "kind": "count",
-         "value": _int(usage.get("input_tokens")) if measured_calls else "Not measured"},
+         "value": measured_or_label(input_tokens if measured_calls else None)},
         {"label": "Measured output tokens", "kind": "count",
-         "value": _int(usage.get("output_tokens")) if measured_calls else "Not measured"},
+         "value": measured_or_label(output_tokens if measured_calls else None)},
         {"label": "Measured external spend", "kind": "usd",
-         "value": float(spend) if measured_calls and spend is not None
-                  else "Not measured"},
+         "value": measured_or_label(spend if measured_calls else None)},
         {"label": "Average latency", "kind": "seconds",
-         "value": round(float(latency_ms) / 1000, 3)
-                  if measured_calls and latency_ms else "Not measured"},
+         "value": measured_or_label(
+             round(latency_s / 1000, 3) if measured_calls and latency_s else None)},
         {"label": "Session spend limit", "kind": "usd",
-         "value": float(limit) if limit is not None else "Not configured"},
+         "value": measured_or_label(limit, "Not configured")},
         {"label": "Reason not attempted", "kind": "text",
          "value": provider_state.get("reason_not_attempted") or "-"},
     ]

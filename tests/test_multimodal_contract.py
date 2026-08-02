@@ -201,10 +201,16 @@ def test_unavailable_token_counts_stay_unknown():
     usage = UsageMetadata(input_tokens=430, output_tokens=24)
     as_dict = usage.to_dict()
     assert as_dict["input_tokens"] == 430
-    # Never defaulted to zero, and image tokens are never invented.
-    assert as_dict["image_tokens"] == "unknown"
-    assert as_dict["cached_tokens"] == "unknown"
-    assert as_dict["reasoning_tokens"] == "unknown"
+    # Never defaulted to zero, and image tokens are never invented. Unknown is
+    # carried as None -- `null` in JSON -- rather than as the string "unknown".
+    # The intent here is unchanged; the encoding was the defect. A string in a
+    # field typed Optional[int] raised ValueError in every reader that trusted
+    # the schema and did arithmetic on it, which is what took down the Cost tab.
+    assert as_dict["image_tokens"] is None
+    assert as_dict["cached_tokens"] is None
+    assert as_dict["reasoning_tokens"] is None
+    # The guarantee that actually matters: absent is not zero.
+    assert as_dict["image_tokens"] != 0
     assert usage.billable_known is True
 
 
