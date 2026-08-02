@@ -292,6 +292,19 @@ def test_low_confidence_noise_cannot_outrank_a_clean_primary_value(tmp_path):
     assert field.value == "SYNTHETIC PERSON"
 
 
+def test_a_retry_read_may_fill_a_box_the_primary_pass_missed():
+    """A blank primary is not a wall. Refusing every retry read into an empty
+    box was measured and rejected: it removed the whole CMS-1500 noisy gain
+    (+3.3pp -> +0.0pp), because that is where those recoveries come from."""
+    from engine.retry_rung import decide_retry
+
+    recovered = decide_retry(agreement=False, prim_failed=False,
+                             candidate="1234567893", cand_failed=False,
+                             cand_fused=0.93, primary_confidence=0.12)
+
+    assert recovered.take_candidate is True
+
+
 def test_agreement_never_preserves_a_primary_value_that_fails_validation():
     """Agreement says two reads saw the same marks. It does not say the value
     is legal. When the primary fails its validators and a retry candidate
