@@ -21,6 +21,7 @@ from engine.escalation.client import load_config, request_from_page
 from engine.escalation.errors import MultimodalError
 from engine.escalation.live_policy import LiveCallGovernor, ModeError
 from engine.escalation.model_router import ModelResolutionError
+from engine.escalation.readiness import ReadinessState, evaluate_readiness
 
 logger = logging.getLogger(__name__)
 
@@ -564,6 +565,51 @@ def _replace_multimodal_document(state: dict, document: dict) -> None:
     _refresh_workspace_batch(state)
 
 
+# One headline per typed state. Written out rather than generated so that a new
+# state cannot silently inherit another state's wording.
+_READINESS_HEADLINES = {
+    ReadinessState.MISSING_KEY: "OpenRouter is not ready - credential missing",
+    ReadinessState.DISABLED: "External provider disabled by configuration",
+    ReadinessState.TEST_PERMISSION_REQUIRED:
+        "External provider configured - live-test permission required",
+    ReadinessState.MODEL_NOT_ALLOWED:
+        "External provider configured - selected model not approved",
+    ReadinessState.INPUT_INELIGIBLE:
+        "OpenRouter is ready - this document is not eligible",
+    ReadinessState.CONFIGURATION_ERROR: "External provider configuration error",
+    ReadinessState.INITIALIZATION_ERROR: "Multimodal provider unavailable",
+    ReadinessState.READY: "OpenRouter ready",
+}
+
+
+def _readiness_for(state: dict, request=None):
+    """The readiness verdict for the current session, recomputed per render.
+
+    Never cached: a cached verdict would make restarting the process the only
+    way to observe a corrected environment variable, which is the failure the
+    contract exists to remove.
+    """
+    return evaluate_readiness(config=load_config(),
+                              mode=state.get("operating_mode"),
+                              request=request)
+
+
+def _render_readiness_diagnostics(st, readiness, key_base: str) -> None:
+    """Booleans only. Presence of the credential, never the credential.
+
+    An expander is a screenshot waiting to happen, so nothing here narrows a
+    search for the key: not its value, prefix, length, or hash.
+    """
+    with st.expander("Provider diagnostics (safe)"):
+        st.dataframe(
+            [{"Check": name, "Value": _yes_no(value) if isinstance(value, bool)
+              else ("unknown" if value is None else str(value))}
+             for name, value in readiness.diagnostics().items()],
+            hide_index=True, width="stretch")
+        st.caption("Presence only. The API key value is never read, stored, "
+                   "logged, hashed, or displayed by this application.")
+
+
 def _render_multimodal_permission(st, state: dict, document: dict, source) -> None:
     candidates = _eligible_multimodal_fields(document)
     session, governor, config, init_error = _multimodal_session_or_error(state)
@@ -599,11 +645,22 @@ def _render_multimodal_permission(st, state: dict, document: dict, source) -> No
             if row.key != "synthetic_input"]
 
     if hard:
+        # The headline names the EXACT gate, from the same backend contract the
+        # governor consults. A single "External AI disabled" for every cause is
+        # what sent operators to re-export variables that were already correct,
+        # and what reported a ready provider as switched off whenever the chosen
+        # input happened to be ineligible.
+        readiness = _readiness_for(state, probe_request)
         st.info(
-            "**External AI disabled** - local OCR, retry, validation and human "
-            "review remain available.  \n"
-            "No external call was attempted and no data left this machine."
+            f"**{_READINESS_HEADLINES.get(readiness.state, 'External AI unavailable')}**  \n"
+            f"Reason: {readiness.reason}  \n"
+            + (f"Required action: {readiness.required_action}  \n"
+               if readiness.required_action else "")
+            + "Local OCR, retry, validation, human review and exports remain "
+              "available. No external call was attempted and no data left this "
+              "machine."
         )
+        _render_readiness_diagnostics(st, readiness, key_base)
         st.button(
             "Enablement requirements not satisfied", disabled=True,
             key=f"cr_multimodal_run_{key_base}")
@@ -2156,15 +2213,19 @@ def _workspace_sidebar(st, state: dict) -> None:
         '</div>', unsafe_allow_html=True)
     # Derived, never asserted: an enabled provider must not be reported as
     # disabled just because the usual demo runs with it switched off.
-    provider_state = workspace._provider_policy_snapshot()
+    provider_state = workspace._provider_policy_snapshot(
+        mode=state.get("operating_mode"))
     enabled = bool(provider_state.get("provider_enabled"))
+    # The rail names the typed state rather than a binary. "External providers
+    # disabled" shown while the provider is configured and only the live-test
+    # flag is missing is the message that made a correct setup look broken.
     st.sidebar.markdown(
         f'<div class="cr-rail-status {"warn" if enabled else "ok"}"><i></i>'
-        f'{"External provider enabled - governed" if enabled else "External providers disabled"}'
+        f'{_READINESS_HEADLINES.get(ReadinessState(provider_state["readiness_state"]), "External providers disabled")}'
         '</div>', unsafe_allow_html=True)
     st.sidebar.caption(
         f'{dashboard.environment_label(app_mode())} - '
-        f'{provider_state.get("reason_not_attempted") or "no external call"}. '
+        f'{provider_state.get("readiness_reason") or "no external call"} '
         "Authorized local data only. Keep this workspace on localhost.")
     batch = state.get("batch_results")
     if batch:

@@ -263,7 +263,10 @@ def test_no_enabled_looking_control_when_configuration_forbids_execution(monkeyp
     action = next(row for row in app.button
                   if row.label == "Enablement requirements not satisfied")
     assert action.disabled is True
-    assert any("External AI disabled" in row.value for row in app.info)
+    # Named gate, not a generic refusal: the shipped clone is blocked by
+    # configuration, and the message says which switch would change that.
+    assert any("External provider disabled by configuration" in row.value
+               for row in app.info)
     # The consent checkboxes must not be reachable while execution is impossible.
     assert not [row for row in app.checkbox
                 if row.label.startswith("I understand that this may make")]
@@ -341,7 +344,18 @@ def test_only_recognised_truth_values_enable_the_panel(monkeypatch, value):
 
 
 def test_one_flag_alone_does_not_enable_the_panel(monkeypatch):
-    """Both flags are required; either alone leaves the rung unavailable."""
+    """Both flags are required; either alone leaves the rung unavailable.
+
+    The two halves no longer share a message. Setting only the adapter flag is
+    the exact case an operator hits after exporting one variable and restarting:
+    reporting it as "disabled by policy" — identical to a clone with nothing
+    configured — is what made the remaining switch impossible to find. Each half
+    now names the switch that is actually missing, while both stay unavailable.
+    """
+    expected = {
+        "CLAIMROUTE_MULTIMODAL_ENABLED": "TEST_PERMISSION_REQUIRED",
+        "CLAIMROUTE_LIVE_PROVIDER_TEST": "DISABLED",
+    }
     for present, absent in (("CLAIMROUTE_MULTIMODAL_ENABLED",
                              "CLAIMROUTE_LIVE_PROVIDER_TEST"),
                             ("CLAIMROUTE_LIVE_PROVIDER_TEST",
@@ -352,7 +366,10 @@ def test_one_flag_alone_does_not_enable_the_panel(monkeypatch):
         state = workspace._provider_policy_snapshot()
 
         assert state["provider_enabled"] is False, f"{present} alone enabled it"
-        assert state["reason_not_attempted"] == "disabled by policy"
+        assert state["provider_ready"] is False
+        assert state["readiness_state"] == expected[present]
+        # The missing variable is named, so the message is actionable.
+        assert absent in state["readiness_required_action"]
 
 
 def test_streamlit_rerun_preserves_receipt_and_keeps_paid_action_disabled(monkeypatch):

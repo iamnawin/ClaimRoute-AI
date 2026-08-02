@@ -1283,9 +1283,16 @@ def test_results_actions_are_truthful_when_provider_is_disabled(monkeypatch):
     multimodal = next(button for button in app.button
                       if button.label == "Enablement requirements not satisfied")
     assert multimodal.disabled is True
+    # The headline names the SPECIFIC gate. It used to read "External AI
+    # disabled" for every cause, which told an operator with two of the three
+    # switches already set exactly as much as it told a fresh clone.
     provider_message = next(message.value for message in app.info
-                            if "External AI disabled" in message.value)
-    assert "local OCR, retry, validation and human review remain available" in provider_message
+                            if "External provider disabled by configuration"
+                            in message.value)
+    assert "Required action:" in provider_message
+    assert "CLAIMROUTE_MULTIMODAL_ENABLED" in provider_message
+    assert ("Local OCR, retry, validation, human review and exports remain "
+            "available") in provider_message
     assert "No external call was attempted" in provider_message
     assert not any(toggle.label == "Enable paid multimodal AI calls"
                    for toggle in app.toggle)

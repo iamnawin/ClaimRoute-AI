@@ -19,8 +19,8 @@ import yaml
 from app import service
 from app.intake import FileRole, IntakeFile, decode_pages
 from app.local_retry import retry_cms1500_page
-from engine.escalation.live_policy import (
-    _TRUE as _TRUE_FLAGS, LIVE_TEST_ENV, MULTIMODAL_ENABLED_ENV)
+from engine.escalation.readiness import (ProviderReadiness, ReadinessState,
+                                         evaluate_readiness)
 from engine.escalation.model_router import ModelRouter, load_models_config
 from engine.governor import field_policy, preset
 from engine.schemas import FieldState, ValidationStamp, Verdict
@@ -253,62 +253,73 @@ def _provider_policy_snapshot(config: dict | None = None,
         config.setdefault("operating_mode_models",
                           load_models_config(service.ROOT / "configs"
                                              / "multimodal_models.yaml"))
-    live = config.get("live_provider") or {}
-    provider_name = live.get("provider") or config.get("active_provider") or ""
-    provider = (config.get("providers") or {}).get(provider_name) or {}
-    key_env = provider.get("api_key_env") or ""
-    values = os.environ if env is None else env
-    # Either route may enable the provider, and both are deliberate acts.
+    # One backend verdict, rendered. The panel must not derive gating of its own:
+    # that is how six unrelated causes came to share the message "disabled by
+    # policy", and how exporting CLAIMROUTE_MULTIMODAL_ENABLED could change the
+    # governor's answer without changing anything on screen.
     #
-    # The shipped YAML is false so a cloned repo can never bill anyone. That made
-    # the environment flags look inert: they are checked by LiveCallGovernor at
-    # call time, but this snapshot read the file alone, so exporting
-    # CLAIMROUTE_MULTIMODAL_ENABLED left the panel reporting "disabled by policy"
-    # with no way to tell which switch was missing. Honouring both here means an
-    # operator enables the panel for a session without editing tracked config.
+    # Recomputed on every call and never cached, so a corrected environment is
+    # visible on the next rerun rather than only after a restart.
     #
-    # This is display state only. Nothing is authorised here: the governor
-    # re-checks the flags, the credential, provenance, the allowlist and both
-    # budgets before any transport.
-    env_enabled = all(
-        str(values.get(name) or "").strip().lower() in _TRUE_FLAGS
-        for name in (MULTIMODAL_ENABLED_ENV,
-                     live.get("live_test_env", LIVE_TEST_ENV)))
-    enabled = bool((config.get("enabled", False) and live.get("enabled", False))
-                   or env_enabled)
-    credential_available = bool(key_env and str(values.get(key_env) or "").strip())
+    # Degraded rather than raised. This snapshot is on the sidebar path that
+    # every tab renders, so an exception escaping here would take the whole
+    # workspace down — including local results already produced — over a
+    # provider the operator may not even be using.
+    try:
+        readiness = evaluate_readiness(config=config, env=env,
+                                       mode=mode or service.DEFAULT_MODE)
+    except Exception as error:                  # noqa: BLE001 - reported, not raised
+        readiness = ProviderReadiness(
+            state=ReadinessState.INITIALIZATION_ERROR, ready=False,
+            reason=f"The provider could not be initialised: {error}",
+            required_action=("Check configs/multimodal_providers.yaml and "
+                             "configs/multimodal_models.yaml."))
 
-    # The model shown must be the one the mode would actually send, not the
-    # provider entry's static id. Those differed, which is what put
-    # `openai/gpt-5-nano` on screen for every operating mode.
-    resolved = ModelRouter(provider_config=config).resolve(
-        mode or service.DEFAULT_MODE)
-    model = resolved.model_id
+    # `provider_enabled` keeps its established meaning — "the enable switches are
+    # on" — and deliberately does NOT fold in the credential. The panel opens so
+    # the operator can see which remaining gate is the blocker; an absent key is
+    # one of the things it has to be able to show.
+    enabled = readiness.state not in (ReadinessState.DISABLED,
+                                      ReadinessState.CONFIGURATION_ERROR,
+                                      ReadinessState.TEST_PERMISSION_REQUIRED)
 
-    if not enabled:
+    # Legacy free-text reason, now derived from the typed state rather than
+    # recomputed. DISABLED keeps its exact historical string because panels and
+    # exports elsewhere match on it.
+    if readiness.state is ReadinessState.DISABLED:
         reason = "disabled by policy"
-    elif not model:
+    elif not readiness.model:
         reason = "model not configured"
-    elif resolved.blocked_reason:
-        reason = resolved.blocked_reason
-    elif not credential_available:
+    elif readiness.state is ReadinessState.MODEL_NOT_ALLOWED:
+        reason = readiness.reason
+    elif readiness.state is ReadinessState.MISSING_KEY:
         reason = "credential missing"
-    else:
+    elif readiness.ready:
         reason = "external calls are not executed by the local workspace"
+    else:
+        reason = readiness.reason
+
     return {
         "provider_enabled": enabled,
-        "provider_name": provider_name,
-        "configured_model": model,
-        "operating_mode": resolved.mode,
-        "model_alias": resolved.alias,
-        "model_supports_images": resolved.supports_images,
-        "model_allowlisted": resolved.allowlisted,
-        "credential_available": credential_available,
+        "provider_name": readiness.provider_name,
+        "configured_model": readiness.model,
+        "operating_mode": readiness.operating_mode,
+        "model_alias": readiness.model_alias,
+        "model_supports_images": readiness.model_image_capable,
+        "model_allowlisted": readiness.model_allowlisted,
+        "credential_available": readiness.key_present,
         "external_call_attempted": False,
         "external_call_count": 0,
         "reason_not_attempted": reason,
         "final_workflow_state": "HUMAN_REVIEW_REQUIRED",
         "no_data_sent": True,
+        # The typed contract, carried alongside the legacy keys so the UI can
+        # render the exact state without re-deriving it.
+        "provider_ready": readiness.ready,
+        "readiness_state": readiness.state.value,
+        "readiness_reason": readiness.reason,
+        "readiness_required_action": readiness.required_action,
+        "readiness_diagnostics": readiness.diagnostics(),
     }
 
 
@@ -320,6 +331,12 @@ def _multimodal_eligible(field_name: str, routing_policy: dict) -> bool:
         in routing_policy["paid_escalation_criticalities"]
         and not configured.get("optional", False)
     )
+
+
+# Keys the typed readiness contract adds to the provider snapshot. Document-level
+# only; see _provider_escalation.
+_READINESS_KEYS = ("provider_ready", "readiness_state", "readiness_reason",
+                   "readiness_required_action", "readiness_diagnostics")
 
 
 def _provider_escalation(page: int, field: dict, policy: dict,
@@ -336,7 +353,11 @@ def _provider_escalation(page: int, field: dict, policy: dict,
         "INAPPLICABLE", "ACCEPT", "ACCEPT_WITH_FLAG", "ACCEPT_WITH_OVERRIDE"
     }
 
-    state = dict(policy)
+    # The typed readiness contract is DOCUMENT-level state. Copying it onto every
+    # field would repeat the same verdict once per row in every JSON and CSV
+    # export, and a per-field record is an audit trail of what happened to that
+    # field, not a snapshot of how the process was configured.
+    state = {k: v for k, v in policy.items() if k not in _READINESS_KEYS}
     if attempted:
         state["external_call_attempted"] = bool(external_calls)
         state["external_call_count"] = external_calls
