@@ -83,7 +83,8 @@ development workstation.
 
 These are synthetic-test results, not real-claim or provider-accuracy claims. Start with
 `docs/submission/evidence_index.md` and `docs/submission/claims_register.md`; exact manifests and
-receipts are under `eval/frozen/`.
+receipts are under `eval/frozen/`. For packaging and delivery status, see
+`docs/submission/README_SUBMISSION.md`.
 
 ## Official organiser evidence
 
