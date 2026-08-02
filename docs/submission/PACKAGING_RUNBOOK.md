@@ -9,6 +9,39 @@ Commands are Windows PowerShell 5.1, run from the repository root
 **Do not create the ZIP until all four artifacts read `VALIDATED_FINAL` in
 [`README_SUBMISSION.md`](README_SUBMISSION.md).** Step 12 is the gate.
 
+## 0. The short version
+
+Steps 1 to 19 below are the manual procedure and remain the reference for *why*
+each check exists. Two scripts now automate them end to end:
+
+```powershell
+# Read-only. Reports every artifact, scan, and blocker. Never writes anything.
+.\scripts\validate_submission_readiness.ps1
+
+# Builds the ZIP, or refuses and explains why. Writes nothing on refusal.
+.\scripts\finalize_submission.ps1
+```
+
+| Script | Covers | Exit codes |
+|---|---|---|
+| `validate_submission_readiness.ps1` | steps 2-8, 10, 11 | `0` = ELIGIBLE **or** BLOCKED_ONLY_BY_MP4; `1` = a real defect |
+| `finalize_submission.ps1` | steps 12-16 | `0` = packaged; `1` = refused, no ZIP written |
+
+The readiness script exits **0** while the recording is outstanding. A missing
+MP4 is an expected state, not a system failure, so this can be used as a green
+pre-recording gate. It also calls
+`scripts/submission/validate_artifacts.py`, which reopens each artifact, extracts
+the PDF text, loads the workbook, and checks that the rendered output carries the
+derived precision and recall rather than the exact-match rate.
+
+`finalize_submission.ps1` builds under a temporary name and only renames to
+`DXtraAI_HealthcareAIHackathon.zip` after reopening the archive and confirming
+exactly four root entries and no folders. A wrongly-populated archive never
+carries the delivery name.
+
+Run the manual steps when a script reports something you do not understand, or
+when you need to justify a check to a reviewer.
+
 ## 1. Verify git state
 
 ```powershell

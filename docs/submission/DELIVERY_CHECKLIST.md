@@ -6,6 +6,24 @@ ticked by someone who actually performed the check.
 
 Ticking a box you did not verify invalidates the submission evidence chain.
 
+## Automated pre-pass
+
+Run this first. It clears the mechanical boxes below - existence, exact
+filenames, openability, workbook sheets and charts, and the derived precision
+and recall - so human attention goes to the ones a script cannot judge: page
+counts, glyph rendering, claim wording, and what is visible in the recording.
+
+```powershell
+.\scripts\validate_submission_readiness.ps1
+```
+
+Exit `0` means either ELIGIBLE or BLOCKED_ONLY_BY_MP4. Exit `1` means a real
+defect: fix it before ticking anything. The script never writes to the
+repository.
+
+A green pre-pass is **not** a substitute for this checklist. It cannot see
+inside a PDF page, and it cannot watch the demo.
+
 ## 01_Executive_Summary.pdf
 
 Existence and format:
