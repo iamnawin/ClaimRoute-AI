@@ -19,6 +19,8 @@ import yaml
 from app import service
 from app.intake import FileRole, IntakeFile, decode_pages
 from app.local_retry import retry_cms1500_page
+from engine.escalation.live_policy import (
+    _TRUE as _TRUE_FLAGS, LIVE_TEST_ENV, MULTIMODAL_ENABLED_ENV)
 from engine.escalation.model_router import ModelRouter, load_models_config
 from engine.governor import field_policy, preset
 from engine.schemas import FieldState, ValidationStamp, Verdict
@@ -256,7 +258,24 @@ def _provider_policy_snapshot(config: dict | None = None,
     provider = (config.get("providers") or {}).get(provider_name) or {}
     key_env = provider.get("api_key_env") or ""
     values = os.environ if env is None else env
-    enabled = bool(config.get("enabled", False) and live.get("enabled", False))
+    # Either route may enable the provider, and both are deliberate acts.
+    #
+    # The shipped YAML is false so a cloned repo can never bill anyone. That made
+    # the environment flags look inert: they are checked by LiveCallGovernor at
+    # call time, but this snapshot read the file alone, so exporting
+    # CLAIMROUTE_MULTIMODAL_ENABLED left the panel reporting "disabled by policy"
+    # with no way to tell which switch was missing. Honouring both here means an
+    # operator enables the panel for a session without editing tracked config.
+    #
+    # This is display state only. Nothing is authorised here: the governor
+    # re-checks the flags, the credential, provenance, the allowlist and both
+    # budgets before any transport.
+    env_enabled = all(
+        str(values.get(name) or "").strip().lower() in _TRUE_FLAGS
+        for name in (MULTIMODAL_ENABLED_ENV,
+                     live.get("live_test_env", LIVE_TEST_ENV)))
+    enabled = bool((config.get("enabled", False) and live.get("enabled", False))
+                   or env_enabled)
     credential_available = bool(key_env and str(values.get(key_env) or "").strip())
 
     # The model shown must be the one the mode would actually send, not the
