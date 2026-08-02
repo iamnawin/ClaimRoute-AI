@@ -1,0 +1,47 @@
+# Live OpenRouter list prices — per 1M tokens (input / output), USD.
+#
+# SEPARATE FROM configs/prices.yaml ON PURPOSE. That file is in
+# eval/official/freeze_readiness.py:FREEZE_FILES, so every byte of it is hashed
+# into the benchmark candidate manifest. Live-provider prices change whenever a
+# vendor changes them, and a price edit must never move a benchmark evidence
+# hash. This file is not frozen; rows here are overlaid onto the frozen table at
+# load time by engine/vision/base.py.
+#
+# These rows are NOT the cost of record. OpenRouter reports the actual charge
+# for each call and that figure always wins (CostBreakdown.billed_usd prefers
+# `reported_usd`). These rows exist only for:
+#   1. pre-call budget estimation, before any usage is known
+#   2. cross-checking the provider's reported figure — a large gap means drift
+#   3. display metadata
+# Never let a number here replace a measured provider charge.
+#
+# Verified against openrouter.ai/api/v1/models/<id>/endpoints on 2026-08-02.
+# Prices below are the STANDARD endpoint rate, not flex or priority. Qwen rows
+# are the base tier; both Qwen models apply higher tiered rates above 32K/256K
+# input tokens, which field crops never approach.
+version: 1
+
+vision_models:
+  # qwen/qwen3.7-flash — input text+image+video, 1,000,000 context.
+  openrouter_qwen37_flash:
+    input: 0.03
+    output: 0.13
+
+  # google/gemini-3.5-flash-lite — input text+image+video+file+audio,
+  # 1,048,576 context, structured_outputs supported.
+  openrouter_gemini_35_flash_lite:
+    input: 0.30
+    output: 2.50
+
+  # qwen/qwen3.7-plus — input text+image, 1,000,000 context.
+  openrouter_qwen37_plus:
+    input: 0.32
+    output: 1.28
+
+  # google/gemini-3.1-flash-lite — accuracy-mode fallback. A row exists in the
+  # frozen configs/prices.yaml under the bare name `gemini-3.1-flash-lite` for
+  # benchmark projections; this is the OpenRouter-namespaced live row and
+  # carries the same rate.
+  openrouter_gemini_31_flash_lite:
+    input: 0.25
+    output: 1.50

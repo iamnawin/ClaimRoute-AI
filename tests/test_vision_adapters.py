@@ -15,11 +15,12 @@ def test_openrouter_routing_placeholder_is_disabled_and_complete():
     config = yaml.safe_load(Path("configs/multimodal_models.yaml").read_text(
         encoding="utf-8"))
 
+    # Verification confirmed the ids are real; it did not open the paid path.
     assert config["enabled"] is False
-    assert config["status"] == "proposed_unverified"
+    assert config["status"] == "verified_openrouter_2026_08_02"
     assert config["provider"] == "openrouter"
     assert set(config["models"]) == {
-        "qwen_flash", "gemini_flash_lite", "qwen_plus", "gemini_31_flash_lite"
+        "qwen_flash", "gemini_35_flash_lite", "qwen_plus", "gemini_31_flash_lite"
     }
     assert all(model["supports_images"] is True
                for model in config["models"].values())

@@ -30,7 +30,7 @@ REPO_PROVIDERS = load_config()
 # instead of silently redefining the expectation.
 EXPECTED = {
     "economy": ("qwen_flash", "qwen/qwen3.7-flash"),
-    "balanced": ("gemini_flash_lite", "google/gemini-2.5-flash-lite"),
+    "balanced": ("gemini_35_flash_lite", "google/gemini-3.5-flash-lite"),
     "accuracy": ("qwen_plus", "qwen/qwen3.7-plus"),
 }
 
@@ -99,13 +99,33 @@ def test_mode_naming_an_undefined_alias_is_an_authoring_error():
 # ---------------------------------------------------------------- capability
 
 def test_unlisted_model_resolves_but_is_blocked():
-    """Resolution names the model; the allowlist decides if it may be sent."""
-    resolved = _router().resolve("economy")
+    """Resolution names the model; the allowlist decides if it may be sent.
 
-    assert resolved.model_id == "qwen/qwen3.7-flash"
+    RESOLUTION IS NOT AUTHORISATION. The three shipped modes are now all
+    allowlisted, so this uses an id that is deliberately absent to keep testing
+    the gate rather than the current contents of the allowlist.
+    """
+    models = {"models": {"unlisted": {"model_id": "qwen/qwen3.7-max",
+                                      "supports_images": True}},
+              "operating_modes": {"economy": {"primary": "unlisted"}}}
+    resolved = _router(models=models).resolve("economy")
+
+    assert resolved.model_id == "qwen/qwen3.7-max"
     assert resolved.allowlisted is False
     assert resolved.usable is False
     assert "not on live_provider.model_allowlist" in resolved.blocked_reason
+
+
+def test_shipped_mode_models_resolve_as_usable():
+    """The counterpart: verification moved these from blocked to usable."""
+    for mode, (alias, model_id) in EXPECTED.items():
+        resolved = _router().resolve(mode)
+        assert resolved.alias == alias
+        assert resolved.model_id == model_id
+        assert resolved.allowlisted is True
+        assert resolved.supports_images is True
+        assert resolved.usable is True
+        assert resolved.blocked_reason == ""
 
 
 def test_allowlisted_vision_model_is_usable():
@@ -224,15 +244,24 @@ def _live_env(providers):
 
 
 def test_governor_blocks_the_unlisted_mode_model_even_when_fully_switched_on():
-    """Every other gate open; the model alone must still stop the call."""
+    """Every other gate open; the model alone must still stop the call.
+
+    The mode is pointed at an id that is absent from the allowlist, because the
+    shipped mode models are now all approved. This is the gate that makes
+    allowlisting a real authorisation step rather than a label.
+    """
     providers = {**REPO_PROVIDERS, "enabled": True,
-                 "live_provider": {**REPO_PROVIDERS["live_provider"], "enabled": True}}
+                 "live_provider": {**REPO_PROVIDERS["live_provider"], "enabled": True},
+                 "operating_mode_models": {
+                     "models": {"unlisted": {"model_id": "qwen/qwen3.7-max",
+                                             "supports_images": True}},
+                     "operating_modes": {"economy": {"primary": "unlisted"}}}}
     governor = LiveCallGovernor(providers, mode="economy",
                                 env=_live_env(providers), adapter_enabled=True)
 
     outcome = governor.authorize(_request())
 
-    assert outcome.model == "qwen/qwen3.7-flash"
+    assert outcome.model == "qwen/qwen3.7-max"
     assert outcome.decision is LiveDecision.BLOCKED_MODEL_NOT_ALLOWLISTED
     assert outcome.allowed is False
     assert outcome.route_to_human_review is True
@@ -295,7 +324,9 @@ def test_ui_panel_displays_the_runtime_resolved_model(monkeypatch):
         assert snapshot["configured_model"] == model_id
         assert snapshot["model_alias"] == alias
         assert snapshot["operating_mode"] == mode
-        assert snapshot["model_allowlisted"] is False
+        # Verified and approved on 2026-08-02; the panel must say so, while
+        # `reason_not_attempted` still shows the call is refused by policy.
+        assert snapshot["model_allowlisted"] is True
         assert snapshot["model_supports_images"] is True
         # Shipped config is disabled, and policy outranks model status: an
         # operator must not be told "fix the allowlist" when the real blocker
@@ -304,18 +335,79 @@ def test_ui_panel_displays_the_runtime_resolved_model(monkeypatch):
 
 
 def test_allowlist_reason_surfaces_once_policy_stops_blocking():
-    """With policy enabled, the model's own blocker becomes the shown reason."""
+    """With policy enabled, a non-allowlisted model's own blocker is shown.
+
+    The three shipped modes are now all allowlisted, so this drops the allowlist
+    to gpt-5-nano only to recreate the condition. Asserting on a mode that IS
+    allowlisted would test nothing.
+    """
     from app import workspace
 
-    enabled = {**REPO_PROVIDERS, "enabled": True,
-               "live_provider": {**REPO_PROVIDERS["live_provider"], "enabled": True}}
+    live = {**REPO_PROVIDERS["live_provider"], "enabled": True,
+            "model_allowlist": [{"id": "openai/gpt-5-nano", "vision": True,
+                                 "price_row": "gpt-5-nano"}]}
+    enabled = {**REPO_PROVIDERS, "enabled": True, "live_provider": live}
     snapshot = workspace._provider_policy_snapshot(enabled, env={}, mode="balanced")
 
-    assert snapshot["configured_model"] == "google/gemini-2.5-flash-lite"
+    assert snapshot["configured_model"] == "google/gemini-3.5-flash-lite"
+    assert snapshot["model_allowlisted"] is False
     assert "allowlist" in snapshot["reason_not_attempted"]
+
+
+def test_shipped_modes_are_allowlisted_and_declare_vision():
+    """Each shipped mode is billable-ready: allowlisted, vision, priced.
+
+    This is the check that would have caught google/gemini-2.5-flash-lite, an
+    id that resolved cleanly but does not exist on OpenRouter.
+    """
+    from engine.vision.base import price_call
+
+    allowlist = {entry["id"]: entry
+                 for entry in REPO_PROVIDERS["live_provider"]["model_allowlist"]}
+    for mode, (_, model_id) in EXPECTED.items():
+        assert model_id in allowlist, f"{mode} model {model_id} is not allowlisted"
+        assert allowlist[model_id]["vision"] is True
+        # A price row must exist, or cost degrades to basis="unknown".
+        price_call(allowlist[model_id]["price_row"], 1000, 200)
 
 
 def test_default_mode_matches_the_service_layer():
     from app import service
 
     assert DEFAULT_MODE == service.DEFAULT_MODE
+
+
+def test_live_prices_do_not_live_in_the_frozen_price_file():
+    """Live-provider rows must stay OUT of the frozen benchmark price table.
+
+    configs/prices.yaml is hashed into the candidate freeze manifest
+    (eval/official/freeze_readiness.py:FREEZE_FILES). A vendor price change
+    written there would move a benchmark evidence hash, so live rows belong in
+    the non-frozen overlay instead.
+    """
+    from eval.official.freeze_readiness import FREEZE_FILES
+
+    frozen = yaml.safe_load(Path("configs/prices.yaml").read_text(encoding="utf-8"))
+    overlay = yaml.safe_load(
+        Path("configs/live_provider_prices.yaml").read_text(encoding="utf-8"))
+
+    assert "configs/prices.yaml" in FREEZE_FILES
+    assert "configs/live_provider_prices.yaml" not in FREEZE_FILES
+    # Every live row is namespaced and absent from the frozen table, so the
+    # overlay adds models rather than silently repricing a benchmarked one.
+    for row in overlay["vision_models"]:
+        assert row.startswith("openrouter_")
+        assert row not in frozen["vision_models"]
+
+
+def test_price_overlay_does_not_shadow_frozen_rows():
+    """Frozen benchmark prices survive the overlay merge unchanged."""
+    from engine.vision.base import _load_prices
+
+    frozen = yaml.safe_load(Path("configs/prices.yaml").read_text(encoding="utf-8"))
+    merged = _load_prices()
+
+    for row, value in frozen["vision_models"].items():
+        assert merged["vision_models"][row] == value
+    assert merged["compute"] == frozen["compute"]
+    assert merged["human_review"] == frozen["human_review"]

@@ -16,13 +16,40 @@ import hashlib
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from enum import Enum
+from pathlib import Path
 from typing import Optional
 
 import yaml
 
 from engine.ocr.base import normalize_text
 
-_PRICES = yaml.safe_load(open("configs/prices.yaml"))
+def _load_prices() -> dict:
+    """Frozen benchmark prices, overlaid with live-provider prices.
+
+    configs/prices.yaml is hashed into the benchmark candidate manifest
+    (eval/official/freeze_readiness.py), so a vendor price change must never be
+    written there. Live rows live in configs/live_provider_prices.yaml, which is
+    not frozen, and are merged on top here. The overlay is optional: if the file
+    is absent, the frozen table is used unchanged.
+
+    Rows are namespaced (`openrouter_*`) rather than overwriting frozen rows, so
+    the overlay adds models rather than silently repricing a benchmarked one.
+    """
+    # encoding is explicit: bare open() uses the ANSI codepage on Windows, which
+    # mangles non-ASCII characters in the price-row notes.
+    prices = yaml.safe_load(
+        Path("configs/prices.yaml").read_text(encoding="utf-8"))
+    overlay_path = Path("configs/live_provider_prices.yaml")
+    if not overlay_path.exists():
+        return prices
+    overlay = yaml.safe_load(overlay_path.read_text(encoding="utf-8")) or {}
+    for section, rows in overlay.items():
+        if isinstance(rows, dict) and isinstance(prices.get(section), dict):
+            prices[section].update(rows)
+    return prices
+
+
+_PRICES = _load_prices()
 
 # Strict, field-scoped, and deliberately boring: one box, one value, no prose.
 PROMPT = """You are reading ONE field box cropped from a US healthcare claim form.

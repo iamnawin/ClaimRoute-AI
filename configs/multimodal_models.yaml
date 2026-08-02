@@ -11,33 +11,47 @@
 # records that the model ids below are not yet verified against OpenRouter's
 # catalogue.
 #
-# UNVERIFIED IDS. Every id below is `status: proposed_unverified` and is absent
-# from live_provider.model_allowlist, so each one RESOLVES (the UI can name it)
-# but is BLOCKED before any call. Promoting one to billable takes three
-# deliberate steps, in order:
+# VERIFIED IDS. Every id below was checked on 2026-08-02 against
+# openrouter.ai/api/v1/models/<id>/endpoints — the exact id string resolves and
+# its architecture.input_modalities includes `image`. `supports_images` is a
+# transcription of that field, not an assumption.
+#
+# Promoting an id to billable takes three deliberate steps, in order:
 #   1. confirm the id exists and accepts images on openrouter.ai/models
-#   2. add a price row to configs/prices.yaml
+#   2. add a price row (configs/live_provider_prices.yaml for live models)
 #   3. add it to live_provider.model_allowlist with vision: true
 # Adding an unverified id to the allowlist is how you get billed for a model
 # nobody chose. Do not skip step 1.
+#
+# `enabled: false` here does not gate spending and is unchanged: verification
+# established these ids are real, not that the paid path should be open.
 version: 1
-status: proposed_unverified
+status: verified_openrouter_2026_08_02
 enabled: false
 provider: openrouter
 
 models:
+  # text+image+video, 1,000,000 context.
   qwen_flash:
     model_id: qwen/qwen3.7-flash
     supports_images: true
 
-  gemini_flash_lite:
-    model_id: google/gemini-2.5-flash-lite
+  # WAS google/gemini-2.5-flash-lite, which DOES NOT EXIST on OpenRouter — no
+  # model in the catalogue contains "gemini-2.5" at all, so balanced (the
+  # default mode) resolved to an id that could never be called. Replaced with
+  # the verified successor in the same cheap-Gemini-flash-lite tier, approved
+  # rather than silently substituted.
+  # text+image+video+file+audio, 1,048,576 context, structured_outputs.
+  gemini_35_flash_lite:
+    model_id: google/gemini-3.5-flash-lite
     supports_images: true
 
+  # text+image, 1,000,000 context.
   qwen_plus:
     model_id: qwen/qwen3.7-plus
     supports_images: true
 
+  # text+image+video+file+audio, 1,048,576 context.
   gemini_31_flash_lite:
     model_id: google/gemini-3.1-flash-lite
     supports_images: true
@@ -49,7 +63,7 @@ operating_modes:
     max_paid_attempts: 1
 
   balanced:
-    primary: gemini_flash_lite
+    primary: gemini_35_flash_lite
     fallback: qwen_plus
     max_paid_attempts: 2
     fallback_critical_only: true

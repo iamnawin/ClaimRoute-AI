@@ -189,11 +189,14 @@ def test_unresolved_fields_are_partial_and_routed_to_review_without_sending():
         # The default (balanced) operating mode's model, resolved from
         # configs/multimodal_models.yaml. This previously read the provider
         # entry's static id, so every mode reported openai/gpt-5-nano.
-        "configured_model": "google/gemini-2.5-flash-lite",
+        "configured_model": "google/gemini-3.5-flash-lite",
         "operating_mode": "balanced",
-        "model_alias": "gemini_flash_lite",
+        "model_alias": "gemini_35_flash_lite",
         "model_supports_images": True,
-        "model_allowlisted": False,
+        # Now on live_provider.model_allowlist (verified 2026-08-02). The call
+        # is still refused; `reason_not_attempted` below is the proof that the
+        # blocker moved from the model to policy, which is where it belongs.
+        "model_allowlisted": True,
         "credential_available": bool(os.environ.get("OPENROUTER_API_KEY")),
         "external_call_attempted": False,
         "external_call_count": 0,
