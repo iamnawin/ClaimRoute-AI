@@ -1215,6 +1215,86 @@ def apply_human_review(result: dict, *, page: int, field_name: str, action: str,
     return updated
 
 
+def apply_multimodal_candidate(result: dict, *, page: int, field_name: str,
+                               value: str | None, receipt: dict) -> dict:
+    """Apply one validated live candidate without placing its value in the receipt."""
+    updated = copy.deepcopy(result)
+    page_row = next((row for row in updated.get("fields", [])
+                     if row["page"] == page), None)
+    if not page_row or field_name not in page_row["fields"]:
+        raise KeyError("Multimodal field was not found in this document.")
+
+    field = page_row["fields"][field_name]
+    context = {name: candidate.get("value")
+               for name, candidate in page_row["fields"].items()}
+    context[field_name] = value
+    stamps = validate_field(field_name, value, context)
+    accepted = bool(
+        value not in (None, "") and stamps
+        and all(stamp.verdict != Verdict.FAIL for stamp in stamps)
+        and receipt.get("final_field_outcome") == "ACCEPTED")
+    state = "ACCEPT" if accepted else "HUMAN_REVIEW"
+    field.update({
+        "value": value if accepted else field.get("value"),
+        "state": state,
+        "confidence": receipt.get("confidence") if accepted else field.get("confidence"),
+        "stamps": [{"validator": stamp.validator,
+                    "verdict": stamp.verdict.value,
+                    "detail": stamp.detail} for stamp in stamps],
+    })
+
+    for evidence in updated.get("_review_evidence", []):
+        if evidence["page"] == page and evidence["field_name"] == field_name:
+            evidence["state"] = state
+            evidence["multimodal_candidate"] = value if accepted else None
+    for validation in updated.get("validations", []):
+        if validation["page"] == page and validation["field_name"] == field_name:
+            validation["results"] = field["stamps"]
+    for provider in updated.get("provider_escalations", []):
+        if provider["page"] == page and provider["field_name"] == field_name:
+            provider.update({
+                "provider_enabled": True,
+                "external_call_attempted": bool(receipt.get("called_provider")),
+                "external_call_count": int(receipt.get("external_calls_made") or 0),
+                "reason_not_attempted": "",
+                "final_workflow_state": (
+                    "MULTIMODAL_ATTEMPTED" if accepted else "MULTIMODAL_FAILED"),
+                "no_data_sent": not bool(receipt.get("called_provider")),
+            })
+
+    called = int(receipt.get("external_calls_made") or 0)
+    escalation = updated.setdefault("escalation_summary", {})
+    escalation["fields_escalated"] = int(escalation.get("fields_escalated") or 0) + called
+    escalation["multimodal_attempted"] = int(
+        escalation.get("multimodal_attempted") or 0) + called
+    escalation["multimodal_failed"] = int(
+        escalation.get("multimodal_failed") or 0) + int(called and not accepted)
+    escalation["external_provider_calls"] = int(
+        escalation.get("external_provider_calls") or 0) + called
+    resolution = updated.setdefault("resolution_summary", {})
+    resolution["multimodal_attempted"] = int(
+        resolution.get("multimodal_attempted") or 0) + called
+    resolution["external_provider_calls"] = int(
+        resolution.get("external_provider_calls") or 0) + called
+    updated["provider_state"] = {
+        **(updated.get("provider_state") or {}),
+        "provider_enabled": True,
+        "provider_name": receipt.get("provider") or "",
+        "configured_model": receipt.get("requested_model") or "",
+        "credential_available": True,
+        "external_call_attempted": bool(called),
+        "external_call_count": called,
+        "reason_not_attempted": "",
+        "no_data_sent": not bool(called),
+    }
+    measured = float(receipt.get("measured_cost_usd") or 0)
+    updated.setdefault("measured_cost", {})["usd"] = round(
+        float((updated.get("measured_cost") or {}).get("usd") or 0) + measured, 8)
+    updated.setdefault("multimodal_receipts", []).append(copy.deepcopy(receipt))
+    _refresh_result(updated)
+    return updated
+
+
 def retry_document(batch: dict, item: IntakeFile, *, mode: str | None = None,
                    processor: Callable[[IntakeFile, str], dict] | None = None) -> dict:
     """Retry one document, retaining prior attempts only in session memory."""

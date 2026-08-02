@@ -11,9 +11,11 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from app import service, workspace
+from app import multimodal_permission, service, workspace
 from app.intake import (FileRole, IntakeError, ScanState, decode_pages,
                         inspect_content, scan_folder)
+from engine.escalation.client import load_config, request_from_page
+from engine.escalation.live_policy import LiveCallGovernor
 
 
 BATCH_COUNTERS = {
@@ -318,6 +320,11 @@ def _new_workspace_state(session_state) -> dict:
             "completed_retry_jobs": [],
         },
         "retry_receipts": [],
+        "multimodal": {
+            "governor": None,
+            "receipts": {},
+            "active_fingerprint": None,
+        },
         "review_queue": [],
         "review_corrections": [],
         "evaluation_summary": (batch or {}).get("evaluation"),
@@ -469,6 +476,152 @@ def _run_retry_job(state: dict, fingerprint: str, source, *, runner=None):
         return retried
     finally:
         processing["active_retry_job"] = None
+
+
+def _multimodal_session(state: dict) -> tuple[dict, LiveCallGovernor, dict]:
+    session = state.setdefault("multimodal", {
+        "governor": None, "receipts": {}, "active_fingerprint": None,
+    })
+    config = load_config()
+    if session.get("governor") is None:
+        session["governor"] = LiveCallGovernor(config)
+    return session, session["governor"], config
+
+
+def _eligible_multimodal_fields(document: dict) -> list[dict]:
+    eligible = {
+        (row["page"], row["field_name"])
+        for row in document.get("provider_escalations", [])
+        if row.get("multimodal_eligible")
+        and row.get("final_workflow_state") == "HUMAN_REVIEW_REQUIRED"
+    }
+    return [row for row in workspace.build_review_queue(document)
+            if (row["page"], row["field_name"]) in eligible]
+
+
+def _multimodal_request(source, document: dict, candidate: dict | None, *,
+                        synthetic: bool):
+    if (source is None or source.role != FileRole.CLAIM_DOCUMENT
+            or candidate is None or not candidate.get("bbox")):
+        return None
+    try:
+        pages = decode_pages(source.content, source.source_format)
+        page_number = int(candidate["page"])
+        page = pages[page_number - 1]
+        return request_from_page(
+            page, candidate["bbox"], candidate["field_name"],
+            doc_id=document["safe_source_id"], page_id=f"p{page_number}",
+            synthetic=synthetic)
+    except (IndexError, IntakeError, TypeError, ValueError):
+        return None
+
+
+def _replace_multimodal_document(state: dict, document: dict) -> None:
+    batch = state["batch_results"]
+    batch["documents"] = [
+        document if row["safe_source_id"] == document["safe_source_id"] else row
+        for row in batch["documents"]
+    ]
+    _refresh_workspace_batch(state)
+
+
+def _render_multimodal_permission(st, state: dict, document: dict, source) -> None:
+    candidates = _eligible_multimodal_fields(document)
+    session, governor, config = _multimodal_session(state)
+    receipts = session.setdefault("receipts", {})
+    if not candidates and not receipts:
+        return
+    calls_used = sum(int(row.get("external_calls_made") or 0)
+                     for row in receipts.values())
+    key_base = document["safe_source_id"]
+    enabled = st.toggle(
+        "Enable paid multimodal AI calls", value=False,
+        key=f"cr_multimodal_enabled_{key_base}")
+
+    if not enabled:
+        st.button(
+            "Run one eligible synthetic field", disabled=True,
+            key=f"cr_multimodal_run_{key_base}")
+        st.info("AI calls disabled. No data will leave this machine.")
+        _render_multimodal_receipt(st, receipts, calls_used)
+        return
+
+    limits = governor.limits
+    st.warning("⚠ Paid multimodal AI calls enabled")
+    st.markdown(
+        f"**Provider:** {governor.provider_name} · **Exact model:** `{governor.model}` · "
+        f"**Eligible fields:** {len(candidates)} · **Calls:** {calls_used}/"
+        f"{multimodal_permission.UI_MAX_CALLS}  \n"
+        f"**Session spend:** {_fmt_usd(governor.session_spend_usd)} / "
+        f"{_fmt_usd(limits.max_session_spend_usd)} · **Document spend limit:** "
+        f"{_fmt_usd(limits.max_document_spend_usd)}  \n"
+        "**Fallback models:** disabled · **Automatic retries:** disabled · "
+        "**Full-page requests:** blocked  \n"
+        "**Organiser/PHI inputs:** blocked · **Input boundary:** synthetic crop only"
+    )
+    synthetic_attested = st.checkbox(
+        "I confirm this selected input is synthetic and contains no PHI or organiser data.",
+        key=f"cr_multimodal_synthetic_{key_base}")
+    confirmed = st.checkbox(
+        "I understand that this may make a paid external API call.",
+        key=f"cr_multimodal_confirmed_{key_base}")
+
+    candidate = candidates[0] if candidates else None
+    request = _multimodal_request(
+        source, document, candidate, synthetic=synthetic_attested)
+    status = multimodal_permission.permission_status(
+        enabled=enabled, confirmed=confirmed,
+        synthetic_attested=synthetic_attested, request=request,
+        governor=governor, calls_used=calls_used)
+    if calls_used >= multimodal_permission.UI_MAX_CALLS:
+        st.error("Paid-call limit reached")
+    elif not status.can_run:
+        st.caption(f"Blocked: {status.reason}")
+
+    run = st.button(
+        "Run one eligible synthetic field", type="primary",
+        disabled=not status.can_run,
+        key=f"cr_multimodal_run_{key_base}")
+    if run and request is not None:
+        fingerprint = status.policy.fingerprint if status.policy else request.request_id
+        if session.get("active_fingerprint") or fingerprint in receipts:
+            st.info("This request already has a session receipt. No call was repeated.")
+        else:
+            session["active_fingerprint"] = fingerprint
+            try:
+                page_row = next(row for row in document["fields"]
+                                if row["page"] == candidate["page"])
+                context = {name: field.get("value")
+                           for name, field in page_row["fields"].items()}
+                receipt, accepted_value = multimodal_permission.run_one_candidate(
+                    request, enabled=enabled, confirmed=confirmed,
+                    synthetic_attested=synthetic_attested, governor=governor,
+                    config=config, calls_used=calls_used, context=context)
+                receipts[fingerprint] = receipt
+                if receipt.get("called_provider"):
+                    updated = workspace.apply_multimodal_candidate(
+                        document, page=candidate["page"],
+                        field_name=candidate["field_name"], value=accepted_value,
+                        receipt=receipt)
+                    _replace_multimodal_document(state, updated)
+            finally:
+                session["active_fingerprint"] = None
+            st.rerun()
+
+    _render_multimodal_receipt(st, receipts, calls_used)
+
+
+def _render_multimodal_receipt(st, receipts: dict, calls_used: int) -> None:
+    if not receipts:
+        return
+    receipt = list(receipts.values())[-1]
+    st.markdown("#### Paid multimodal receipt")
+    st.dataframe([{
+        "Calls used": calls_used,
+        "Measured cost": _fmt_usd(receipt.get("measured_cost_usd") or 0),
+        "Latency": f"{float(receipt.get('latency_ms') or 0) / 1000:.2f} s",
+        "Final field outcome": receipt.get("final_field_outcome"),
+    }], hide_index=True, width="stretch")
 
 
 def _style(st) -> None:
@@ -1336,26 +1489,8 @@ def _render_local_document(st, result, items, state: dict | None = None):
         }], hide_index=True, width="stretch")
         if not receipt["improved"]:
             st.info("No additional fields were resolved.")
-    routed_for_review = [
-        row for row in selected.get("provider_escalations", [])
-        if row.get("multimodal_eligible")
-        and row.get("final_workflow_state") == "HUMAN_REVIEW_REQUIRED"
-    ]
-    if routed_for_review:
-        eligible_multimodal = len(routed_for_review)
-        st.button(
-            "Multimodal unavailable",
-            disabled=True,
-            help="Provider disabled by policy. No data was sent.",
-            key=f"multimodal_{selected['safe_source_id']}",
-        )
-        st.info(
-            "Multimodal escalation unavailable\n\n"
-            "Provider disabled by policy.\n\n"
-            f"{eligible_multimodal} eligible field(s) were not sent.\n\n"
-            f"Routed to human review: {eligible_multimodal}.\n\n"
-            "External calls: 0. No data left this machine."
-        )
+    if state is not None:
+        _render_multimodal_permission(st, state, selected, source)
     evidence_tabs = st.tabs(["Validations", "Retries & governor", "Cost & latency"])
     with evidence_tabs[0]:
         validation_rows = _validation_rows(selected["validations"])
