@@ -1,6 +1,7 @@
 # Security, PHI, and data-boundary audit
-field crops may be sent to named providers. Public Netlify hosting serves only the static project
-status page; it does not host Python extraction or accept uploads.
+
+Real-provider escalation is disabled by default. If separately approved and enabled, only bounded
+field crops may be sent to an approved named provider; full-page requests are rejected.
 ## Verified repository state
 
 - The committed benchmark uses deterministic synthetic CMS-1500 and UB-04 claims only.
@@ -15,7 +16,7 @@ status page; it does not host Python extraction or accept uploads.
 - A tracked-file scan found no `.env`, private key, database, official-dataset filename, or literal
   provider secret. Provider adapters read credentials from environment variables only.
 
-## Not production-ready
+## Production gaps
 
 The prototype has no authentication, authorization, encrypted durable audit store, retention
 enforcement, review queue, tenant isolation, hard worker cancellation, DLP, consent/purpose control,

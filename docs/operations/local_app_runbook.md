@@ -91,6 +91,6 @@ verified.
 
 ## Fallback demo plan
 
-If local OCR startup fails, show `docs/screenshots/day10_home.png`, then present the committed
-Day 9 mode comparison and Day 8 synthetic benchmark outputs. Do not substitute hard-coded field
+If local OCR startup fails, show `docs/screenshots/day10_home.png`, then present the committed Day 11
+frozen summary and `docs/submission/final_submission_package.md`. Do not substitute hard-coded field
 results or claim that the offline oracle is a real provider.

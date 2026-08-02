@@ -10,6 +10,8 @@
 | Local cost | Ledger | Measured usage + configured price | Local stage usage was measured and prices to $0.0000722/page at the configured compute rate. | Local OCR is free. |
 | Throughput | Throughput summary | Verified prototype | The development-workstation prototype measured 9.2 pages/minute on the frozen synthetic run. | Production throughput is 552 pages/hour per worker. |
 | Provider accuracy | None | Prohibited | No provider-accuracy claim is approved. | GPT-5/Gemini/Claude achieves the oracle result. |
-| Official dataset | Governance note | Prohibited | Official-looking files were excluded pending mapping, purpose, retention, PHI, and provider approval. | The final score was measured on organizer claims. |
+| Official Tier B | PHI-safe organiser receipt | Verified official page routing | On deterministically linked evaluable items, Tier B selected 4/4 claim pages and rejected 15/15 attachments. | All Tier B containers were authoritatively mapped. |
+| Official Tier C | Frozen one-time holdout receipt | Verified official, provisional denominator | Tier C measured 36/42 primary normalized fields (85.714%) and 16/18 critical fields (88.889%) under the required provisional-denominator label. | ClaimRoute achieves 85.714% on all UB-04 claims. |
+| Tier A / Tier D | Development or limited evidence only | Holdout/full-support claim prohibited | Tier A is not officially holdout-proven; Tier D routing exists but extraction support is limited. | All official tiers or document types are fully supported. |
 | Enterprise scale | Cost projection | Projected | Linear cost projections are shown for planning only. | ClaimRoute is proven at 100 million pages. |
 | Licence compatibility | Installed metadata and `docs/licensing.md` | Verified for listed OSS; provider terms separate | Listed runtime dependencies declare permissive licenses; provider and dataset terms require separate approval. | All commercial/data use is legally approved. |

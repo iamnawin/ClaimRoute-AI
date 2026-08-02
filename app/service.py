@@ -15,7 +15,7 @@ from PIL import Image, ImageDraw
 from engine.extract import run_page
 from engine.governor import field_policy
 from engine.ledger import CostLedger
-from engine.schemas import FieldState, PageResult
+from engine.schemas import FieldState, PageResult, Verdict
 
 ROOT = Path(__file__).resolve().parents[1]
 MODES_PATH = ROOT / "configs" / "operating_modes.yaml"
@@ -141,6 +141,9 @@ def _source_attempt(field):
 
 
 def _status_label(field) -> str:
+    if any(stamp.validator == "service_line_activation"
+           and stamp.verdict == Verdict.INAPPLICABLE for stamp in field.stamps):
+        return "Inapplicable"
     if field.state == FieldState.HUMAN_REVIEW:
         return "Human review"
     if field.state == FieldState.ACCEPT_WITH_FLAG:
@@ -166,13 +169,16 @@ def _field_row(name: str, field, decisions: list, escalation: dict | None) -> di
         "latency_ms": round(attempt.latency_ms, 2),
         "cost_usd": round(attempt.cost_usd, 8),
     } for attempt in field.attempts]
+    inapplicable = any(stamp.validator == "service_line_activation"
+                       and stamp.verdict == Verdict.INAPPLICABLE
+                       for stamp in field.stamps)
     return {
         "field_name": name,
         "final_value": field.value,
         "confidence": round(field.confidence, 4),
         "criticality": field_policy(name).get("criticality", "med"),
         "source_engine": source.engine if source else "unknown",
-        "decision": field.state.value,
+        "decision": "INAPPLICABLE" if inapplicable else field.state.value,
         "status": _status_label(field),
         "validation_status": ", ".join(
             sorted({stamp.verdict.value for stamp in field.stamps})) or "NOT_APPLICABLE",
@@ -221,12 +227,43 @@ def build_receipt(page: PageResult, ledger_entries: list[dict], mode: str,
     local_cost = sum(float(entry.get("cost_usd", 0)) for entry in local_entries)
     projected_api = sum(float(entry.get("cost_usd", 0)) for entry in oracle_entries)
     measured_api = sum(float(entry.get("cost_usd", 0)) for entry in live_entries)
+    primary_cost = sum(float(entry.get("cost_usd", 0)) for entry in local_entries
+                       if entry.get("operation", "").startswith("ocr_"))
+    retry_cost = sum(float(entry.get("cost_usd", 0)) for entry in local_entries
+                     if entry.get("operation", "").startswith("retry_"))
+    other_local_cost = max(0.0, local_cost - primary_cost - retry_cost)
     input_tokens = sum(int(entry.get("meta", {}).get("input_tokens") or 0)
                        for entry in oracle_entries + live_entries)
     output_tokens = sum(int(entry.get("meta", {}).get("output_tokens") or 0)
                         for entry in oracle_entries + live_entries)
+    prices = yaml.safe_load((ROOT / "configs" / "prices.yaml").read_text(
+        encoding="utf-8"))["vision_models"]
+    pipeline = yaml.safe_load((ROOT / "configs" / "pipeline.yaml").read_text(
+        encoding="utf-8"))
+
+    def token_cost(entries: list[dict], token_key: str, price_key: str) -> float:
+        total = 0.0
+        for entry in entries:
+            model = str((entry.get("meta") or {}).get("model") or "")
+            if (entry.get("operation") == "escalate_offline-oracle"
+                    or model == "offline-oracle"):
+                model = pipeline["model_policy"]["offline_oracle"]["price_as"]
+            price = prices.get(model) or prices.get(model.rsplit("/", 1)[-1])
+            if price:
+                total += int((entry.get("meta") or {}).get(token_key) or 0) * float(
+                    price[price_key]) / 1_000_000
+        return total
+
+    projected_input_cost = token_cost(oracle_entries, "input_tokens", "input")
+    projected_output_cost = token_cost(oracle_entries, "output_tokens", "output")
+    measured_input_cost = token_cost(live_entries, "input_tokens", "input")
+    measured_output_cost = token_cost(live_entries, "output_tokens", "output")
 
     modes = load_operating_modes()
+    final_output = page.to_json_dict()
+    for row in field_rows:
+        if row["decision"] == "INAPPLICABLE":
+            final_output[row["field_name"]]["state"] = "INAPPLICABLE"
     return {
         "document": {
             "document_id": page.doc_id,
@@ -253,7 +290,19 @@ def build_receipt(page: PageResult, ledger_entries: list[dict], mode: str,
             "api_calls_avoided": len(field_rows) - escalated,
         },
         "costs": {
+            "primary_ocr": {"basis": "MEASURED", "value_usd": round(primary_cost, 8)},
+            "retry_ocr": {"basis": "MEASURED", "value_usd": round(retry_cost, 8)},
+            "local_compute_other": {
+                "basis": "MEASURED", "value_usd": round(other_local_cost, 8)},
             "local_compute": {"basis": "MEASURED", "value_usd": round(local_cost, 8)},
+            "multimodal_input_tokens": {
+                "basis": "MEASURED", "value_usd": round(measured_input_cost, 8)},
+            "multimodal_output_tokens": {
+                "basis": "MEASURED", "value_usd": round(measured_output_cost, 8)},
+            "projected_multimodal_input_tokens": {
+                "basis": "OFFLINE_ORACLE", "value_usd": round(projected_input_cost, 8)},
+            "projected_multimodal_output_tokens": {
+                "basis": "OFFLINE_ORACLE", "value_usd": round(projected_output_cost, 8)},
             "api": {"basis": "PROJECTED", "value_usd": round(projected_api, 8)},
             "measured_api": {"basis": "MEASURED", "value_usd": round(measured_api, 8)},
             "measured_total_automated": {
@@ -268,7 +317,7 @@ def build_receipt(page: PageResult, ledger_entries: list[dict], mode: str,
         "usage": {"input_tokens": input_tokens, "output_tokens": output_tokens},
         "latency_ms": round(elapsed_ms, 2),
         "fields": field_rows,
-        "final_output": page.to_json_dict(),
+        "final_output": final_output,
     }
 
 
@@ -278,7 +327,7 @@ def process_document(image: Image.Image, doc_id: str, mode: str, *, source_kind:
                      timeout_seconds: int = PROCESSING_TIMEOUT_SECONDS) -> dict:
     if mode not in load_operating_modes():
         raise ValueError(f"Unknown operating mode: {mode}")
-    if source_kind not in {"upload", "bundled_synthetic"}:
+    if source_kind not in {"upload", "bundled_synthetic", "local_workspace"}:
         raise ValueError(f"Unknown document source: {source_kind}")
     run_escalate = source_kind == "bundled_synthetic"
     model = "offline-oracle" if run_escalate else None

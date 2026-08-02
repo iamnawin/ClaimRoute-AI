@@ -46,6 +46,16 @@ def test_application_imports_without_running_ui():
     assert callable(streamlit_app.main)
 
 
+def test_public_mode_denies_folder_access_and_local_mode_enables_it():
+    from app import streamlit_app
+
+    assert streamlit_app.app_mode({}) == "public_synthetic"
+    assert streamlit_app.local_folder_enabled({}) is False
+    local = {"CLAIMROUTE_APP_MODE": "local_workspace"}
+    assert streamlit_app.app_mode(local) == "local_workspace"
+    assert streamlit_app.local_folder_enabled(local) is True
+
+
 def test_modes_load_and_balanced_is_default():
     modes = service.load_operating_modes()
     assert service.DEFAULT_MODE == "balanced"
@@ -135,6 +145,12 @@ def test_summary_calculations_and_cost_labels():
     assert receipt["costs"]["local_compute"]["basis"] == "MEASURED"
     assert receipt["costs"]["api"]["basis"] == "PROJECTED"
     assert receipt["costs"]["measured_api"]["value_usd"] == 0.0
+    assert receipt["costs"]["multimodal_input_tokens"] == {
+        "basis": "MEASURED", "value_usd": 0.0}
+    assert receipt["costs"]["projected_multimodal_input_tokens"] == {
+        "basis": "OFFLINE_ORACLE", "value_usd": 0.000005}
+    assert receipt["costs"]["projected_multimodal_output_tokens"] == {
+        "basis": "OFFLINE_ORACLE", "value_usd": 0.000004}
     assert receipt["usage"] == {"input_tokens": 100, "output_tokens": 10}
 
 

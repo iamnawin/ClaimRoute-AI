@@ -32,9 +32,28 @@ eval/official/diagnostics/
 !.streamlit/
 !.streamlit/config.toml
 .streamlit/secrets.toml
+# Provider API keys for engine/escalation live here. Never committed;
+# .env.example is the tracked, value-free template.
+.env
+.env.*
+!.env.example
+# Authorized organiser/development claim documents staged for a local run.
+# These are real claim images (potential PHI) and must never be committed;
+# the runbook asks that they live outside the repository entirely.
+authorized-development/
+*.tif
+*.tiff
 *.egg-info/
 .pytest_cache/
 .claude-flow/
 eval/results/_smoke_*.jsonl
 eval/results/vision_cache.jsonl
 eval/frozen/_work/
+
+# Local verification and generated submission artefacts.
+tmp/
+submission/*.pdf
+submission/*.xlsx
+submission/*.mp4
+submission/*.zip
+submission/demo_assets/*.png

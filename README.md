@@ -24,7 +24,7 @@ data/           generated datasets (reproducible from seed; not committed)
 ```bash
 uv venv
 uv pip install --python .venv/Scripts/python.exe -r requirements.txt
-python -m data_factory.make_dataset --n-per-form 10 --seed 42 --out data/generated
+uv run --python .venv/Scripts/python.exe python -m data_factory.make_dataset --n-per-form 10 --seed 42 --out data/generated
 ```
 
 Every generated page ships with exact ground-truth JSON. The dataset is fully synthetic and
@@ -46,6 +46,32 @@ For Streamlit Community Cloud, deploy `app/streamlit_app.py` from the repository
 Python 3.12 and no secrets. Python dependencies are pinned in `requirements.txt`; Debian OCR
 packages are declared in `packages.txt`. See `docs/operations/public_deployment.md`.
 
+## Localhost document workspace
+
+The local workspace accepts one file, multiple files, or a recursively scanned folder. It detects
+PNG, JPEG, TIFF/CCITT, multipage TIFF, PDF, and TIFF content behind numeric extensions from file
+signatures rather than filenames. Mixed inventories separate claim documents, expected output,
+specifications, attachments, unsupported files, and unknown files before processing.
+
+PowerShell:
+
+```powershell
+$env:CLAIMROUTE_APP_MODE = "local_workspace"
+uv run --python .venv\Scripts\python.exe python -m streamlit run app\streamlit_app.py
+```
+
+Open `http://localhost:8501`. Use **Process Documents** when no ground truth is available. Use
+**Evaluate Dataset** only when the inventory includes expected-output files; extraction finishes
+before expected output is parsed, linked, or compared. External escalation is disabled. Folder
+paths are available only in `local_workspace`; the default `public_synthetic` mode keeps its
+synthetic-only upload policy.
+
+PDF pages are rasterized locally with `pypdfium2` and passed through the existing image/OCR path.
+This supports scanned and text-native PDFs as rendered pages; ClaimRoute does not claim native PDF
+text extraction. The default limit is 100 pages per document and can be changed locally with
+`CLAIMROUTE_MAX_PAGES`. See `docs/design/local_intake_workspace.md` and
+`docs/submission/manual_testing_runbook.md`.
+
 ## Frozen Day 11 evidence
 
 Balanced mode achieved **99.716% exact field accuracy** and **99.936% critical-field accuracy**
@@ -59,14 +85,16 @@ These are synthetic-test results, not real-claim or provider-accuracy claims. St
 `docs/submission/evidence_index.md` and `docs/submission/claims_register.md`; exact manifests and
 receipts are under `eval/frozen/`.
 
-## Official organiser sample
+## Official organiser evidence
 
 The separate local-only adapter under `eval/official/` decoded all 30 organiser TIFF containers
-(67 pages) and parsed the supplied NSF/UB expected-output records without committing source data or
-values. The first run is **not an authoritative official benchmark**: four record links abstained,
-and the legacy monochrome layouts do not align with the synthetic red-grid templates. No combined
-official score is published. See `docs/official_dataset_benchmark.md` for the PHI-safe receipt,
-limitations, organiser questions, and exact rerun command.
+(67 pages) without committing source data or values. No combined official score is published
+because four record links abstained. On deterministically linked evaluable Tier B items, 4/4 claim
+pages were selected and 15/15 attachments rejected. A separate one-time Tier C UB-04 holdout
+measured 36/42 primary normalized fields (85.714%), 36/63 extended fields (57.143%), 16/18 critical
+fields (88.889%), and 3/3 registrations under a provisional denominator policy, with zero external
+calls. These results are separate from the synthetic benchmark. See
+`docs/official_dataset_benchmark.md` and `docs/evaluation/official_ub04_holdout.md`.
 
 ## Licensing
 
@@ -86,6 +114,7 @@ the installed version, not inferred.
 | onnxruntime | 1.28.0 | Inference runtime (transitive, via rapidocr-onnxruntime) | MIT | runtime, transitive | [microsoft/onnxruntime](https://github.com/microsoft/onnxruntime) |
 | OpenCV (opencv-python) | 5.0.0.93 | Image ops (transitive, via rapidocr-onnxruntime) | Apache-2.0 | runtime, transitive | [opencv/opencv-python](https://github.com/opencv/opencv-python) |
 | Streamlit | 1.60.0 | Local demo application | Apache-2.0 | runtime | [streamlit/streamlit](https://github.com/streamlit/streamlit) |
+| pypdfium2 | 5.12.1 | Local PDF page rasterization | BSD-3-Clause OR Apache-2.0; bundled PDFium uses a BSD-style licence | runtime | [pypdfium2-team/pypdfium2](https://github.com/pypdfium2-team/pypdfium2) |
 | pytest | 9.1.1 | Test runner | MIT | development | [pytest-dev/pytest](https://github.com/pytest-dev/pytest) |
 
 No cloud OCR or vision service is required to run the pipeline: Tier-1 extraction is fully

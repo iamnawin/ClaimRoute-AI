@@ -1,0 +1,40 @@
+# Proposed OpenRouter routing. Documentation-only placeholder: runtime code does
+# not load this file, and external providers remain disabled for local documents.
+version: 1
+status: proposed_unverified
+enabled: false
+provider: openrouter
+
+models:
+  qwen_flash:
+    model_id: qwen/qwen3.7-flash
+    supports_images: true
+
+  gemini_flash_lite:
+    model_id: google/gemini-2.5-flash-lite
+    supports_images: true
+
+  qwen_plus:
+    model_id: qwen/qwen3.7-plus
+    supports_images: true
+
+  gemini_31_flash_lite:
+    model_id: google/gemini-3.1-flash-lite
+    supports_images: true
+
+operating_modes:
+  economy:
+    primary: qwen_flash
+    fallback: null
+    max_paid_attempts: 1
+
+  balanced:
+    primary: gemini_flash_lite
+    fallback: qwen_plus
+    max_paid_attempts: 2
+    fallback_critical_only: true
+
+  accuracy:
+    primary: qwen_plus
+    fallback: gemini_31_flash_lite
+    max_paid_attempts: 2

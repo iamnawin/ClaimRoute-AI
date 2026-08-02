@@ -3,10 +3,13 @@ from __future__ import annotations
 
 import cv2
 import numpy as np
+import pytest
 from PIL import Image
 
+from app.workspace import _active_cms1500_service_lines, _mark_inactive_cms1500_service_lines
 from engine.ocr import get_engine
 from engine.ocr.base import OcrWord
+from engine.schemas import FieldResult, FieldState, PageResult
 from eval.official.normalization import normalize_value
 from eval.official.extraction import map_monochrome_fields, retry_official_page
 from eval.official.ocr_retry import (
@@ -87,6 +90,51 @@ def test_validated_candidate_stops_retry_but_unvalidated_text_does_not():
 
 def test_ocr_engine_registry_reuses_instances():
     assert get_engine("tesseract") is get_engine("tesseract")
+
+
+def _service_line_page(count: int):
+    page = PageResult("synthetic", "p1", "cms1500", quality_score=.9)
+    for index in range(1, 4):
+        values = {
+            "date_from": "03 15 24" if index <= count else "",
+            "cpt_code": "99213" if index <= count else "",
+            "charges": "125.00" if index <= count else "|",
+        }
+        for suffix, value in values.items():
+            name = f"line{index}_{suffix}"
+            field = FieldResult("synthetic", "p1", name, value, confidence=.9)
+            field.set_state(FieldState.RETRY)
+            page.fields[name] = field
+            page.decisions[name] = [("RETRY", "fixture")]
+    return page
+
+
+@pytest.mark.parametrize(("line_count", "expected"), [
+    (1, {1}), (2, {1, 2}), (3, {1, 2, 3}),
+])
+def test_service_line_activation_ignores_blank_row_grid_noise(line_count, expected):
+    assert _active_cms1500_service_lines(_service_line_page(line_count).fields) == expected
+
+
+def test_inactive_service_lines_are_inapplicable_and_never_retried():
+    page = _service_line_page(1)
+    _mark_inactive_cms1500_service_lines(page)
+
+    assert page.decisions["line1_date_from"][-1][0] != "INAPPLICABLE"
+    assert all(page.decisions[f"line{line}_{suffix}"][-1][0] == "INAPPLICABLE"
+               for line in (2, 3) for suffix in ("date_from", "cpt_code", "charges"))
+    assert not any(field.state == FieldState.RETRY
+                   for name, field in page.fields.items()
+                   if name.startswith(("line2_", "line3_")))
+
+
+def test_ambiguous_service_line_is_not_silently_marked_inapplicable():
+    page = _service_line_page(1)
+    page.fields["line2_charges"].value = "125.00"
+
+    _mark_inactive_cms1500_service_lines(page)
+
+    assert page.decisions["line2_charges"][-1][0] == "RETRY"
 
 
 def _registered_form() -> Image.Image:
