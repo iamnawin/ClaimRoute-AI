@@ -123,7 +123,9 @@ production SLA.”
 [Show page 6 of `02_Architecture.pdf`.]
 
 “The provider-neutral foundations are implemented. OpenAI- and Gemini-compatible adapters exist
-behind the same crop contract. OpenRouter live execution has not been verified. OpenRouter is one
+behind the same crop contract. Live OpenRouter execution has been verified once, as a single-call
+synthetic crop smoke test costing 0.00001829 dollars with no model substitution. That is
+integration evidence, not a performance benchmark. OpenRouter is one
 possible route after the Cost Governor, Model Selection Policy, and Provider Adapter Registry; it is
 not a permanent dependency. Direct commercial APIs, enterprise proprietary models, and local
 multimodal models are adapter extension paths. Real-provider escalation is disabled by default,

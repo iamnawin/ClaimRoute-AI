@@ -12,7 +12,7 @@
 - [ ] Follow `10_minute_spoken_script.md` and `demo_sequence.md` exactly.
 - [ ] Do not show official source files, filenames, record values, crops, or organiser folders.
 - [ ] Do not show `.env`, environment variables, API keys, terminal history, or browser developer tools.
-- [ ] Export as `submission/03_Demo.mp4` only after the final take is selected.
+- [ ] Export as `submission/final/03_Demo.mp4` only after the final take is selected.
 
 ## Audio
 

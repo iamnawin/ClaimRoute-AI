@@ -9,4 +9,10 @@ This folder is recording-ready but does not contain a recorded MP4.
 - Backup visuals: `day10_home.png`, `architecture_flow.png`, `benchmark_summary.png`,
   `cost_and_latency.png`, and `recording_title.png`
 
-Status of `submission/03_Demo.mp4`: **RECORDING_REQUIRED**.
+Status of `submission/final/03_Demo.mp4`: **RECORDING_REQUIRED**.
+
+The working cut used while recording - the 8:30 script, the timed click path, the
+pre-flight and export gate, the failure talk tracks, the screenshot inspection,
+and the on-screen data allowlist - is in
+[`../working/demo_assets/`](../working/demo_assets/). This folder stays canonical
+for wording, screen order, and the PNG visuals.
