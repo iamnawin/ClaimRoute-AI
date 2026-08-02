@@ -626,41 +626,6 @@ def section_19_implemented_roadmap() -> list:
     return story
 
 
-def story() -> list:
-    sections = [
-        section_1_overview,
-        section_2_prototype_flow,
-        section_3_intake,
-        section_4_preprocess,
-        section_5_router,
-        section_6_ocr_layout,
-        section_7_validation,
-        section_8_fusion_governor,
-    ]
-    result: list = []
-    for section in sections:
-        result.extend(section())
-
-    remaining = (
-        (section_9_validation_layer, False),
-        (section_10_cost_governor, False),
-        (section_11_local_retry, False),
-        (section_12_multimodal, False),
-        (section_13_human_review, False),
-        (section_14_accuracy_evidence, True),
-        (section_15_cost_architecture, False),
-        (section_16_throughput_scalability, True),
-        (section_17_resilience, False),
-        (section_18_security_privacy, True),
-        (section_19_implemented_roadmap, False),
-    )
-    for section, starts_page in remaining:
-        if starts_page:
-            result.append(PageBreak())
-        result.extend(section())
-    return result
-
-
 def validate_required_evidence() -> None:
     b = E.blended
     required_blended = {
@@ -699,57 +664,6 @@ def validate_required_evidence() -> None:
         raise KeyError(f"missing live-smoke evidence keys: {', '.join(missing_smoke)}")
     if smoke["external_calls_made"] != 1 or smoke["model_substituted"]:
         raise ValueError("live-smoke receipt does not describe the approved one-call result")
-
-
-def _page_count(path: Path) -> int:
-    import pypdfium2 as pdfium
-
-    document = pdfium.PdfDocument(str(path))
-    try:
-        return len(document)
-    finally:
-        document.close()
-
-
-def main() -> int:
-    temp_path: Path | None = None
-    try:
-        validate_required_evidence()
-        OUT.parent.mkdir(parents=True, exist_ok=True)
-        with tempfile.NamedTemporaryFile(
-            prefix="02_Architecture.", suffix=".tmp.pdf", dir=OUT.parent, delete=False
-        ) as handle:
-            temp_path = Path(handle.name)
-
-        build(
-            temp_path,
-            title="ClaimRoute AI - Solution Architecture and Technical Design",
-            subject="Datamatics AI Engineering Hackathon 2026",
-            story=story(),
-            footer_left=f"ClaimRoute AI - Architecture - evidence frozen at {E.frozen_commit[:12]}",
-        )
-        size = temp_path.stat().st_size
-        if size <= 0:
-            raise ValueError("generated PDF is empty")
-        pages = _page_count(temp_path)
-        if pages <= 0:
-            raise ValueError("generated PDF contains no pages")
-
-        temp_path.replace(OUT)
-        temp_path = None
-        print(f"pages: {pages}")
-        print(f"bytes: {size:,}")
-        print(f"wrote: {OUT}")
-        return 0
-    except Exception as exc:
-        if temp_path is not None:
-            temp_path.unlink(missing_ok=True)
-        print(f"architecture PDF generation failed: {exc}", file=sys.stderr)
-        return 1
-
-
-if __name__ == "__main__":
-    raise SystemExit(main())
 
 
 def section_9_validation_loop() -> list:
@@ -1471,6 +1385,12 @@ def validate_evidence() -> None:
         raise SystemExit("Frozen ledger produced no stage cost rows.")
     if not E.cost_projection():
         raise SystemExit("Frozen cost projection is empty.")
+
+    # Stage-cost operations, projection volumes, and the one-call live-smoke receipt.
+    try:
+        validate_required_evidence()
+    except (KeyError, ValueError) as exc:
+        raise SystemExit(f"Frozen evidence failed detailed validation: {exc}") from exc
 
 
 def build_story() -> list:
