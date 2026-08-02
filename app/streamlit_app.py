@@ -41,6 +41,9 @@ BATCH_COUNTERS = {
     "external_calls": "External calls",
 }
 
+WORKSPACE_STATE_KEY = "claimroute_workspace"
+WORKSPACE_TABS = ["Intake & Run", "Results", "Human Review", "Accuracy", "Cost"]
+
 EVALUATION_COUNTERS = {
     "documents_found": "Documents found",
     "expected_records_found": "Expected records found",
@@ -69,6 +72,29 @@ def _fmt_pct(value) -> str:
 
 def _fmt_usd(value) -> str:
     return f"${float(value):,.6f}"
+
+
+def _fmt_pct_or_unavailable(value) -> str:
+    return _fmt_pct(value) if value is not None else "Unavailable"
+
+
+def _fmt_cost(cost: dict) -> str:
+    value = cost.get("value_usd")
+    return _fmt_usd(value) if value is not None else "Unavailable"
+
+
+def _measured_cost_donut_rows(components: dict) -> list[dict]:
+    labels = {
+        "primary_ocr": "Primary OCR",
+        "retry_ocr": "Retry OCR",
+        "local_compute_other": "Other local compute",
+        "multimodal_input_tokens": "Multimodal input tokens",
+        "multimodal_output_tokens": "Multimodal output tokens",
+    }
+    return [{
+        "Component": label,
+        "Cost USD": float(components[key]["value_usd"] or 0),
+    } for key, label in labels.items()]
 
 
 def _shown(value, screenshot_safe: bool):
@@ -101,6 +127,10 @@ def _yes_no(value) -> str:
 def _provider_label(value: str) -> str:
     return {"openrouter": "OpenRouter", "openai": "OpenAI"}.get(
         str(value).lower(), str(value).replace("_", " ").title())
+
+
+def _status_label(value: str | None) -> str:
+    return str(value or "Unknown").replace("_", " ").title()
 
 
 def _provider_rows(result: dict) -> list[dict]:
@@ -150,34 +180,148 @@ def _evaluation_display(evaluation: dict) -> dict:
     }
 
 
+def _new_workspace_state(session_state) -> dict:
+    """Create the single local-workspace state contract, preserving legacy values."""
+    batch = session_state.get("workspace_batch")
+    inventory = session_state.get("workspace_inventory", [])
+    mode = (batch or {}).get("operating_mode") or session_state.get(
+        "workspace_mode", service.DEFAULT_MODE)
+    workflow = session_state.get("workspace_workflow") or (
+        "Evaluate Dataset" if (batch or {}).get("evaluation") is not None
+        else "Process Documents")
+    return {
+        "workflow": workflow,
+        "operating_mode": mode,
+        "inventory": inventory,
+        "selected_document_ids": session_state.get("workspace_selected_ids", []),
+        "scan_result": session_state.get("workspace_scan_state"),
+        "batch_results": batch,
+        "selected_result_id": None,
+        "processing_state": {
+            "running": bool(session_state.get("workspace_job_running")),
+            "pending_job": session_state.get("workspace_pending_job"),
+            "active_job": session_state.get("workspace_active_job"),
+            "error": session_state.get("workspace_job_error"),
+            "stage": session_state.get("workspace_stage"),
+            "selection_signature": (),
+        },
+        "retry_receipts": [],
+        "review_queue": [],
+        "review_corrections": [],
+        "evaluation_summary": (batch or {}).get("evaluation"),
+        "cost_summary": ((batch or {}).get("summary") or {}).get("cost_dashboard"),
+        "input_source": session_state.get("workspace_source", "Single file"),
+        "active_tab": "Intake & Run",
+    }
+
+
+def _workspace_state(session_state) -> dict:
+    if WORKSPACE_STATE_KEY not in session_state:
+        session_state[WORKSPACE_STATE_KEY] = _new_workspace_state(session_state)
+        for key in [
+            "workspace_workflow", "workspace_mode", "workspace_source",
+            "workspace_inventory", "workspace_selected_ids", "workspace_scan_state",
+            "workspace_batch", "workspace_job_running", "workspace_pending_job",
+            "workspace_active_job", "workspace_job_error", "workspace_stage",
+            "workspace_section",
+        ]:
+            session_state.pop(key, None)
+    return session_state[WORKSPACE_STATE_KEY]
+
+
+def _review_queue(batch: dict | None) -> list[dict]:
+    return [
+        {"safe_source_id": result["safe_source_id"], **row}
+        for result in (batch or {}).get("documents", [])
+        for row in workspace.build_review_queue(result)
+    ]
+
+
+def _store_workspace_batch(state: dict, batch: dict) -> None:
+    state["batch_results"] = batch
+    state["evaluation_summary"] = batch.get("evaluation")
+    state["cost_summary"] = (batch.get("summary") or {}).get("cost_dashboard")
+    state["review_queue"] = _review_queue(batch)
+    produced = [row for row in batch.get("documents", [])
+                if row.get("processing_status") not in {"SKIPPED", "DUPLICATE"}]
+    available = {row["safe_source_id"] for row in produced}
+    if state.get("selected_result_id") not in available:
+        state["selected_result_id"] = produced[0]["safe_source_id"] if produced else None
+
+
+def _refresh_workspace_batch(state: dict) -> None:
+    batch = state.get("batch_results")
+    if not batch:
+        return
+    batch["processing_status"] = workspace._batch_status(batch["documents"])
+    batch["summary"] = workspace.summarize_results(batch["documents"])
+    if state["workflow"] == "Evaluate Dataset":
+        workspace.evaluate_dataset(batch, state["inventory"])
+    else:
+        batch["evaluation"] = None
+    _store_workspace_batch(state, batch)
+
+
+def _sync_workspace_controls(session_state, state: dict) -> None:
+    for widget_key, state_key in {
+        "cr_workflow": "workflow",
+        "cr_operating_mode": "operating_mode",
+        "cr_input_source": "input_source",
+        "cr_selected_documents": "selected_document_ids",
+        "cr_result_document": "selected_result_id",
+        "cr_workspace_tabs": "active_tab",
+    }.items():
+        if widget_key in session_state:
+            state[state_key] = session_state[widget_key]
+    batch = state.get("batch_results")
+    if batch:
+        state["operating_mode"] = batch.get("operating_mode", state["operating_mode"])
+        session_state["cr_operating_mode"] = state["operating_mode"]
+        if batch.get("evaluation") is not None:
+            state["workflow"] = "Evaluate Dataset"
+            session_state["cr_workflow"] = state["workflow"]
+
+
+def _activate_workspace_tab(session_state, tab: str) -> None:
+    state = _workspace_state(session_state)
+    state["active_tab"] = tab
+    session_state["cr_workspace_tabs"] = tab
+
+
+def _reset_workspace_session(session_state) -> None:
+    session_state.clear()
+
+
 def _queue_workspace_job(state, fingerprint: str) -> bool:
-    if state.get("workspace_job_running"):
+    processing = state["processing_state"]
+    if processing.get("running"):
         return False
-    state["workspace_job_running"] = True
-    state["workspace_pending_job"] = fingerprint
-    state.pop("workspace_job_error", None)
+    processing["running"] = True
+    processing["pending_job"] = fingerprint
+    processing["error"] = None
     return True
 
 
 def _run_workspace_job(state, fingerprint: str, runner):
-    if (not state.get("workspace_job_running")
-            or state.get("workspace_pending_job") != fingerprint
-            or state.get("workspace_active_job")):
+    processing = state["processing_state"]
+    if (not processing.get("running")
+            or processing.get("pending_job") != fingerprint
+            or processing.get("active_job")):
         return None
-    state["workspace_active_job"] = fingerprint
+    processing["active_job"] = fingerprint
     try:
         result = runner()
-        state["workspace_batch"] = result
+        _store_workspace_batch(state, result)
         return result
     except Exception:
-        state["workspace_job_error"] = (
+        processing["error"] = (
             "Processing failed safely. Review the local terminal log and retry."
         )
         return None
     finally:
-        state["workspace_job_running"] = False
-        state.pop("workspace_pending_job", None)
-        state.pop("workspace_active_job", None)
+        processing["running"] = False
+        processing["pending_job"] = None
+        processing["active_job"] = None
 
 
 def _style(st) -> None:
@@ -186,19 +330,53 @@ def _style(st) -> None:
         <style>
         :root {
           --cr-bg: oklch(0.985 0 0);
-          --cr-surface: oklch(0.955 0.008 188);
+          --cr-surface: oklch(0.965 0.008 188);
+          --cr-surface-strong: oklch(0.925 0.022 188);
+          --cr-line: oklch(0.865 0.018 188);
           --cr-ink: oklch(0.225 0.025 200);
           --cr-muted: oklch(0.400 0.022 200);
           --cr-primary: oklch(0.455 0.105 188);
           --cr-primary-soft: oklch(0.925 0.035 188);
         }
         .stApp { background: var(--cr-bg); color: var(--cr-ink); }
-        [data-testid="stSidebar"] { background: var(--cr-surface); }
+        [data-testid="stSidebar"] {
+          background: var(--cr-surface);
+          border-right: 1px solid var(--cr-line);
+        }
+        [data-testid="stSidebar"] [data-testid="stSidebarContent"] {
+          padding-top: 1.35rem;
+        }
         h1, h2, h3 { color: var(--cr-ink); letter-spacing: -0.02em; text-wrap: balance; }
         p, label, [data-testid="stCaptionContainer"] { color: var(--cr-muted); }
         .cr-header { max-width: 68ch; margin-bottom: 1.2rem; }
         .cr-header h1 { font-size: 2.45rem; line-height: 1.05; margin: 0 0 .7rem; }
         .cr-header p { font-size: 1rem; line-height: 1.55; margin: 0; }
+        .cr-app-header {
+          display: flex; align-items: center; justify-content: space-between;
+          gap: 1.5rem; padding: .25rem 0 1.15rem; margin-bottom: 1.4rem;
+          border-bottom: 1px solid var(--cr-line);
+        }
+        .cr-app-header h1 { font-size: 2rem; line-height: 1.1; margin: 0 0 .3rem; }
+        .cr-app-header p { font-size: .95rem; line-height: 1.4; margin: 0; }
+        .cr-mode {
+          flex: 0 0 auto; padding: .5rem .75rem; border-radius: 8px;
+          background: var(--cr-primary-soft); color: var(--cr-ink);
+          font-size: .82rem; font-weight: 750;
+        }
+        .cr-section-intro { max-width: 68ch; margin: -.35rem 0 1.2rem; }
+        .cr-sidebar-brand { margin-bottom: 1rem; }
+        .cr-sidebar-brand strong { color: var(--cr-ink); font-size: 1.08rem; }
+        .cr-sidebar-brand span { color: var(--cr-muted); font-size: .78rem; }
+        [data-testid="stTabs"] [data-baseweb="tab-list"] {
+          gap: .35rem; border-bottom: 1px solid var(--cr-line);
+        }
+        [data-testid="stTabs"] [data-baseweb="tab"] {
+          min-height: 2.8rem; padding: .55rem .8rem; border-radius: 8px 8px 0 0;
+          font-weight: 700;
+        }
+        [data-testid="stTabs"] [aria-selected="true"] {
+          background: var(--cr-primary-soft); color: var(--cr-ink);
+        }
         .cr-pipeline {
           padding: .9rem 1rem; border-radius: 12px; background: var(--cr-primary-soft);
           color: var(--cr-ink); font-weight: 650; line-height: 1.8;
@@ -220,6 +398,10 @@ def _style(st) -> None:
           border-color: var(--cr-primary) !important;
         }
         div[data-testid="stMetric"] { padding: .35rem 0; }
+        @media (max-width: 767px) {
+          .cr-app-header { align-items: flex-start; flex-direction: column; gap: .75rem; }
+          .cr-app-header h1 { font-size: 1.7rem; }
+        }
         @media (prefers-reduced-motion: reduce) {
           * { scroll-behavior: auto !important; transition: none !important; }
         }
@@ -490,10 +672,10 @@ def _render_scan_state(st, scan: dict | None) -> None:
 
 def _render_coverage(st, result: dict) -> None:
     coverage = result.get("coverage") or workspace.coverage_metrics(result)
-    st.markdown("#### Extraction coverage")
+    st.markdown("#### Accuracy dashboard")
     if not coverage.get("available"):
         st.info(coverage.get("message") or
-                "Coverage unavailable â€” document schema not established")
+                "Coverage unavailable — document schema not established")
         return
     values = [
         ("Schema fields", coverage["schema_fields"]),
@@ -505,6 +687,7 @@ def _render_coverage(st, result: dict) -> None:
     ]
     for column, (label, value) in zip(st.columns(6), values):
         column.metric(label, value)
+    st.info(coverage["message"])
     extraction = coverage.get("extraction_coverage")
     validated = coverage.get("validated_coverage")
     st.caption(
@@ -514,12 +697,27 @@ def _render_coverage(st, result: dict) -> None:
     left, right = st.columns(2)
     left.metric("Extraction coverage", _fmt_pct(extraction) if extraction is not None else "N/A")
     right.metric("Validated coverage", _fmt_pct(validated) if validated is not None else "N/A")
-    st.write({"confidence_distribution": coverage["confidence_distribution"]})
+    st.dataframe([{
+        "Critical fields": coverage.get("critical_fields", 0),
+        "Critical resolved": coverage.get("critical_fields_resolved", 0),
+        "Critical resolution": _fmt_pct_or_unavailable(
+            coverage.get("critical_fields_resolution_rate")),
+        "Primary OCR resolution": _fmt_pct_or_unavailable(
+            coverage.get("primary_ocr_resolution_rate")),
+        "Retry resolution": _fmt_pct_or_unavailable(coverage.get("retry_resolution_rate")),
+        "Multimodal resolution": _fmt_pct_or_unavailable(
+            coverage.get("multimodal_resolution_rate")),
+        "Human-review rate": _fmt_pct_or_unavailable(coverage.get("human_review_rate")),
+    }], hide_index=True, width="stretch")
+    st.markdown("##### Confidence distribution")
+    st.bar_chart([{"Band": band.title(), "Fields": count}
+                  for band, count in coverage["confidence_distribution"].items()],
+                 x="Band", y="Fields")
 
 
 def _render_dashboard(st, batch: dict) -> None:
     summary = batch["summary"]
-    st.subheader("Processing dashboard")
+    st.subheader("Batch overview")
     current_stage = next((row.get("processing_stage") for row in batch["documents"]
                           if row.get("processing_stage") not in {"COMPLETED"}), "COMPLETED")
     cards = [
@@ -576,16 +774,225 @@ def _render_dashboard(st, batch: dict) -> None:
     } for row in batch["documents"]], hide_index=True, width="stretch")
 
 
-def _render_review_queue(st, selected: dict, source, batch: dict) -> None:
+def _render_accuracy_dashboard(st, batch: dict) -> None:
+    summary = batch["summary"]
+    evaluation = batch.get("evaluation")
+    st.subheader("Accuracy dashboard")
+    if evaluation is None:
+        schema_known = any((row.get("coverage") or {}).get("available")
+                           for row in batch.get("documents", []))
+        if not schema_known:
+            st.info("Coverage unavailable — document schema not established")
+            return
+        st.info("Coverage estimate — no ground truth provided")
+        st.caption("Extraction coverage = fields produced / applicable fields. Validated coverage = validated resolved fields / applicable fields. INAPPLICABLE fields are excluded from both denominators.")
+        cards = [
+            ("Applicable fields", summary.get("applicable_fields", 0)),
+            ("Fields produced", summary.get("fields_produced", 0)),
+            ("Validated fields", summary.get("validated_fields", 0)),
+            ("Unresolved fields", summary.get("unresolved_fields", 0)),
+            ("Inapplicable fields", summary.get("inapplicable", 0)),
+            ("Extraction coverage", _fmt_pct_or_unavailable(
+                (summary.get("fields_produced") / summary.get("applicable_fields"))
+                if summary.get("applicable_fields") else None)),
+            ("Validated coverage", _fmt_pct_or_unavailable(
+                (summary.get("validated_fields") / summary.get("applicable_fields"))
+                if summary.get("applicable_fields") else None)),
+            ("Critical fields resolved",
+             f"{summary.get('critical_fields_resolved', 0)}/{summary.get('critical_fields', 0)}"),
+        ]
+        for column, (label, value) in zip(st.columns(8), cards):
+            column.metric(label, value)
+        rates = [
+            ("Primary OCR resolution", summary.get("primary_ocr_resolution_rate")),
+            ("Retry resolution", summary.get("retry_resolution_rate")),
+            ("Multimodal resolution", summary.get("multimodal_resolution_rate")),
+            ("Human-review rate", summary.get("human_review_rate")),
+        ]
+        for column, (label, value) in zip(st.columns(4), rates):
+            column.metric(label, _fmt_pct_or_unavailable(value))
+        st.markdown("#### Resolution funnel")
+        funnel = [
+            {"Stage": "Applicable", "Fields": int(summary.get("applicable_fields") or 0)},
+            {"Stage": "Primary resolved", "Fields": int(summary.get("primary_resolved") or 0)},
+            {"Stage": "Retry resolved", "Fields": int(summary.get("retry_resolved") or 0)},
+            {"Stage": "Multimodal resolved", "Fields": max(
+                0, int(summary.get("multimodal_attempted") or 0)
+                - int(summary.get("multimodal_failed") or 0))},
+            {"Stage": "Human reviewed", "Fields": int(
+                summary.get("human_review_completed") or 0)},
+            {"Stage": "Unresolved", "Fields": int(summary.get("unresolved_fields") or 0)},
+        ]
+        st.dataframe(funnel, hide_index=True, width="stretch")
+        st.bar_chart(funnel, x="Stage", y="Fields")
+        coverage_rows = [{
+            "Document": row["document"],
+            "Type": row["document_type"],
+            "Applicable": row["applicable_fields"],
+            "Extraction coverage": row["extraction_coverage"],
+            "Validated coverage": row["validated_coverage"],
+        } for row in summary.get("coverage_by_document", [])]
+        st.markdown("#### Coverage by document")
+        st.dataframe(coverage_rows, hide_index=True, width="stretch")
+        if coverage_rows:
+            st.bar_chart(coverage_rows, x="Document",
+                         y=["Extraction coverage", "Validated coverage"])
+        st.markdown("#### Confidence distribution")
+        st.bar_chart([{"Band": band.title(), "Fields": count}
+                      for band, count in (summary.get("confidence_distribution") or {}).items()],
+                     x="Band", y="Fields")
+    else:
+        display = _evaluation_display(evaluation)
+        if display["message"]:
+            st.warning(display["message"])
+        else:
+            cards = [
+                ("Documents evaluated", evaluation.get("documents_evaluated", 0)),
+                ("Fields evaluated", evaluation.get("evaluated_fields", 0)),
+                ("Correct", evaluation.get("correct_fields", 0)),
+                ("Incorrect", evaluation.get("incorrect_fields", 0)),
+                ("Missing", evaluation.get("missing_fields", 0)),
+                ("False positives", evaluation.get("false_positive_fields", 0)),
+                ("Exact field accuracy", _fmt_pct_or_unavailable(evaluation.get("accuracy"))),
+                ("Critical-field accuracy",
+                 _fmt_pct_or_unavailable(evaluation.get("critical_accuracy"))),
+                ("Precision", _fmt_pct_or_unavailable(evaluation.get("precision"))),
+                ("Recall", _fmt_pct_or_unavailable(evaluation.get("recall"))),
+            ]
+            for start in range(0, len(cards), 5):
+                for column, (label, value) in zip(st.columns(5), cards[start:start + 5]):
+                    column.metric(label, value)
+        st.dataframe([{
+            "Unmatched documents": int(evaluation.get("unmatched_documents") or 0),
+            "Ambiguous pairs": int(evaluation.get("ambiguous_pairs") or 0),
+            "Unmatched expected records": int(
+                evaluation.get("unmatched_expected_records") or 0),
+        }], hide_index=True, width="stretch")
+        if evaluation.get("accuracy_by_document_type"):
+            st.markdown("#### Accuracy by document type")
+            st.dataframe(evaluation["accuracy_by_document_type"],
+                         hide_index=True, width="stretch")
+        if evaluation.get("accuracy_by_field"):
+            st.markdown("#### Accuracy by field")
+            st.dataframe(evaluation["accuracy_by_field"], hide_index=True, width="stretch")
+            st.bar_chart(evaluation["accuracy_by_field"], x="field_name", y="accuracy")
+    st.markdown("#### Unresolved fields")
+    unresolved = summary.get("unresolved_items") or []
+    if unresolved:
+        st.dataframe(unresolved, hide_index=True, width="stretch")
+    else:
+        st.info("No unresolved applicable fields.")
+
+
+def _render_cost_dashboard(st, batch: dict) -> None:
+    dashboard = batch["summary"]["cost_dashboard"]
+    st.subheader("Cost dashboard")
+    components = dashboard["components"]
+    component_labels = {
+        "primary_ocr": "Primary OCR cost",
+        "retry_ocr": "Retry OCR cost",
+        "local_compute_other": "Other local compute",
+        "local_compute": "Total local compute",
+        "multimodal_input_tokens": "Multimodal input-token cost",
+        "multimodal_output_tokens": "Multimodal output-token cost",
+        "projected_multimodal_input_tokens": "Projected multimodal input-token cost",
+        "projected_multimodal_output_tokens": "Projected multimodal output-token cost",
+        "measured_external_api": "Measured external API cost",
+        "projected_api": "Projected API cost",
+        "total_automated": "Total automated cost",
+        "projected_total_automated": "Projected total automated cost",
+    }
+    component_rows = [{
+        "Component": component_labels[key],
+        "Cost USD": cost["value_usd"],
+        "Basis": cost["basis"],
+    } for key, cost in components.items()]
+    for column, (key, cost) in zip(st.columns(5), list(components.items())[:5]):
+        column.metric(component_labels[key], _fmt_cost(cost), help=cost["basis"])
+    st.dataframe(component_rows, hide_index=True, width="stretch")
+    st.markdown("#### Measured automated cost breakdown")
+    donut_rows = _measured_cost_donut_rows(components)
+    measured_total = components["total_automated"]
+    if float(measured_total["value_usd"] or 0) > 0:
+        st.vega_lite_chart(spec={
+            "height": 300,
+            "layer": [{
+                "data": {"values": donut_rows},
+                "mark": {
+                    "type": "arc",
+                    "innerRadius": 78,
+                    "outerRadius": 120,
+                    "cornerRadius": 3,
+                },
+                "encoding": {
+                    "theta": {"field": "Cost USD", "type": "quantitative"},
+                    "color": {
+                        "field": "Component",
+                        "type": "nominal",
+                        "legend": {"title": None, "orient": "bottom"},
+                        "scale": {"range": [
+                            "#0f766e", "#0d9488", "#5eead4", "#2563eb", "#60a5fa"]},
+                    },
+                    "tooltip": [
+                        {"field": "Component", "type": "nominal"},
+                        {"field": "Cost USD", "type": "quantitative", "format": "$,.6f"},
+                    ],
+                },
+            }, {
+                "data": {"values": [{"label": _fmt_cost(measured_total)}]},
+                "mark": {"type": "text", "fontSize": 22, "fontWeight": 650, "dy": -5},
+                "encoding": {"text": {"field": "label"}},
+            }, {
+                "data": {"values": [{"label": "Total measured"}]},
+                "mark": {"type": "text", "fontSize": 12, "color": "#52606d", "dy": 19},
+                "encoding": {"text": {"field": "label"}},
+            }],
+            "config": {"view": {"stroke": None}},
+        }, width="stretch")
+    else:
+        st.info("No measured automated cost is available to plot for this batch.")
+    if int(dashboard["counters"].get("external_calls") or 0) == 0:
+        st.caption("Multimodal cost is $0.000000 because external providers were disabled and no data was sent.")
+    st.caption("Measured spend and projected API cost remain separate; the human-review estimate is excluded from automated cost.")
+    unit_rows = [{"Metric": name.replace("_", " ").title(),
+                  "Cost": _fmt_cost(cost), "Basis": cost["basis"]}
+                 for name, cost in dashboard["unit_costs"].items()]
+    st.markdown("#### Unit economics")
+    for column, (name, cost) in zip(st.columns(3), dashboard["unit_costs"].items()):
+        column.metric(name.replace("_", " ").title(), _fmt_cost(cost),
+                      help=cost["basis"])
+    st.dataframe(unit_rows, hide_index=True, width="stretch")
+    human = dashboard["human_review_estimate"]
+    st.metric("Human-review estimate", _fmt_cost(human), help=human["basis"])
+    st.markdown("#### Enterprise-scale projection")
+    projection_rows = [{
+        "Scale": name.replace("_", " ").title(),
+        "Projected cost": _fmt_cost(cost),
+        "Cost USD": cost["value_usd"],
+        "Basis": cost["basis"],
+    } for name, cost in dashboard["enterprise_projection"].items()]
+    st.dataframe(projection_rows, hide_index=True, width="stretch")
+    st.bar_chart(projection_rows, x="Scale", y="Cost USD")
+    st.markdown("#### Routing and usage counters")
+    st.dataframe([{"Metric": key.replace("_", " ").title(), "Value": value}
+                  for key, value in dashboard["counters"].items()],
+                 hide_index=True, width="stretch")
+    st.markdown("#### Economy versus Balanced versus Accuracy")
+    st.dataframe(dashboard["mode_comparison"], hide_index=True, width="stretch")
+    st.caption("Mode comparison is PROJECTED from recorded replay calibration; it is not current-batch measured accuracy or spend.")
+
+
+def _render_review_queue(st, selected: dict, source, state: dict) -> None:
     queue = workspace.build_review_queue(selected)
-    st.markdown("#### Human review queue")
     if not queue:
         st.info("No unresolved fields are waiting for local human review.")
         return
     st.warning("Corrections are stored in this browser session only. Durable review storage is roadmap work.")
     review = st.selectbox(
         "Review field", queue,
-        format_func=lambda row: f"Page {row['page']} Â· {row['field_name']} Â· {row['provider_state']}",
+        format_func=lambda row: (
+            f"Page {row['page']} - "
+            f"{row['field_name'].replace('_', ' ').title()} - Needs review"),
         key=f"review_item_{selected['safe_source_id']}",
     )
     left, right = st.columns([1, 1.4])
@@ -598,16 +1005,21 @@ def _render_review_queue(st, selected: dict, source, batch: dict) -> None:
                     st.image(crop, caption="Local field crop", width="stretch")
             except (IntakeError, IndexError):
                 st.info("Crop preview is unavailable.")
-        st.write({"criticality": review["criticality"],
-                  "confidence": review["confidence"],
-                  "reason": review["reason"]})
+        st.dataframe([{
+            "Criticality": _status_label(review["criticality"]),
+            "Confidence": review["confidence"],
+            "Reason": review["reason"],
+        }], hide_index=True, width="stretch")
     with right:
         st.dataframe([
             {"Candidate": "Primary OCR", "Value": review.get("primary_candidate")},
             {"Candidate": "Local retry", "Value": review.get("retry_candidate")},
             {"Candidate": "Multimodal", "Value": review.get("multimodal_candidate")},
         ], hide_index=True, width="stretch")
-        st.write({"validation_failures": review["validation_failures"]})
+        if review["validation_failures"]:
+            st.dataframe(review["validation_failures"], hide_index=True, width="stretch")
+        else:
+            st.info("No validation failure details were recorded.")
         action_labels = {
             "Accept/edit value": "EDIT_VALUE",
             "Mark blank": "MARK_BLANK",
@@ -621,7 +1033,7 @@ def _render_review_queue(st, selected: dict, source, batch: dict) -> None:
             review.get("retry_candidate") or review.get("primary_candidate") or ""),
             key=f"review_value_{selected['safe_source_id']}")
         reason = st.text_input("Correction reason", key=f"review_reason_{selected['safe_source_id']}")
-        if st.button("Save correction", type="primary",
+        if st.button("Save and next", type="primary",
                      key=f"review_save_{selected['safe_source_id']}"):
             try:
                 corrected = workspace.apply_human_review(
@@ -630,28 +1042,47 @@ def _render_review_queue(st, selected: dict, source, batch: dict) -> None:
             except ValueError as exc:
                 st.error(str(exc))
             else:
+                batch = state["batch_results"]
                 batch["documents"] = [corrected if row["safe_source_id"] ==
                                       corrected["safe_source_id"] else row
                                       for row in batch["documents"]]
-                batch["processing_status"] = workspace._batch_status(batch["documents"])
-                batch["summary"] = workspace.summarize_results(batch["documents"])
-                batch["evaluation"] = None
-                st.session_state["workspace_batch"] = batch
+                state["review_corrections"] = [
+                    {"safe_source_id": row["safe_source_id"], **audit}
+                    for row in batch["documents"]
+                    for audit in row.get("review_audit", [])
+                ]
+                _refresh_workspace_batch(state)
                 st.rerun()
 
 
-def _render_local_document(st, result, items):
-    st.subheader("Document result")
+def _render_local_document(st, result, items, state: dict | None = None):
     processed = [row for row in result.get("documents", [])
                  if row["processing_status"] not in {"SKIPPED", "DUPLICATE"}]
     if not processed:
         st.info("Process a supported document to inspect its result.")
         return
-    selected = st.selectbox(
-        "Document", processed,
-        format_func=lambda row: f"{row['source_file']} · {row['processing_status']}",
-        key="workspace_result_document",
-    )
+    if state is None:
+        selected = st.selectbox(
+            "Document", processed,
+            format_func=lambda row: f"{row['source_file']} - {row['processing_status']}")
+    else:
+        by_id = {row["safe_source_id"]: row for row in processed}
+        selected_id = state.get("selected_result_id")
+        if selected_id not in by_id:
+            selected_id = processed[0]["safe_source_id"]
+        state["selected_result_id"] = selected_id
+        st.session_state.setdefault("cr_result_document", selected_id)
+        if st.session_state["cr_result_document"] not in by_id:
+            st.session_state["cr_result_document"] = selected_id
+        selected_id = st.selectbox(
+            "Document", list(by_id),
+            format_func=lambda source_id: (
+                f"{by_id[source_id]['source_file']} - "
+                f"{by_id[source_id]['processing_status'].replace('_', ' ').title()}"),
+            key="cr_result_document",
+        )
+        selected = by_id[selected_id]
+        state["selected_result_id"] = selected_id
     source = next((item for item in items
                    if item.safe_source_id == selected["safe_source_id"]), None)
     left, right = st.columns([1, 1.4])
@@ -663,8 +1094,8 @@ def _render_local_document(st, result, items):
             except IntakeError:
                 st.warning("Preview is unavailable; processing metadata remains visible.")
         st.metric("Pages", selected["page_count"])
-        st.metric("Current/final stage", selected.get(
-            "processing_stage", selected["processing_status"]))
+        st.metric("Current/final stage", _status_label(selected.get(
+            "processing_stage", selected["processing_status"])))
         st.metric("Unresolved fields", selected["unresolved_fields"]
                   if selected["unresolved_fields"] is not None else "Unknown")
         st.metric("Latency", f"{selected['latency']['milliseconds'] / 1000:.2f} s")
@@ -681,8 +1112,12 @@ def _render_local_document(st, result, items):
                     "Provenance": ", ".join(
                         entry.get("engine", "") for entry in field.get("provenance", [])),
                 })
-        st.dataframe(field_rows, hide_index=True, width="stretch")
-    _render_coverage(st, selected)
+        states = sorted({row["State"] for row in field_rows if row.get("State")})
+        selected_states = st.multiselect(
+            "Filter fields by state", states, default=states,
+            key=f"cr_field_states_{selected['safe_source_id']}")
+        visible_rows = [row for row in field_rows if row.get("State") in selected_states]
+        st.dataframe(visible_rows, hide_index=True, width="stretch")
     retryable = selected["processing_status"] in {
         "FAILED", "FAILED_EXTRACTION", "PARTIAL", "CANCELLED"}
     if retryable and source:
@@ -695,7 +1130,18 @@ def _render_local_document(st, result, items):
             with st.status("Retrying document locally", expanded=True):
                 retried = workspace.retry_document(
                     result, source, mode=result.get("operating_mode"))
-            st.session_state["workspace_batch"] = retried
+            if state is not None:
+                _store_workspace_batch(state, retried)
+                state["retry_receipts"].append({
+                    "safe_source_id": selected["safe_source_id"],
+                    "processing_status": next(
+                        row["processing_status"] for row in retried["documents"]
+                        if row["safe_source_id"] == selected["safe_source_id"]),
+                    "external_calls": 0,
+                })
+                _refresh_workspace_batch(state)
+            else:
+                st.session_state["workspace_batch"] = retried
             st.rerun()
     pending_multimodal = int(
         (selected.get("escalation_summary") or {}).get("pending_multimodal") or 0)
@@ -716,12 +1162,13 @@ def _render_local_document(st, result, items):
         else:
             st.info("No validation results were produced for this document.")
     with evidence_tabs[1]:
-        st.write({
-            "governor": selected["governor_summary"],
-            "retry": selected["retry_summary"],
-            "resolution": selected.get("resolution_summary", {}),
-            "escalation": selected["escalation_summary"],
-        })
+        with st.expander("Technical routing receipt"):
+            st.write({
+                "governor": selected["governor_summary"],
+                "retry": selected["retry_summary"],
+                "resolution": selected.get("resolution_summary", {}),
+                "escalation": selected["escalation_summary"],
+            })
         st.markdown("#### Provider and escalation state")
         provider = selected.get("provider_state") or workspace._provider_policy_snapshot()
         st.write({
@@ -740,12 +1187,12 @@ def _render_local_document(st, result, items):
         else:
             st.info("No unresolved or escalated fields require provider routing.")
     with evidence_tabs[2]:
-        st.write({
-            "measured_cost": selected["measured_cost"],
-            "projected_cost": selected["projected_cost"],
-            "latency": selected["latency"],
-        })
-    _render_review_queue(st, selected, source, result)
+        with st.expander("Technical cost and latency receipt"):
+            st.write({
+                "measured_cost": selected["measured_cost"],
+                "projected_cost": selected["projected_cost"],
+                "latency": selected["latency"],
+            })
     json_column, csv_column = st.columns(2)
     json_column.download_button(
         "Download document JSON", workspace.export_document_json(selected),
@@ -759,6 +1206,34 @@ def _render_local_document(st, result, items):
     )
 
 
+def _render_local_review(st, batch: dict, items: list, state: dict | None = None) -> None:
+    processed = [row for row in batch.get("documents", [])
+                 if row["processing_status"] not in {"SKIPPED", "DUPLICATE"}]
+    if not processed:
+        st.info("Process a supported document before opening the review queue.")
+        return
+    selected = st.selectbox(
+        "Document", processed,
+        format_func=lambda row: f"{row['source_file']} - {row['processing_status']}",
+        key="workspace_review_document",
+    )
+    source = next((item for item in items
+                   if item.safe_source_id == selected["safe_source_id"]), None)
+    review_summary = selected.get("human_review_summary") or {}
+    for column, (label, value) in zip(st.columns(3), [
+        ("Unresolved fields", int(selected.get("unresolved_fields") or 0)),
+        ("Review required", int(review_summary.get("required") or 0)),
+        ("Review completed", int(review_summary.get("completed") or 0)),
+    ]):
+        column.metric(label, value)
+    _render_review_queue(st, selected, source, state or {
+        "batch_results": batch,
+        "workflow": "Process Documents",
+        "inventory": items,
+        "review_corrections": [],
+    })
+
+
 def _render_local_summary(st, batch):
     st.subheader("Batch and evaluation summary")
     if not batch:
@@ -768,19 +1243,9 @@ def _render_local_summary(st, batch):
     summary = batch["summary"]
     st.dataframe(_batch_summary_rows(summary), hide_index=True, width="stretch")
     st.write({"document_types": summary["document_types"]})
+    _render_accuracy_dashboard(st, batch)
+    _render_cost_dashboard(st, batch)
     if batch.get("evaluation"):
-        evaluation = batch["evaluation"]
-        display = _evaluation_display(evaluation)
-        if display["message"]:
-            st.warning(display["message"])
-        else:
-            left, right = st.columns(2)
-            left.metric("Field accuracy", display["field_accuracy"])
-            right.metric("Critical accuracy", display["critical_accuracy"])
-        st.dataframe([
-            {"Metric": label, "Value": int(evaluation.get(key) or 0)}
-            for key, label in EVALUATION_COUNTERS.items()
-        ], hide_index=True, width="stretch")
         st.caption("Expected output was parsed and compared only after extraction completed.")
     json_column, csv_column = st.columns(2)
     json_column.download_button(
@@ -793,29 +1258,63 @@ def _render_local_summary(st, batch):
     )
 
 
-def _local_workspace(st) -> None:
+def _workspace_header(st, mode: str) -> None:
+    mode_label = service.MODE_LABELS.get(mode, mode.title())
     st.markdown(
-        '<div class="cr-header"><h1>ClaimRoute local workspace</h1>'
-        '<p>Inspect, process, and evaluate local claim datasets without transmitting files. '
-        'Raw values remain in this browser session; external escalation is disabled.</p></div>',
+        '<div class="cr-app-header"><div><h1>ClaimRoute AI</h1>'
+        '<p>Every field takes the cheapest reliable path.</p></div>'
+        f'<div class="cr-mode">Mode: {mode_label}</div></div>',
         unsafe_allow_html=True,
     )
-    st.success("Local workspace mode · folder access enabled · external providers disabled")
-    st.warning("Authorized local data only. Do not expose this workspace through a public URL.")
 
-    running = bool(st.session_state.get("workspace_job_running"))
+
+def _workspace_sidebar(st, state: dict) -> None:
+    st.sidebar.markdown(
+        '<div class="cr-sidebar-brand"><strong>ClaimRoute AI</strong><br>'
+        '<span>Local claims workspace</span></div>',
+        unsafe_allow_html=True,
+    )
+    st.sidebar.markdown(
+        f'<div class="cr-mode">Mode: '
+        f'{service.MODE_LABELS.get(state["operating_mode"], state["operating_mode"].title())}'
+        '</div>', unsafe_allow_html=True)
+    st.sidebar.success("External providers disabled")
+    st.sidebar.caption("Authorized local data only. Keep this workspace on localhost.")
+    batch = state.get("batch_results")
+    if batch:
+        st.sidebar.divider()
+        st.sidebar.metric("Batch status", _status_label(batch.get("processing_status")))
+        st.sidebar.metric("Documents", len(batch.get("documents", [])))
+        st.sidebar.metric("External calls", int(
+            (batch.get("summary") or {}).get("external_calls") or 0))
+    st.sidebar.divider()
+    st.sidebar.button(
+        "Reset session", on_click=_reset_workspace_session,
+        args=(st.session_state,), width="stretch",
+        help="Clears uploads, inventory, results, corrections, and dashboard values.")
+
+
+def _render_workspace_intake(st, state: dict, running: bool) -> None:
     st.subheader("Intake")
+    st.markdown(
+        '<p class="cr-section-intro">Choose a workflow, add authorized local files, '
+        'and confirm exactly what enters the run.</p>', unsafe_allow_html=True)
+    st.session_state.setdefault("cr_workflow", state["workflow"])
     workflow = st.radio(
         "Workflow", ["Process Documents", "Evaluate Dataset"], horizontal=True,
         help="Evaluation parses expected output only after document extraction finishes.",
-        disabled=running,
+        disabled=running or bool(state.get("batch_results")), key="cr_workflow",
     )
+    state["workflow"] = workflow
+    st.session_state.setdefault("cr_operating_mode", state["operating_mode"])
     mode = st.selectbox(
         "Operating mode", list(service.MODE_LABELS),
-        index=list(service.MODE_LABELS).index(service.DEFAULT_MODE),
-        format_func=service.MODE_LABELS.get, disabled=running,
-        help="This selection changes the runtime governor thresholds; it never enables a provider.",
+        format_func=service.MODE_LABELS.get,
+        disabled=running or bool(state.get("batch_results")),
+        help="This selection changes runtime governor thresholds; it never enables a provider.",
+        key="cr_operating_mode",
     )
+    state["operating_mode"] = mode
     mode_help = {
         "economy": "Minimizes cost; only the most critical unresolved fields remain eligible.",
         "balanced": "Recommended default; local retry first with selective escalation eligibility.",
@@ -823,36 +1322,42 @@ def _local_workspace(st) -> None:
     }
     selected_policy = workspace.mode_policy(mode)
     st.caption(f"{mode_help[mode]} Runtime accept threshold: "
-               f"{selected_policy['accept_threshold']:.2f}; external calls enabled: No.")
+               f"{selected_policy['accept_threshold']:.2f}. External calls enabled: No.")
+    if state.get("batch_results"):
+        st.caption("Reset the session to change workflow or operating mode after processing.")
+    st.session_state.setdefault("cr_input_source", state["input_source"])
     source = st.radio(
         "Input source", ["Single file", "Multiple files", "Local folder"], horizontal=True,
-        disabled=running,
+        disabled=running, key="cr_input_source",
     )
+    state["input_source"] = source
     max_pages = int(os.environ.get("CLAIMROUTE_MAX_PAGES", "100"))
-    items = []
+    items = state["inventory"]
     if source == "Single file":
         uploaded = st.file_uploader(
             "Choose one local file", type=None, key="workspace_single", disabled=running)
-        items = _uploaded_items([uploaded] if uploaded else [], max_pages)
+        uploaded_items = _uploaded_items([uploaded] if uploaded else [], max_pages)
+        if uploaded_items:
+            items = uploaded_items
+            state["inventory"] = items
     elif source == "Multiple files":
         uploaded = st.file_uploader(
             "Choose local files", type=None, accept_multiple_files=True,
             key="workspace_multiple", disabled=running)
-        items = _uploaded_items(uploaded, max_pages)
+        uploaded_items = _uploaded_items(uploaded, max_pages)
+        if uploaded_items:
+            items = uploaded_items
+            state["inventory"] = items
     else:
         folder = st.text_input(
             "Local dataset/folder path", key="workspace_folder_path", disabled=running)
-        scan_columns = st.columns(3)
+        scan_columns = st.columns(2)
         scan_requested = scan_columns[0].button(
             "Scan folder", type="primary", disabled=running or not folder)
         retry_requested = scan_columns[1].button(
-            "Retry Scan", disabled=running or not folder or
-            (st.session_state.get("workspace_scan_state") or {}).get("state")
+            "Retry scan", disabled=running or not folder or
+            (state.get("scan_result") or {}).get("state")
             != ScanState.SCAN_FAILED.value)
-        if scan_columns[2].button("Clear", disabled=running):
-            st.session_state.pop("workspace_inventory", None)
-            st.session_state.pop("workspace_scan_state", None)
-            st.rerun()
         scan_progress = st.progress(0)
         scan_status = st.empty()
         if scan_requested or retry_requested:
@@ -860,19 +1365,17 @@ def _local_workspace(st) -> None:
 
             def on_scan(event):
                 event["entered_path"] = folder
-                st.session_state["workspace_scan_state"] = event
+                state["scan_result"] = event
                 discovered = int(event.get("files_discovered") or 0)
                 scanned = int(event.get("files_scanned") or 0)
                 scan_progress.progress(scanned / discovered if discovered else 0)
                 scan_status.info(
-                    f"Scanning is active Â· {event['state']} Â· "
-                    f"{scanned}/{discovered} files Â· "
-                    f"elapsed {time.perf_counter() - scan_started:.2f}s"
-                )
+                    f"Scanning: {event['state']} - {scanned}/{discovered} files - "
+                    f"elapsed {time.perf_counter() - scan_started:.2f}s")
 
             try:
-                st.session_state["workspace_inventory"] = scan_folder(
-                    folder, max_pages=max_pages, progress=on_scan)
+                items = scan_folder(folder, max_pages=max_pages, progress=on_scan)
+                state["inventory"] = items
             except IntakeError as exc:
                 st.error(str(exc))
             except Exception:
@@ -882,47 +1385,70 @@ def _local_workspace(st) -> None:
                     "elapsed_seconds": round(time.perf_counter() - scan_started, 3),
                     "error_reason": "Folder scan failed safely; review the local terminal log.",
                 }
-                st.session_state["workspace_scan_state"] = failure
+                state["scan_result"] = failure
                 st.error(failure["error_reason"])
-        _render_scan_state(st, st.session_state.get("workspace_scan_state"))
-        items = st.session_state.get("workspace_inventory", [])
-    if source != "Local folder":
-        st.session_state["workspace_inventory"] = items
+        _render_scan_state(st, state.get("scan_result"))
 
-    st.subheader("File inventory")
+    st.markdown("#### File inventory")
     if not items:
         st.info("Add files or scan a folder to build the inventory.")
-        _render_local_summary(st, st.session_state.get("workspace_batch"))
         return
     st.dataframe(_inventory_rows(items), hide_index=True, width="stretch")
     defaults = [item.safe_source_id for item in items
                 if item.role == FileRole.CLAIM_DOCUMENT or (
                     workflow == "Evaluate Dataset" and item.role == FileRole.EXPECTED_OUTPUT)]
-    selected_ids = st.multiselect(
-        "Files included in this run", [item.safe_source_id for item in items],
-        default=defaults,
-        disabled=running,
+    options = [item.safe_source_id for item in items]
+    signature = tuple(options)
+    processing = state["processing_state"]
+    if processing.get("selection_signature") != signature:
+        existing = [source_id for source_id in state["selected_document_ids"]
+                    if source_id in options]
+        state["selected_document_ids"] = existing or defaults
+        processing["selection_signature"] = signature
+        st.session_state["cr_selected_documents"] = state["selected_document_ids"]
+    st.session_state.setdefault(
+        "cr_selected_documents", state["selected_document_ids"])
+    state["selected_document_ids"] = st.multiselect(
+        "Files included in this run", options, disabled=running,
         format_func=lambda source_id: next(
             item.filename for item in items if item.safe_source_id == source_id),
+        key="cr_selected_documents",
     )
-    selected = [item for item in items if item.safe_source_id in selected_ids]
+    st.caption("Selected files remain in this run until the session is reset.")
 
-    st.subheader("Processing queue")
-    st.caption("Processing is synchronous. Stop is honored between documents. Elapsed time "
-               "updates at stage boundaries; the active spinner remains visible during OCR.")
+
+def _render_workspace_processing(st, state: dict, running: bool) -> None:
+    st.subheader("Processing")
+    st.markdown(
+        '<p class="cr-section-intro">Run the selected inventory and watch each document '
+        'move through local OCR, retry, validation, and governed routing.</p>',
+        unsafe_allow_html=True,
+    )
+    items = state["inventory"]
+    selected_ids = state["selected_document_ids"]
+    selected = [item for item in items if item.safe_source_id in selected_ids]
+    workflow = state["workflow"]
+    mode = state["operating_mode"]
+    if not selected:
+        st.info("Build an inventory in Intake and select at least one claim document.")
+        return
+    st.dataframe(_inventory_rows(selected), hide_index=True, width="stretch")
+    st.caption("Processing is synchronous. Stop is honored between documents. "
+               "The active stage remains visible during OCR.")
     stop_after_first = st.checkbox(
-        "Stop after the first document in this run", disabled=running)
+        "Stop after the current document", disabled=running,
+        key="cr_stop_after_current")
     queue_slot = st.empty()
     progress_bar = st.progress(0)
-    fingerprint = workspace._job_id(
-        selected, f"{mode}:{workflow}") if selected else ""
+    fingerprint = workspace._job_id(selected, f"{mode}:{workflow}")
     clicked = st.button(
-        "Processing selected files…" if running else "Process selected files",
-        type="primary", disabled=running or not selected,
+        "Processing selected files..." if running else "Process selected files",
+        type="primary", disabled=running,
     )
-    if clicked and _queue_workspace_job(st.session_state, fingerprint):
+    if clicked and _queue_workspace_job(state, fingerprint):
         st.rerun()
-    if running and st.session_state.get("workspace_pending_job") == fingerprint:
+    processing = state["processing_state"]
+    if running and processing.get("pending_job") == fingerprint:
         processed = {"count": 0}
         processing_started = time.perf_counter()
         stage_slot = st.empty()
@@ -932,25 +1458,23 @@ def _local_workspace(st) -> None:
             progress_bar.progress(index / total)
             queue_slot.dataframe([{
                 "Document": result["source_file"],
-                "Status": result["processing_status"],
+                "Status": _status_label(result["processing_status"]),
                 "Warning": "; ".join(result["warnings"]),
             }], hide_index=True, width="stretch")
 
         def on_stage(event):
-            st.session_state["workspace_stage"] = event
+            processing["stage"] = event
             elapsed = time.perf_counter() - processing_started
-            page = (f" Â· page {event.get('current_page')}/{event.get('total_pages')}"
+            page = (f" - page {event.get('current_page')}/{event.get('total_pages')}"
                     if event.get("current_page") else "")
             stage_slot.info(
-                f"Processing is active Â· document {event['document_number']}/"
-                f"{event['total_documents']} Â· current stage: "
-                f"{event['stage'].replace('_', ' ').title()}{page} Â· "
-                f"elapsed {elapsed:.2f}s Â· {event['message']}"
-            )
+                f"Document {event['document_number']}/{event['total_documents']} - "
+                f"{event['stage'].replace('_', ' ').title()}{page} - "
+                f"elapsed {elapsed:.2f}s - {event['message']}")
 
         st.info(f"Processing {len(selected)} selected document(s). Please wait.")
         _run_workspace_job(
-            st.session_state,
+            state,
             fingerprint,
             lambda: workspace.run_batch(
                 selected,
@@ -962,21 +1486,126 @@ def _local_workspace(st) -> None:
             ),
         )
         st.rerun()
-    if st.session_state.get("workspace_job_error"):
-        st.error(st.session_state["workspace_job_error"])
-    batch = st.session_state.get("workspace_batch")
-    last_stage = st.session_state.get("workspace_stage")
+    if processing.get("error"):
+        st.error(processing["error"])
+    batch = state.get("batch_results")
+    last_stage = processing.get("stage")
     if last_stage and not running:
-        st.caption(f"Last stage: {last_stage['stage']} Â· {last_stage['message']}")
+        st.caption(f"Last stage: {_status_label(last_stage['stage'])} - "
+                   f"{last_stage['message']}")
     if batch:
         queue_slot.dataframe([{
-            "Document": row["source_file"], "Status": row["processing_status"],
+            "Document": row["source_file"], "Status": _status_label(row["processing_status"]),
             "Warning": "; ".join(row["warnings"]),
         } for row in batch["documents"]], hide_index=True, width="stretch")
-        _render_local_document(st, batch, items)
+        summary = batch.get("summary") or {}
+        for column, (label, value) in zip(st.columns(4), [
+            ("Completed", int(summary.get("success") or 0)),
+            ("Partial", int(summary.get("partial") or 0)),
+            ("Failed", int(summary.get("failed") or 0) +
+             int(summary.get("failed_extraction") or 0)),
+            ("Unresolved", int(summary.get("unresolved_fields") or 0)),
+        ]):
+            column.metric(label, value)
+        actions = st.columns(2)
+        actions[0].button(
+            "Open Results", type="primary", width="stretch",
+            on_click=_activate_workspace_tab,
+            args=(st.session_state, "Results"))
+        failed_ids = [
+            row["safe_source_id"] for row in batch["documents"]
+            if row["processing_status"] in {"FAILED", "FAILED_EXTRACTION", "CANCELLED"}
+        ]
+        retry_failed = actions[1].button(
+            "Retry failed batch items", width="stretch", disabled=not failed_ids)
+        if retry_failed:
+            retried = batch
+            with st.status("Retrying failed documents locally", expanded=True):
+                for source_id in failed_ids:
+                    source_item = next((item for item in items
+                                        if item.safe_source_id == source_id), None)
+                    if source_item is None:
+                        continue
+                    retried = workspace.retry_document(retried, source_item, mode=mode)
+                    result = next(row for row in retried["documents"]
+                                  if row["safe_source_id"] == source_id)
+                    state["retry_receipts"].append({
+                        "safe_source_id": source_id,
+                        "processing_status": result["processing_status"],
+                        "external_calls": int(
+                            (result.get("escalation_summary") or {}).get(
+                                "external_provider_calls") or 0),
+                    })
+            _store_workspace_batch(state, retried)
+            _refresh_workspace_batch(state)
+            st.rerun()
+        st.caption("Results, review, accuracy, and cost all use this same batch receipt.")
     else:
-        st.info("Select supported claim documents, then start the queue.")
-    _render_local_summary(st, batch)
+        st.info("The selected documents are ready to process.")
+
+
+def _local_workspace(st) -> None:
+    state = _workspace_state(st.session_state)
+    _sync_workspace_controls(st.session_state, state)
+    if state.get("batch_results") and state.get("cost_summary") is None:
+        _store_workspace_batch(state, state["batch_results"])
+    _workspace_sidebar(st, state)
+    _workspace_header(st, state["operating_mode"])
+    running = bool(state["processing_state"].get("running"))
+    tabs = st.tabs(
+        WORKSPACE_TABS, default=state.get("active_tab", WORKSPACE_TABS[0]),
+        key="cr_workspace_tabs", on_change="rerun")
+    state["active_tab"] = st.session_state.get("cr_workspace_tabs", WORKSPACE_TABS[0])
+
+    with tabs[0]:
+        _render_workspace_intake(st, state, running)
+        st.divider()
+        _render_workspace_processing(st, state, running)
+
+    batch = state.get("batch_results")
+    items = state["inventory"]
+    with tabs[1]:
+        st.subheader("Results")
+        st.markdown('<p class="cr-section-intro">Inspect extracted fields, evidence, routing '
+                    'state, and document exports.</p>', unsafe_allow_html=True)
+        if batch:
+            _render_local_document(st, batch, items, state)
+            with st.expander("Batch exports"):
+                json_column, csv_column = st.columns(2)
+                json_column.download_button(
+                    "Download batch JSON", workspace.export_batch_json(batch),
+                    file_name=f"{batch['batch_job_id']}.json", mime="application/json",
+                    width="stretch")
+                csv_column.download_button(
+                    "Download batch CSV", workspace.export_batch_csv(batch),
+                    file_name=f"{batch['batch_job_id']}.csv", mime="text/csv",
+                    width="stretch")
+        else:
+            st.info("Process at least one document in Intake & Run.")
+
+    with tabs[2]:
+        st.subheader("Human Review")
+        st.markdown('<p class="cr-section-intro">Resolve fields that could not be accepted '
+                    'automatically. Corrections remain in this browser session.</p>',
+                    unsafe_allow_html=True)
+        if batch:
+            _render_local_review(st, batch, items, state)
+        else:
+            st.info("Process at least one document in Intake & Run.")
+
+    with tabs[3]:
+        if batch:
+            _render_accuracy_dashboard(st, batch)
+        else:
+            st.subheader("Accuracy")
+            st.info("Process at least one document in Intake & Run.")
+
+    with tabs[4]:
+        if batch:
+            _render_cost_dashboard(st, batch)
+        else:
+            st.subheader("Cost")
+            st.info("Process at least one document in Intake & Run.")
 
 
 def main() -> None:

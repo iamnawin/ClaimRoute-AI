@@ -145,6 +145,12 @@ def test_summary_calculations_and_cost_labels():
     assert receipt["costs"]["local_compute"]["basis"] == "MEASURED"
     assert receipt["costs"]["api"]["basis"] == "PROJECTED"
     assert receipt["costs"]["measured_api"]["value_usd"] == 0.0
+    assert receipt["costs"]["multimodal_input_tokens"] == {
+        "basis": "MEASURED", "value_usd": 0.0}
+    assert receipt["costs"]["projected_multimodal_input_tokens"] == {
+        "basis": "OFFLINE_ORACLE", "value_usd": 0.000005}
+    assert receipt["costs"]["projected_multimodal_output_tokens"] == {
+        "basis": "OFFLINE_ORACLE", "value_usd": 0.000004}
     assert receipt["usage"] == {"input_tokens": 100, "output_tokens": 10}
 
 

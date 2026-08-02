@@ -227,10 +227,37 @@ def build_receipt(page: PageResult, ledger_entries: list[dict], mode: str,
     local_cost = sum(float(entry.get("cost_usd", 0)) for entry in local_entries)
     projected_api = sum(float(entry.get("cost_usd", 0)) for entry in oracle_entries)
     measured_api = sum(float(entry.get("cost_usd", 0)) for entry in live_entries)
+    primary_cost = sum(float(entry.get("cost_usd", 0)) for entry in local_entries
+                       if entry.get("operation", "").startswith("ocr_"))
+    retry_cost = sum(float(entry.get("cost_usd", 0)) for entry in local_entries
+                     if entry.get("operation", "").startswith("retry_"))
+    other_local_cost = max(0.0, local_cost - primary_cost - retry_cost)
     input_tokens = sum(int(entry.get("meta", {}).get("input_tokens") or 0)
                        for entry in oracle_entries + live_entries)
     output_tokens = sum(int(entry.get("meta", {}).get("output_tokens") or 0)
                         for entry in oracle_entries + live_entries)
+    prices = yaml.safe_load((ROOT / "configs" / "prices.yaml").read_text(
+        encoding="utf-8"))["vision_models"]
+    pipeline = yaml.safe_load((ROOT / "configs" / "pipeline.yaml").read_text(
+        encoding="utf-8"))
+
+    def token_cost(entries: list[dict], token_key: str, price_key: str) -> float:
+        total = 0.0
+        for entry in entries:
+            model = str((entry.get("meta") or {}).get("model") or "")
+            if (entry.get("operation") == "escalate_offline-oracle"
+                    or model == "offline-oracle"):
+                model = pipeline["model_policy"]["offline_oracle"]["price_as"]
+            price = prices.get(model) or prices.get(model.rsplit("/", 1)[-1])
+            if price:
+                total += int((entry.get("meta") or {}).get(token_key) or 0) * float(
+                    price[price_key]) / 1_000_000
+        return total
+
+    projected_input_cost = token_cost(oracle_entries, "input_tokens", "input")
+    projected_output_cost = token_cost(oracle_entries, "output_tokens", "output")
+    measured_input_cost = token_cost(live_entries, "input_tokens", "input")
+    measured_output_cost = token_cost(live_entries, "output_tokens", "output")
 
     modes = load_operating_modes()
     final_output = page.to_json_dict()
@@ -263,7 +290,19 @@ def build_receipt(page: PageResult, ledger_entries: list[dict], mode: str,
             "api_calls_avoided": len(field_rows) - escalated,
         },
         "costs": {
+            "primary_ocr": {"basis": "MEASURED", "value_usd": round(primary_cost, 8)},
+            "retry_ocr": {"basis": "MEASURED", "value_usd": round(retry_cost, 8)},
+            "local_compute_other": {
+                "basis": "MEASURED", "value_usd": round(other_local_cost, 8)},
             "local_compute": {"basis": "MEASURED", "value_usd": round(local_cost, 8)},
+            "multimodal_input_tokens": {
+                "basis": "MEASURED", "value_usd": round(measured_input_cost, 8)},
+            "multimodal_output_tokens": {
+                "basis": "MEASURED", "value_usd": round(measured_output_cost, 8)},
+            "projected_multimodal_input_tokens": {
+                "basis": "OFFLINE_ORACLE", "value_usd": round(projected_input_cost, 8)},
+            "projected_multimodal_output_tokens": {
+                "basis": "OFFLINE_ORACLE", "value_usd": round(projected_output_cost, 8)},
             "api": {"basis": "PROJECTED", "value_usd": round(projected_api, 8)},
             "measured_api": {"basis": "MEASURED", "value_usd": round(measured_api, 8)},
             "measured_total_automated": {

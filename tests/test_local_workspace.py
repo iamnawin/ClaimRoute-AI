@@ -175,6 +175,8 @@ def test_unresolved_fields_are_partial_and_explicitly_pending_not_sent():
         "pending_local_retry": 0,
         "pending_multimodal": 1,
         "multimodal_attempted": 0,
+        "multimodal_eligible": 1,
+        "paid_calls_avoided": 1,
         "pending_human_review": 0,
         "external_provider_calls": 0,
     }
@@ -406,6 +408,45 @@ def test_evaluation_with_synthetic_expected_output_is_post_extraction_only():
     assert evaluated["evaluation"]["ground_truth_stage"] == "post_extraction_only"
 
 
+def test_evaluation_dashboard_counts_missing_false_positive_precision_and_recall():
+    document = inspect_content("synthetic.png", _image_bytes(), group_key="dataset")
+    expected = inspect_content("synthetic.json", json.dumps({
+        "doc_id": "synthetic",
+        "fields": {
+            "patient_name": {"value": "SYNTHETIC PERSON"},
+            "patient_dob": {"value": "2000-01-01"},
+        },
+    }).encode(), group_key="dataset")
+    page = PageResult("safe", "p1", "cms1500", quality_score=0.9)
+    for name, value in (("patient_name", "SYNTHETIC PERSON"),
+                        ("patient_city", "SYNTHETIC CITY")):
+        field = FieldResult("safe", "p1", name, value, FieldState.ACCEPT, 0.95)
+        field.attempts = [Attempt("primary_ocr", "stub", value, 0.95)]
+        page.fields[name] = field
+        page.decisions[name] = [("ACCEPT", "test")]
+    receipt = service.build_receipt(
+        page, [], "balanced", 10.0, source_kind="local_workspace")
+
+    batch = workspace.run_batch(
+        [expected, document], evaluate=True,
+        processor=lambda item, mode: workspace.process_item(
+            item, page_processor=lambda *args: receipt))
+    evaluation = batch["evaluation"]
+
+    assert evaluation["documents_evaluated"] == 1
+    assert evaluation["evaluated_fields"] == 2
+    assert evaluation["correct_fields"] == 1
+    assert evaluation["incorrect_fields"] == 0
+    assert evaluation["missing_fields"] == 1
+    assert evaluation["false_positive_fields"] == 1
+    assert evaluation["accuracy"] == 0.5
+    assert evaluation["precision"] == 0.5
+    assert evaluation["recall"] == 0.5
+    assert evaluation["accuracy_by_document_type"][0]["document_type"] == "cms1500"
+    assert {row["field_name"] for row in evaluation["accuracy_by_field"]} == {
+        "patient_name", "patient_dob", "patient_city"}
+
+
 def test_zero_pair_evaluation_reports_accuracy_unavailable_with_pair_counts():
     document = inspect_content("synthetic.png", _image_bytes())
     batch = workspace.run_batch(
@@ -543,7 +584,18 @@ def _page_for_official(doc_id):
     return page
 
 
-def test_local_workspace_ui_exposes_intake_without_public_controls(monkeypatch):
+def _workspace_ui_state(item=None, batch=None, mode="balanced"):
+    state = streamlit_app._new_workspace_state({})
+    state["operating_mode"] = mode
+    if item is not None:
+        state["inventory"] = [item]
+        state["selected_document_ids"] = [item.safe_source_id]
+    if batch is not None:
+        streamlit_app._store_workspace_batch(state, batch)
+    return state
+
+
+def test_local_workspace_ui_uses_connected_tabs_and_status_only_sidebar(monkeypatch):
     monkeypatch.setenv("CLAIMROUTE_APP_MODE", "local_workspace")
     app = AppTest.from_file("app/streamlit_app.py", default_timeout=30)
     app.run(timeout=30)
@@ -551,7 +603,177 @@ def test_local_workspace_ui_exposes_intake_without_public_controls(monkeypatch):
     assert any(item.value == "Intake" for item in app.subheader)
     assert [item.label for item in app.radio] == ["Workflow", "Input source"]
     assert len(app.get("file_uploader")) == 1
-    assert not app.sidebar
+    assert [tab.label for tab in app.tabs] == [
+        "Intake & Run", "Results", "Human Review", "Accuracy", "Cost"]
+    assert not app.sidebar.radio
+    assert [button.label for button in app.sidebar.button] == ["Reset session"]
+
+
+def test_local_workspace_renders_accuracy_and_cost_dashboards_from_batch(monkeypatch):
+    monkeypatch.setenv("CLAIMROUTE_APP_MODE", "local_workspace")
+    item = inspect_content("synthetic.png", _image_bytes())
+    batch = workspace.run_batch(
+        [item], processor=lambda item, mode: workspace.process_item(
+            item, page_processor=lambda *args: _receipt()))
+    app = AppTest.from_file("app/streamlit_app.py", default_timeout=30)
+    app.session_state[streamlit_app.WORKSPACE_STATE_KEY] = _workspace_ui_state(item, batch)
+
+    app.run(timeout=30)
+
+    assert not app.exception
+    assert any(item.value == "Accuracy dashboard" for item in app.subheader)
+    assert any(item.value == "Cost dashboard" for item in app.subheader)
+    assert any("Coverage estimate" in item.value for item in app.info)
+
+
+def test_local_workspace_renders_ground_truth_accuracy_dashboard(monkeypatch):
+    monkeypatch.setenv("CLAIMROUTE_APP_MODE", "local_workspace")
+    document = inspect_content("synthetic.png", _image_bytes(), group_key="dataset")
+    expected = inspect_content("synthetic.json", json.dumps({
+        "doc_id": "synthetic",
+        "fields": {"patient_name": {"value": "SYNTHETIC PERSON"}},
+    }).encode(), group_key="dataset")
+    batch = workspace.run_batch(
+        [expected, document], evaluate=True,
+        processor=lambda item, mode: workspace.process_item(
+            item, page_processor=lambda *args: _receipt()))
+    app = AppTest.from_file("app/streamlit_app.py", default_timeout=30)
+    state = _workspace_ui_state(document, batch)
+    state["inventory"] = [expected, document]
+    app.session_state[streamlit_app.WORKSPACE_STATE_KEY] = state
+
+    app.run(timeout=30)
+
+    assert not app.exception
+    assert any(item.label == "Exact field accuracy" and item.value == "100.00%"
+               for item in app.metric)
+
+
+def test_local_workspace_state_survives_tab_navigation_reruns(monkeypatch):
+    monkeypatch.setenv("CLAIMROUTE_APP_MODE", "local_workspace")
+    item = inspect_content("synthetic.png", _image_bytes())
+    batch = workspace.run_batch(
+        [item], processor=lambda item, mode: workspace.process_item(
+            item, page_processor=lambda *args: _receipt()))
+    app = AppTest.from_file("app/streamlit_app.py", default_timeout=30)
+    app.session_state[streamlit_app.WORKSPACE_STATE_KEY] = _workspace_ui_state(item, batch)
+
+    app.run(timeout=30)
+    next(button for button in app.button if button.label == "Open Results").click().run(
+        timeout=30)
+    assert app.session_state["cr_workspace_tabs"] == "Results"
+    for tab in ["Results", "Human Review", "Accuracy", "Cost", "Intake & Run"]:
+        app.session_state["cr_workspace_tabs"] = tab
+        app.run(timeout=30)
+        assert not app.exception
+        state = app.session_state[streamlit_app.WORKSPACE_STATE_KEY]
+        assert state["inventory"][0].safe_source_id == item.safe_source_id
+        assert state["selected_document_ids"] == [item.safe_source_id]
+        assert state["batch_results"]["batch_job_id"] == batch["batch_job_id"]
+    assert any(button.label == "Download document JSON"
+               for button in app.get("download_button"))
+    assert any(button.label == "Download batch JSON"
+               for button in app.get("download_button"))
+    assert any(item.value == "Accuracy dashboard" for item in app.subheader)
+    assert any(item.value == "Cost dashboard" for item in app.subheader)
+    assert not any("Build an inventory" in item.value for item in app.info)
+
+
+def test_workspace_state_contract_is_initialized_once_without_overwriting_values():
+    session = {}
+    state = streamlit_app._workspace_state(session)
+    required = {
+        "workflow", "operating_mode", "inventory", "selected_document_ids",
+        "scan_result", "batch_results", "selected_result_id", "processing_state",
+        "retry_receipts", "review_queue", "review_corrections",
+        "evaluation_summary", "cost_summary",
+    }
+    state["workflow"] = "Evaluate Dataset"
+    state["review_corrections"].append({"field_name": "synthetic_field"})
+
+    same_state = streamlit_app._workspace_state(session)
+
+    assert required <= state.keys()
+    assert same_state is state
+    assert same_state["workflow"] == "Evaluate Dataset"
+    assert same_state["review_corrections"] == [{"field_name": "synthetic_field"}]
+
+
+def test_operating_mode_has_one_canonical_value_in_selector_header_and_sidebar(monkeypatch):
+    monkeypatch.setenv("CLAIMROUTE_APP_MODE", "local_workspace")
+    app = AppTest.from_file("app/streamlit_app.py", default_timeout=30).run(timeout=30)
+
+    next(item for item in app.selectbox if item.label == "Operating mode").set_value(
+        "economy").run(timeout=30)
+
+    state = app.session_state[streamlit_app.WORKSPACE_STATE_KEY]
+    visible_html = "\n".join(item.value for item in app.markdown)
+    assert state["operating_mode"] == "economy"
+    assert app.session_state["cr_operating_mode"] == "economy"
+    assert visible_html.count("Mode: Economy") == 2
+    assert "Mode: Balanced" not in visible_html
+
+
+def test_review_correction_survives_tab_navigation(monkeypatch):
+    monkeypatch.setenv("CLAIMROUTE_APP_MODE", "local_workspace")
+    item = inspect_content("synthetic.png", _image_bytes())
+    batch = workspace.run_batch(
+        [item], processor=lambda item, mode: workspace.process_item(
+            item, page_processor=lambda *args: _unresolved_receipt()))
+    state = _workspace_ui_state(item, batch)
+    app = AppTest.from_file("app/streamlit_app.py", default_timeout=30)
+    app.session_state[streamlit_app.WORKSPACE_STATE_KEY] = state
+    app.run(timeout=30)
+
+    next(widget for widget in app.selectbox
+         if widget.label == "Review action").set_value("Mark not applicable").run(timeout=30)
+    next(widget for widget in app.text_input
+         if widget.label == "Correction reason").set_value(
+             "Synthetic field is not applicable").run(timeout=30)
+    next(button for button in app.button
+         if button.label == "Save and next").click().run(timeout=30)
+
+    corrected_state = app.session_state[streamlit_app.WORKSPACE_STATE_KEY]
+    assert corrected_state["batch_results"]["summary"]["unresolved_fields"] == 0
+    assert corrected_state["batch_results"]["documents"][0][
+        "processing_status"] == "COMPLETED"
+    assert corrected_state["review_queue"] == []
+    assert len(corrected_state["review_corrections"]) == 1
+    assert "INAPPLICABLE" in workspace.export_document_json(
+        corrected_state["batch_results"]["documents"][0])
+
+    navigation = AppTest.from_file("app/streamlit_app.py", default_timeout=30)
+    navigation.session_state[streamlit_app.WORKSPACE_STATE_KEY] = corrected_state
+    for tab in ["Human Review", "Accuracy", "Cost", "Intake & Run"]:
+        navigation.session_state["cr_workspace_tabs"] = tab
+        navigation.run(timeout=30)
+
+    persisted = navigation.session_state[streamlit_app.WORKSPACE_STATE_KEY]
+    assert len(persisted["review_corrections"]) == 1
+    assert persisted["batch_results"]["summary"]["unresolved_fields"] == 0
+    assert persisted["cost_summary"] == persisted["batch_results"]["summary"][
+        "cost_dashboard"]
+
+
+def test_reset_session_is_the_only_full_clear_action(monkeypatch):
+    monkeypatch.setenv("CLAIMROUTE_APP_MODE", "local_workspace")
+    item = inspect_content("synthetic.png", _image_bytes())
+    batch = workspace.run_batch(
+        [item], processor=lambda item, mode: workspace.process_item(
+            item, page_processor=lambda *args: _receipt()))
+    app = AppTest.from_file("app/streamlit_app.py", default_timeout=30)
+    app.session_state[streamlit_app.WORKSPACE_STATE_KEY] = _workspace_ui_state(item, batch)
+    app.run(timeout=30)
+
+    app.sidebar.button[0].click().run(timeout=30)
+
+    state = app.session_state[streamlit_app.WORKSPACE_STATE_KEY]
+    assert state["inventory"] == []
+    assert state["selected_document_ids"] == []
+    assert state["batch_results"] is None
+    assert state["review_corrections"] == []
+    assert state["evaluation_summary"] is None
+    assert state["cost_summary"] is None
 
 
 def test_partial_document_is_available_to_streamlit_document_selector():
@@ -649,33 +871,34 @@ def test_evaluation_display_distinguishes_unavailable_and_valid_accuracy():
 
 
 def test_workspace_job_does_not_start_twice_and_unlocks_after_success():
-    state = {}
+    state = streamlit_app._new_workspace_state({})
     calls = []
     assert streamlit_app._queue_workspace_job(state, "job")
     assert not streamlit_app._queue_workspace_job(state, "job")
 
+    batch = {"batch_job_id": "job", "documents": [], "summary": {}, "evaluation": None}
     result = streamlit_app._run_workspace_job(
-        state, "job", lambda: calls.append("run") or {"ok": True})
+        state, "job", lambda: calls.append("run") or batch)
 
-    assert result == {"ok": True}
+    assert result == batch
     assert calls == ["run"]
-    assert state["workspace_job_running"] is False
-    assert "workspace_active_job" not in state
+    assert state["processing_state"]["running"] is False
+    assert state["processing_state"]["active_job"] is None
     assert streamlit_app._run_workspace_job(
         state, "job", lambda: calls.append("duplicate")) is None
     assert calls == ["run"]
 
 
 def test_workspace_job_unlocks_after_failure():
-    state = {}
+    state = streamlit_app._new_workspace_state({})
     streamlit_app._queue_workspace_job(state, "job")
 
     result = streamlit_app._run_workspace_job(
         state, "job", lambda: (_ for _ in ()).throw(RuntimeError("sensitive")))
 
     assert result is None
-    assert state["workspace_job_running"] is False
-    assert "sensitive" not in state["workspace_job_error"]
+    assert state["processing_state"]["running"] is False
+    assert "sensitive" not in state["processing_state"]["error"]
 
 
 def test_stage_progress_exposes_local_retry_and_final_partial_state():
@@ -727,8 +950,71 @@ def test_coverage_excludes_inapplicable_and_is_not_accuracy():
         "extraction_coverage": None,
         "validated_coverage": None,
         "confidence_distribution": {"high": 0, "medium": 0, "low": 0},
+        "message": "Coverage estimate — no ground truth provided",
+        "critical_fields": 0,
+        "critical_fields_resolved": 0,
+        "critical_fields_resolution_rate": None,
+        "primary_ocr_resolution_rate": None,
+        "retry_resolution_rate": None,
+        "multimodal_resolution_rate": None,
+        "human_review_rate": None,
     }
     assert "accuracy" not in coverage
+
+
+def test_cost_dashboard_reconciles_components_counters_and_exports():
+    item = inspect_content("synthetic.png", _image_bytes())
+    receipt = _receipt()
+    receipt["costs"].update({
+        "primary_ocr": {"basis": "MEASURED", "value_usd": 0.0001},
+        "retry_ocr": {"basis": "MEASURED", "value_usd": 0.0002},
+        "local_compute_other": {"basis": "MEASURED", "value_usd": 0.0003},
+        "local_compute": {"basis": "MEASURED", "value_usd": 0.0006},
+        "api": {"basis": "PROJECTED", "value_usd": 0.0004},
+        "measured_api": {"basis": "MEASURED", "value_usd": 0.0},
+        "measured_total_automated": {"basis": "MEASURED", "value_usd": 0.0006},
+        "projected_total_automated": {"basis": "PROJECTED", "value_usd": 0.001},
+    })
+    receipt["usage"] = {"input_tokens": 100, "output_tokens": 10}
+    batch = workspace.run_batch(
+        [item], processor=lambda item, mode: workspace.process_item(
+            item, page_processor=lambda *args: receipt))
+    dashboard = batch["summary"]["cost_dashboard"]
+
+    assert dashboard["components"]["local_compute"]["value_usd"] == 0.0006
+    assert dashboard["components"]["projected_api"] == {
+        "basis": "OFFLINE_ORACLE", "value_usd": 0.0004}
+    assert dashboard["components"]["total_automated"]["value_usd"] == 0.0006
+    assert dashboard["components"]["projected_total_automated"]["value_usd"] == 0.001
+    assert dashboard["unit_costs"]["cost_per_page"]["value_usd"] == 0.0006
+    assert dashboard["unit_costs"]["cost_per_correctly_resolved_field"][
+        "value_usd"] is None
+    assert dashboard["counters"]["input_tokens"] == 100
+    assert dashboard["counters"]["output_tokens"] == 10
+    assert all(row["basis"] == "PROJECTED" for row in dashboard["mode_comparison"])
+    csv_row = list(csv.DictReader(io.StringIO(workspace.export_batch_csv(batch))))[0]
+    assert json.loads(csv_row["cost_dashboard_json"]) == dashboard
+
+
+def test_measured_cost_donut_uses_only_non_overlapping_measured_components():
+    components = {
+        "primary_ocr": {"basis": "MEASURED", "value_usd": 0.0001},
+        "retry_ocr": {"basis": "MEASURED", "value_usd": 0.0002},
+        "local_compute_other": {"basis": "MEASURED", "value_usd": 0.0003},
+        "local_compute": {"basis": "MEASURED", "value_usd": 0.0006},
+        "multimodal_input_tokens": {"basis": "MEASURED", "value_usd": 0.00004},
+        "multimodal_output_tokens": {"basis": "MEASURED", "value_usd": 0.00006},
+        "projected_api": {"basis": "OFFLINE_ORACLE", "value_usd": 0.001},
+        "total_automated": {"basis": "MEASURED", "value_usd": 0.0007},
+    }
+
+    rows = streamlit_app._measured_cost_donut_rows(components)
+
+    assert {row["Component"] for row in rows} == {
+        "Primary OCR", "Retry OCR", "Other local compute",
+        "Multimodal input tokens", "Multimodal output tokens",
+    }
+    assert sum(row["Cost USD"] for row in rows) == pytest.approx(0.0007)
 
 
 def test_unknown_schema_reports_coverage_unavailable():

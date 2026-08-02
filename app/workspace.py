@@ -158,6 +158,20 @@ def _local_cost(latency_ms: float) -> float:
     return latency_ms / 1000 / 3600 * float(prices["compute"]["vcpu_hour_usd"])
 
 
+def _human_review_cost_per_field() -> float:
+    prices = yaml.safe_load((service.ROOT / "configs" / "prices.yaml").read_text(
+        encoding="utf-8"))
+    return float(prices["human_review"]["cost_per_field_touch_usd"])
+
+
+def _cost(value: float | None, basis: str) -> dict:
+    return {"basis": basis, "value_usd": round(float(value), 9) if value is not None else None}
+
+
+def _ratio(numerator: int | float, denominator: int | float) -> float | None:
+    return numerator / denominator if denominator else None
+
+
 def _provider_policy_snapshot(config: dict | None = None,
                               env: dict | None = None) -> dict:
     """Return safe provider availability metadata without constructing a client."""
@@ -197,6 +211,16 @@ def _provider_policy_snapshot(config: dict | None = None,
     }
 
 
+def _multimodal_eligible(field_name: str, routing_policy: dict) -> bool:
+    configured = field_policy(field_name)
+    return bool(
+        configured.get("external_model_allowed", True)
+        and configured.get("criticality", "med")
+        in routing_policy["paid_escalation_criticalities"]
+        and not configured.get("optional", False)
+    )
+
+
 def _provider_escalation(page: int, field: dict, policy: dict,
                          routing_policy: dict) -> dict:
     """Attach one safe terminal workflow state to an unresolved/attempted field."""
@@ -206,13 +230,7 @@ def _provider_escalation(page: int, field: dict, policy: dict,
     attempted_model = record.get("model") or ""
     external_calls = int(
         record.get("escalated") is True and attempted_model != "offline-oracle")
-    configured = field_policy(field["field_name"])
-    eligible = bool(
-        configured.get("external_model_allowed", True)
-        and configured.get("criticality", "med")
-        in routing_policy["paid_escalation_criticalities"]
-        and not configured.get("optional", False)
-    )
+    eligible = _multimodal_eligible(field["field_name"], routing_policy)
     unresolved = decision not in {
         "INAPPLICABLE", "ACCEPT", "ACCEPT_WITH_FLAG", "ACCEPT_WITH_OVERRIDE"
     }
@@ -269,6 +287,19 @@ def _official_unstructured_result(item: IntakeFile, pages, texts, latency_ms: fl
         "validations": [],
         "governor_summary": {"ACCEPT_WITH_FLAG": len(fields)},
         "retry_summary": {"fields_retried": 0},
+        "resolution_summary": {
+            "accepted_without_retry": len(fields),
+            "accepted_after_local_retry": 0,
+            "accepted_with_flag": len(fields),
+            "inapplicable": 0,
+            "pending_local_retry": 0,
+            "pending_multimodal": 0,
+            "multimodal_attempted": 0,
+            "multimodal_eligible": 0,
+            "paid_calls_avoided": len(fields),
+            "pending_human_review": 0,
+            "external_provider_calls": 0,
+        },
         "escalation_summary": {
             "fields_escalated": 0,
             "pending_multimodal": 0,
@@ -285,6 +316,21 @@ def _official_unstructured_result(item: IntakeFile, pages, texts, latency_ms: fl
         "latency": {"milliseconds": round(latency_ms, 3)},
         "measured_cost": {"usd": round(_local_cost(latency_ms), 9)},
         "projected_cost": {"usd": round(_local_cost(latency_ms), 9)},
+        "cost_breakdown": {
+            "primary_ocr": _cost(_local_cost(latency_ms), "MEASURED"),
+            "retry_ocr": _cost(0, "MEASURED"),
+            "local_compute_other": _cost(0, "MEASURED"),
+            "local_compute": _cost(_local_cost(latency_ms), "MEASURED"),
+            "multimodal_input_tokens": _cost(0, "MEASURED"),
+            "multimodal_output_tokens": _cost(0, "MEASURED"),
+            "projected_multimodal_input_tokens": _cost(0, "OFFLINE_ORACLE"),
+            "projected_multimodal_output_tokens": _cost(0, "OFFLINE_ORACLE"),
+            "measured_external_api": _cost(0, "MEASURED"),
+            "projected_api": _cost(0, "OFFLINE_ORACLE"),
+            "measured_total_automated": _cost(_local_cost(latency_ms), "MEASURED"),
+            "projected_total_automated": _cost(_local_cost(latency_ms), "PROJECTED"),
+        },
+        "usage": {"input_tokens": 0, "output_tokens": 0},
         "warnings": [
             "Tier D uses limited label-driven extraction.",
             *(["Tier D label-driven extraction produced no fields; "
@@ -394,6 +440,16 @@ def _process_official_item(item: IntakeFile, tier: str, mode: str,
                           for name, value in stage_latency.items()},
             "unattributed_ms": round(max(0.0, total_ms - attributed_ms), 3),
         }
+        primary_cost = _local_cost(stage_latency.get("primary_ocr", 0))
+        retry_cost = _local_cost(stage_latency.get("retry_ocr", 0))
+        local_total = float(result["measured_cost"]["usd"])
+        result["cost_breakdown"].update({
+            "primary_ocr": _cost(primary_cost, "MEASURED"),
+            "retry_ocr": _cost(retry_cost, "MEASURED"),
+            "local_compute_other": _cost(
+                max(0.0, local_total - primary_cost - retry_cost), "MEASURED"),
+            "local_compute": _cost(local_total, "MEASURED"),
+        })
         if result["escalation_summary"].get("pending_multimodal"):
             _stage(progress, ProcessingStage.MULTIMODAL_PENDING,
                    "Unresolved fields are pending multimodal policy review")
@@ -440,8 +496,13 @@ def _unify_receipts(item: IntakeFile, receipts: list[dict]) -> dict:
     retried = escalated = unresolved = 0
     accepted_without_retry = accepted_after_retry = accepted_with_flag = 0
     inapplicable = pending_local_retry = pending_multimodal = pending_human_review = 0
-    multimodal_failed = external_provider_calls = 0
+    multimodal_failed = external_provider_calls = multimodal_eligible = 0
+    input_tokens = output_tokens = 0
     measured = projected = latency = 0.0
+    primary_cost = retry_cost = other_local_cost = local_cost = 0.0
+    measured_api = projected_api = 0.0
+    multimodal_input_cost = multimodal_output_cost = 0.0
+    projected_input_cost = projected_output_cost = 0.0
     linkage_values = []
     field_count = 0
     provider_policy = _provider_policy_snapshot()
@@ -475,16 +536,21 @@ def _unify_receipts(item: IntakeFile, receipts: list[dict]) -> dict:
             })
             retried += int(field["retry_count"] > 0)
             escalated += int(field["escalated"])
+            resolved_locally = field["decision"] in {
+                "ACCEPT", "ACCEPT_WITH_FLAG", "ACCEPT_WITH_OVERRIDE"
+            } and not field["escalated"]
             accepted_without_retry += int(
-                field["decision"] == "ACCEPT" and not field["retry_count"])
+                resolved_locally and not field["retry_count"])
             accepted_after_retry += int(
-                field["decision"] == "ACCEPT" and field["retry_count"] > 0)
+                resolved_locally and field["retry_count"] > 0)
             accepted_with_flag += int(field["decision"] == "ACCEPT_WITH_FLAG")
             inapplicable += int(field["decision"] == "INAPPLICABLE")
             pending_local_retry += int(field["decision"] == "RETRY")
             pending_multimodal += int(
                 field["decision"] == "ESCALATE" and not field["escalated"])
             pending_human_review += int(field["decision"] == "HUMAN_REVIEW")
+            multimodal_eligible += int(
+                _multimodal_eligible(field["field_name"], routing_policy))
             unresolved += int(field["decision"] not in {
                 "INAPPLICABLE", "ACCEPT", "ACCEPT_WITH_FLAG", "ACCEPT_WITH_OVERRIDE"
             })
@@ -501,6 +567,25 @@ def _unify_receipts(item: IntakeFile, receipts: list[dict]) -> dict:
                 linkage_values.append(str(field["final_value"]))
         measured += float(receipt["costs"]["measured_total_automated"]["value_usd"])
         projected += float(receipt["costs"]["projected_total_automated"]["value_usd"])
+        primary_cost += float((receipt["costs"].get("primary_ocr") or {}).get(
+            "value_usd") or 0)
+        retry_cost += float((receipt["costs"].get("retry_ocr") or {}).get(
+            "value_usd") or 0)
+        other_local_cost += float((receipt["costs"].get("local_compute_other") or {}).get(
+            "value_usd") or 0)
+        local_cost += float(receipt["costs"]["local_compute"]["value_usd"])
+        measured_api += float(receipt["costs"]["measured_api"]["value_usd"])
+        projected_api += float(receipt["costs"]["api"]["value_usd"])
+        multimodal_input_cost += float((receipt["costs"].get(
+            "multimodal_input_tokens") or {}).get("value_usd") or 0)
+        multimodal_output_cost += float((receipt["costs"].get(
+            "multimodal_output_tokens") or {}).get("value_usd") or 0)
+        projected_input_cost += float((receipt["costs"].get(
+            "projected_multimodal_input_tokens") or {}).get("value_usd") or 0)
+        projected_output_cost += float((receipt["costs"].get(
+            "projected_multimodal_output_tokens") or {}).get("value_usd") or 0)
+        input_tokens += int((receipt.get("usage") or {}).get("input_tokens") or 0)
+        output_tokens += int((receipt.get("usage") or {}).get("output_tokens") or 0)
         latency += float(receipt["latency_ms"])
     document_type = next(iter(document_types)) if len(document_types) == 1 else "mixed"
     empty_extraction = field_count == 0
@@ -542,6 +627,8 @@ def _unify_receipts(item: IntakeFile, receipts: list[dict]) -> dict:
             "pending_local_retry": pending_local_retry,
             "pending_multimodal": pending_multimodal,
             "multimodal_attempted": escalated,
+            "multimodal_eligible": multimodal_eligible,
+            "paid_calls_avoided": max(0, field_count - inapplicable - external_provider_calls),
             "pending_human_review": pending_human_review,
             "external_provider_calls": external_provider_calls,
         },
@@ -559,6 +646,23 @@ def _unify_receipts(item: IntakeFile, receipts: list[dict]) -> dict:
         "latency": {"milliseconds": round(latency, 3)},
         "measured_cost": {"usd": round(measured, 9)},
         "projected_cost": {"usd": round(projected, 9)},
+        "cost_breakdown": {
+            "primary_ocr": _cost(primary_cost, "MEASURED"),
+            "retry_ocr": _cost(retry_cost, "MEASURED"),
+            "local_compute_other": _cost(other_local_cost, "MEASURED"),
+            "local_compute": _cost(local_cost, "MEASURED"),
+            "multimodal_input_tokens": _cost(multimodal_input_cost, "MEASURED"),
+            "multimodal_output_tokens": _cost(multimodal_output_cost, "MEASURED"),
+            "projected_multimodal_input_tokens": _cost(
+                projected_input_cost, "OFFLINE_ORACLE"),
+            "projected_multimodal_output_tokens": _cost(
+                projected_output_cost, "OFFLINE_ORACLE"),
+            "measured_external_api": _cost(measured_api, "MEASURED"),
+            "projected_api": _cost(projected_api, "OFFLINE_ORACLE"),
+            "measured_total_automated": _cost(measured, "MEASURED"),
+            "projected_total_automated": _cost(projected, "PROJECTED"),
+        },
+        "usage": {"input_tokens": input_tokens, "output_tokens": output_tokens},
         "warnings": warnings,
         "evaluation": None,
         "review_audit": [],
@@ -644,6 +748,122 @@ def _batch_status(results: list[dict]) -> str:
     return "COMPLETED"
 
 
+def _unresolved_items(results: list[dict]) -> list[dict]:
+    rows = []
+    for result in results:
+        for page in result.get("fields") or []:
+            for name, field in (page.get("fields") or {}).items():
+                if field.get("state") in RESOLVED_FIELD_STATES:
+                    continue
+                rows.append({
+                    "safe_source_id": result.get("safe_source_id"),
+                    "document": result.get("source_file"),
+                    "page": page.get("page"),
+                    "field_name": name,
+                    "state": field.get("state"),
+                    "criticality": field_policy(name).get("criticality", "med"),
+                })
+    return rows
+
+
+def cost_dashboard_metrics(results: list[dict], evaluation: dict | None = None) -> dict:
+    processed = [row for row in results if row.get("processing_status") not in {
+        "SKIPPED", "DUPLICATE", "CANCELLED"
+    }]
+
+    def component(name: str) -> float:
+        return sum(float(((row.get("cost_breakdown") or {}).get(name) or {}).get(
+            "value_usd") or 0) for row in processed)
+
+    pages = sum(int(row.get("page_count") or 0) for row in processed)
+    total_fields = sum(len(page.get("fields") or {}) for row in processed
+                       for page in row.get("fields") or [])
+    resolutions = [row.get("resolution_summary") or {} for row in processed]
+    escalations = [row.get("escalation_summary") or {} for row in processed]
+    primary, retry = component("primary_ocr"), component("retry_ocr")
+    local_other, local_total = component("local_compute_other"), component("local_compute")
+    measured_total = sum(float((row.get("measured_cost") or {}).get("usd") or 0)
+                         for row in processed)
+    projected_total = sum(float((row.get("projected_cost") or {}).get("usd") or 0)
+                          for row in processed)
+    correct = int((evaluation or {}).get("correct_fields") or 0)
+    review_fields = sum(int((row.get("human_review_summary") or {}).get("required") or 0)
+                        for row in processed)
+    projected_per_page = _ratio(projected_total, pages)
+    calibration = service.load_calibration_summary()
+    return {
+        "components": {
+            "primary_ocr": _cost(primary, "MEASURED"),
+            "retry_ocr": _cost(retry, "MEASURED"),
+            "local_compute_other": _cost(local_other, "MEASURED"),
+            "local_compute": _cost(local_total, "MEASURED"),
+            "multimodal_input_tokens": _cost(
+                component("multimodal_input_tokens"), "MEASURED"),
+            "multimodal_output_tokens": _cost(
+                component("multimodal_output_tokens"), "MEASURED"),
+            "projected_multimodal_input_tokens": _cost(
+                component("projected_multimodal_input_tokens"), "OFFLINE_ORACLE"),
+            "projected_multimodal_output_tokens": _cost(
+                component("projected_multimodal_output_tokens"), "OFFLINE_ORACLE"),
+            "measured_external_api": _cost(component("measured_external_api"), "MEASURED"),
+            "projected_api": _cost(component("projected_api"), "OFFLINE_ORACLE"),
+            "total_automated": _cost(measured_total, "MEASURED"),
+            "projected_total_automated": _cost(projected_total, "PROJECTED"),
+        },
+        "unit_costs": {
+            "cost_per_page": _cost(_ratio(measured_total, pages), "MEASURED"),
+            "cost_per_document": _cost(_ratio(measured_total, len(processed)), "MEASURED"),
+            "cost_per_correctly_resolved_field": _cost(
+                _ratio(measured_total, correct), "MEASURED"),
+        },
+        "human_review_estimate": _cost(
+            review_fields * _human_review_cost_per_field(), "ASSUMED"),
+        "enterprise_projection": {
+            "one_million_pages": _cost(
+                projected_per_page * 1_000_000 if projected_per_page is not None else None,
+                "PROJECTED"),
+            "ten_million_pages": _cost(
+                projected_per_page * 10_000_000 if projected_per_page is not None else None,
+                "PROJECTED"),
+        },
+        "counters": {
+            "total_fields": total_fields,
+            "fields_resolved_locally": sum(
+                int(row.get("accepted_without_retry") or 0)
+                + int(row.get("accepted_after_local_retry") or 0)
+                for row in resolutions),
+            "retry_fields": sum(int((row.get("retry_summary") or {}).get(
+                "fields_retried") or 0) for row in processed),
+            "multimodal_eligible_fields": sum(
+                int(row.get("multimodal_eligible") or 0) for row in resolutions),
+            "multimodal_attempted_fields": sum(
+                int(row.get("multimodal_attempted") or 0) for row in escalations),
+            "paid_calls_avoided": sum(
+                int(row.get("paid_calls_avoided") or 0) for row in resolutions),
+            "external_calls": sum(
+                int(row.get("external_provider_calls") or 0) for row in escalations),
+            "input_tokens": sum(int((row.get("usage") or {}).get("input_tokens") or 0)
+                                for row in processed),
+            "output_tokens": sum(int((row.get("usage") or {}).get("output_tokens") or 0)
+                                 for row in processed),
+        },
+        "mode_comparison": [{
+            "mode": mode,
+            "field_accuracy": calibration["modes"][mode]["metrics"].get(
+                "field_accuracy"),
+            "critical_field_accuracy": calibration["modes"][mode]["metrics"].get(
+                "critical_field_accuracy"),
+            "escalation_rate": calibration["modes"][mode]["metrics"].get(
+                "escalation_rate"),
+            "human_review_rate": calibration["modes"][mode]["metrics"].get(
+                "human_review_rate"),
+            "projected_cost_per_page_usd": calibration["modes"][mode]["metrics"].get(
+                "projected_total_automated_cost_per_page_usd"),
+            "basis": "PROJECTED",
+        } for mode in ("economy", "balanced", "accuracy")],
+    }
+
+
 def summarize_results(results: list[dict]) -> dict:
     counts = Counter(result["processing_status"] for result in results)
     processed = [result for result in results
@@ -652,7 +872,8 @@ def summarize_results(results: list[dict]) -> dict:
         "SKIPPED", "DUPLICATE", "CANCELLED"
     }]
     pages = sum(int(result.get("page_count") or 0) for result in page_results)
-    latency = sum(result["latency"]["milliseconds"] for result in processed)
+    latency = sum(float((result.get("latency") or {}).get("milliseconds") or 0)
+                  for result in page_results)
     types = Counter(result["document_type"] for result in processed)
     resolutions = [result.get("resolution_summary") or {} for result in processed]
     escalations = [result.get("escalation_summary") or {} for result in processed]
@@ -664,7 +885,12 @@ def summarize_results(results: list[dict]) -> dict:
     def total(rows: list[dict], key: str) -> int:
         return sum(int(row.get(key) or 0) for row in rows)
 
-    return {
+    critical_fields = total(coverages, "critical_fields")
+    critical_resolved = total(coverages, "critical_fields_resolved")
+    multimodal_resolved = max(
+        0, total(escalations, "multimodal_attempted")
+        - total(escalations, "multimodal_failed"))
+    summary = {
         "files": len(results),
         "pages": pages,
         "success": counts["COMPLETED"],
@@ -694,16 +920,50 @@ def summarize_results(results: list[dict]) -> dict:
         "applicable_fields": total(coverages, "applicable_fields"),
         "fields_produced": total(coverages, "fields_produced"),
         "validated_fields": total(coverages, "validated_fields"),
+        "critical_fields": critical_fields,
+        "critical_fields_resolved": critical_resolved,
+        "critical_fields_resolution_rate": _ratio(critical_resolved, critical_fields),
+        "confidence_distribution": {
+            bucket: sum(int((row.get("confidence_distribution") or {}).get(bucket) or 0)
+                        for row in coverages)
+            for bucket in ("high", "medium", "low")
+        },
+        "primary_ocr_resolution_rate": _ratio(
+            total(resolutions, "accepted_without_retry"),
+            total(coverages, "applicable_fields")),
+        "retry_resolution_rate": _ratio(
+            total(resolutions, "accepted_after_local_retry"),
+            total(retries, "fields_retried")),
+        "multimodal_resolution_rate": _ratio(
+            multimodal_resolved, total(escalations, "multimodal_attempted")),
+        "human_review_rate": _ratio(
+            total(human_reviews, "required"), total(coverages, "applicable_fields")),
         "measured_cost_usd": round(sum(
-            result["measured_cost"]["usd"] for result in processed), 9),
+            float((result.get("measured_cost") or {}).get("usd") or 0)
+            for result in page_results), 9),
         "projected_cost_usd": round(sum(
-            result["projected_cost"]["usd"] for result in processed), 9),
+            float((result.get("projected_cost") or {}).get("usd") or 0)
+            for result in page_results), 9),
         "latency_ms": round(latency, 3),
-        "mean_latency_ms": round(latency / len(processed), 3) if processed else 0.0,
+        "mean_latency_ms": round(latency / len(page_results), 3) if page_results else 0.0,
         "throughput_pages_per_minute": round(pages * 60000 / latency, 6) if latency else 0.0,
         "accuracy": None,
         "critical_accuracy": None,
+        "coverage_by_document": [{
+            "safe_source_id": result.get("safe_source_id"),
+            "document": result.get("source_file"),
+            "document_type": result.get("document_type"),
+            "applicable_fields": int((result.get("coverage") or {}).get(
+                "applicable_fields") or 0),
+            "extraction_coverage": (result.get("coverage") or {}).get(
+                "extraction_coverage"),
+            "validated_coverage": (result.get("coverage") or {}).get(
+                "validated_coverage"),
+        } for result in processed],
+        "unresolved_items": _unresolved_items(processed),
     }
+    summary["cost_dashboard"] = cost_dashboard_metrics(results)
+    return summary
 
 
 def coverage_metrics(result: dict) -> dict:
@@ -714,7 +974,7 @@ def coverage_metrics(result: dict) -> dict:
     if not known_schema:
         return {
             "available": False,
-            "message": "Coverage unavailable â€” document schema not established",
+            "message": "Coverage unavailable — document schema not established",
         }
     inapplicable = sum(field.get("state") == "INAPPLICABLE" for field in fields)
     applicable_fields = [field for field in fields if field.get("state") != "INAPPLICABLE"]
@@ -726,8 +986,21 @@ def coverage_metrics(result: dict) -> dict:
         value = float(field.get("confidence") or 0)
         confidence["high" if value >= .85 else "medium" if value >= .60 else "low"] += 1
     denominator = len(applicable_fields)
+    resolution = result.get("resolution_summary") or {}
+    escalation = result.get("escalation_summary") or {}
+    review = result.get("human_review_summary") or {}
+    critical = [field for page in pages for name, field in page.get("fields", {}).items()
+                if field.get("state") != "INAPPLICABLE"
+                and field_policy(name).get("criticality") == "high"]
+    critical_resolved = sum(field.get("state") in RESOLVED_FIELD_STATES
+                            for field in critical)
+    retry_attempted = int((result.get("retry_summary") or {}).get("fields_retried") or 0)
+    multimodal_attempted = int(escalation.get("multimodal_attempted") or 0)
+    multimodal_resolved = max(
+        0, multimodal_attempted - int(escalation.get("multimodal_failed") or 0))
     return {
         "available": True,
+        "message": "Coverage estimate — no ground truth provided",
         "schema_fields": len(fields),
         "applicable_fields": denominator,
         "inapplicable_fields": inapplicable,
@@ -739,6 +1012,15 @@ def coverage_metrics(result: dict) -> dict:
         "extraction_coverage": produced / denominator if denominator else None,
         "validated_coverage": validated / denominator if denominator else None,
         "confidence_distribution": confidence,
+        "critical_fields": len(critical),
+        "critical_fields_resolved": critical_resolved,
+        "critical_fields_resolution_rate": _ratio(critical_resolved, len(critical)),
+        "primary_ocr_resolution_rate": _ratio(
+            int(resolution.get("accepted_without_retry") or 0), denominator),
+        "retry_resolution_rate": _ratio(
+            int(resolution.get("accepted_after_local_retry") or 0), retry_attempted),
+        "multimodal_resolution_rate": _ratio(multimodal_resolved, multimodal_attempted),
+        "human_review_rate": _ratio(int(review.get("required") or 0), denominator),
     }
 
 
@@ -988,20 +1270,29 @@ def parse_expected_output(item: IntakeFile):
     raise ValueError("Expected-output format is not supported.")
 
 
-def _comparison_receipt(comparisons: list[dict], linkage: dict) -> dict:
+def _comparison_receipt(comparisons: list[dict], linkage: dict,
+                        false_positive_fields: list[str] | None = None) -> dict:
+    false_positive_fields = false_positive_fields or []
     critical = [row for row in comparisons
                 if field_policy(row["field_name"]).get("criticality") == "high"]
+    correct = sum(row["correct"] for row in comparisons)
+    missing = sum(not row["present"] for row in comparisons)
+    incorrect = sum(row["present"] and not row["correct"] for row in comparisons)
     return {
         "linkage": linkage,
         "evaluated_fields": len(comparisons),
         "denominator": len(comparisons),
-        "correct_fields": sum(row["correct"] for row in comparisons),
-        "accuracy": (sum(row["correct"] for row in comparisons) / len(comparisons)
-                     if comparisons else None),
+        "correct_fields": correct,
+        "incorrect_fields": incorrect,
+        "missing_fields": missing,
+        "false_positive_fields": len(false_positive_fields),
+        "accuracy": _ratio(correct, len(comparisons)),
+        "precision": _ratio(correct, correct + incorrect + len(false_positive_fields)),
+        "recall": _ratio(correct, correct + incorrect + missing),
         "critical_fields": len(critical),
         "critical_correct_fields": sum(row["correct"] for row in critical),
-        "critical_accuracy": (sum(row["correct"] for row in critical) / len(critical)
-                              if critical else None),
+        "critical_accuracy": _ratio(sum(row["correct"] for row in critical), len(critical)),
+        "false_positive_field_names": sorted(false_positive_fields),
         "field_results": comparisons,
     }
 
@@ -1024,7 +1315,9 @@ def evaluate_dataset(batch: dict, items: list[IntakeFile]) -> dict:
         for group, records in expected_by_group.items() for record in records
     } | {(group, "synthetic", doc_id) for group, doc_id in synthetic_by_id}
     all_comparisons = []
+    all_false_positives = []
     all_critical = []
+    evaluated_documents = []
     pairing_statuses = Counter()
     matched_expected = set()
     documents_found = sum(
@@ -1054,13 +1347,50 @@ def evaluate_dataset(batch: dict, items: list[IntakeFile]) -> dict:
             matched_key = ((group, "record", link.record_ordinal)
                            if record is not None else None)
         comparisons = compare_fields(expected, actual) if expected else []
-        result["evaluation"] = _comparison_receipt(comparisons, linkage)
+        false_positives = [name for name, value in actual.items()
+                           if value not in (None, "") and name not in expected]
+        result["evaluation"] = _comparison_receipt(
+            comparisons, linkage, false_positives)
         pairing_statuses[linkage["status"]] += 1
         if linkage["status"] == "deterministic" and matched_key is not None:
             matched_expected.add(matched_key)
         all_comparisons.extend(comparisons)
+        all_false_positives.extend(false_positives)
         all_critical.extend(row for row in comparisons
                             if field_policy(row["field_name"]).get("criticality") == "high")
+        if comparisons:
+            evaluated_documents.append(result)
+    correct = sum(row["correct"] for row in all_comparisons)
+    missing = sum(not row["present"] for row in all_comparisons)
+    incorrect = sum(row["present"] and not row["correct"] for row in all_comparisons)
+    by_field = []
+    for name in sorted({row["field_name"] for row in all_comparisons}
+                       | set(all_false_positives)):
+        rows = [row for row in all_comparisons if row["field_name"] == name]
+        fp = all_false_positives.count(name)
+        field_correct = sum(row["correct"] for row in rows)
+        by_field.append({
+            "field_name": name,
+            "evaluated": len(rows),
+            "correct": field_correct,
+            "incorrect": sum(row["present"] and not row["correct"] for row in rows),
+            "missing": sum(not row["present"] for row in rows),
+            "false_positives": fp,
+            "accuracy": _ratio(field_correct, len(rows)),
+        })
+    by_type = []
+    for document_type in sorted({row["document_type"] for row in evaluated_documents}):
+        rows = [row["evaluation"] for row in evaluated_documents
+                if row["document_type"] == document_type]
+        type_evaluated = sum(row["evaluated_fields"] for row in rows)
+        type_correct = sum(row["correct_fields"] for row in rows)
+        by_type.append({
+            "document_type": document_type,
+            "documents": len(rows),
+            "fields_evaluated": type_evaluated,
+            "correct": type_correct,
+            "accuracy": _ratio(type_correct, type_evaluated),
+        })
     evaluation = {
         "documents_found": documents_found,
         "expected_records_found": len(expected_keys),
@@ -1069,20 +1399,29 @@ def evaluate_dataset(batch: dict, items: list[IntakeFile]) -> dict:
         "unmatched_documents": documents_found - pairing_statuses["deterministic"],
         "unmatched_expected_records": max(0, len(expected_keys) - len(matched_expected)),
         "documents_linked": pairing_statuses["deterministic"],
+        "documents_evaluated": len(evaluated_documents),
         "evaluated_fields": len(all_comparisons),
         "denominator": len(all_comparisons),
-        "correct_fields": sum(row["correct"] for row in all_comparisons),
-        "accuracy": (sum(row["correct"] for row in all_comparisons) / len(all_comparisons)
-                     if all_comparisons else None),
+        "correct_fields": correct,
+        "incorrect_fields": incorrect,
+        "missing_fields": missing,
+        "false_positive_fields": len(all_false_positives),
+        "accuracy": _ratio(correct, len(all_comparisons)),
+        "precision": _ratio(correct, correct + incorrect + len(all_false_positives)),
+        "recall": _ratio(correct, correct + incorrect + missing),
         "critical_fields": len(all_critical),
         "critical_correct_fields": sum(row["correct"] for row in all_critical),
         "critical_accuracy": (sum(row["correct"] for row in all_critical) / len(all_critical)
                               if all_critical else None),
+        "accuracy_by_document_type": by_type,
+        "accuracy_by_field": by_field,
         "ground_truth_stage": "post_extraction_only",
     }
     batch["evaluation"] = evaluation
     batch["summary"]["accuracy"] = evaluation["accuracy"]
     batch["summary"]["critical_accuracy"] = evaluation["critical_accuracy"]
+    batch["summary"]["cost_dashboard"] = cost_dashboard_metrics(
+        batch["documents"], evaluation)
     return batch
 
 
@@ -1104,7 +1443,10 @@ def export_document_json(result: dict) -> str:
 
 def export_document_csv(result: dict) -> str:
     stream = io.StringIO(newline="")
-    fieldnames = ["page", "field_name", "value", "state", "confidence", "cost_usd"]
+    fieldnames = [
+        "page", "field_name", "value", "state", "confidence", "cost_usd",
+        "criticality", "coverage_json", "cost_dashboard_json",
+    ]
     writer = csv.DictWriter(stream, fieldnames=fieldnames)
     writer.writeheader()
     for page in result.get("fields", []):
@@ -1116,7 +1458,15 @@ def export_document_csv(result: dict) -> str:
                 "state": field.get("state") if isinstance(field, dict) else "",
                 "confidence": field.get("confidence") if isinstance(field, dict) else "",
                 "cost_usd": field.get("cost_usd") if isinstance(field, dict) else "",
+                "criticality": field_policy(name).get("criticality", "med"),
             })
+    writer.writerow({
+        "field_name": "__DOCUMENT_SUMMARY__",
+        "coverage_json": json.dumps(result.get("coverage") or coverage_metrics(result),
+                                    sort_keys=True),
+        "cost_dashboard_json": json.dumps(
+            cost_dashboard_metrics([result], result.get("evaluation")), sort_keys=True),
+    })
     return stream.getvalue()
 
 
@@ -1126,6 +1476,9 @@ def export_batch_csv(batch: dict) -> str:
         "batch_job_id", "safe_source_id", "source_file", "source_format",
         "processing_status", "document_type", "page_count", "unresolved_fields",
         "measured_cost_usd", "projected_cost_usd", "latency_ms", "accuracy", "warning",
+        "applicable_fields", "fields_produced", "validated_fields",
+        "extraction_coverage", "validated_coverage", "summary_json",
+        "evaluation_json", "cost_dashboard_json",
     ]
     writer = csv.DictWriter(stream, fieldnames=fieldnames)
     writer.writeheader()
@@ -1145,5 +1498,16 @@ def export_batch_csv(batch: dict) -> str:
             "latency_ms": result["latency"]["milliseconds"],
             "accuracy": evaluation.get("accuracy"),
             "warning": "; ".join(result["warnings"]),
+            "applicable_fields": (result.get("coverage") or {}).get("applicable_fields"),
+            "fields_produced": (result.get("coverage") or {}).get("fields_produced"),
+            "validated_fields": (result.get("coverage") or {}).get("validated_fields"),
+            "extraction_coverage": (result.get("coverage") or {}).get(
+                "extraction_coverage"),
+            "validated_coverage": (result.get("coverage") or {}).get(
+                "validated_coverage"),
+            "summary_json": json.dumps(batch.get("summary") or {}, sort_keys=True),
+            "evaluation_json": json.dumps(batch.get("evaluation"), sort_keys=True),
+            "cost_dashboard_json": json.dumps(
+                (batch.get("summary") or {}).get("cost_dashboard") or {}, sort_keys=True),
         })
     return stream.getvalue()
