@@ -311,11 +311,53 @@ def _provider_escalation(page: int, field: dict, policy: dict,
     }
 
 
+# A page needs at least this many claim-form markers before it is treated as a
+# claim form. The same threshold ``select_claim_pages`` uses, so an unreadable
+# claim scan is never quietly downgraded to "unstructured".
+CLAIM_MARKER_MIN = 2
+
+# Label-driven extraction reads a normalised single line, so a value pattern can
+# run straight into the NEXT printed label ("SYNTHETIC PERSON MEMBER ID"). These
+# are the labels a value must stop before.
+_UNSTRUCTURED_LABEL_STOPS = (
+    "MEMBER ID", "MEMBER NO", "MEMBER NUMBER", "PATIENT ACCOUNT", "ACCOUNT NO",
+    "DATE OF BIRTH", "DOB", "DATE OF SERVICE", "TOTAL CHARGE", "TOTAL CHARGES",
+    "TOTAL BILLED", "PROVIDER NPI", "NPI", "CLAIM NO", "CLAIM NUMBER",
+    "DIAGNOSIS", "ICD", "ADDRESS", "PHONE", "INSURED", "PAYER", "GROUP",
+    "POLICY", "SUBSCRIBER",
+)
+
+
+def _trim_label_bleed(value: str) -> str:
+    """Cut a label-driven value at the next printed label it ran into.
+
+    A capture can also miss its value entirely and return the following label,
+    which must become nothing rather than a confident-looking wrong answer. A
+    *single* word is not enough evidence for that, though: "GROUP" and
+    "ADDRESS" are printed labels but also ordinary words inside real provider
+    names, so only an exact label or a leading multi-word label voids a value.
+    """
+    cleaned = re.sub(r"\s+", " ", str(value or "")).strip()
+    upper = cleaned.upper()
+    cut = len(cleaned)
+    for stop in _UNSTRUCTURED_LABEL_STOPS:
+        match = re.search(rf"\b{re.escape(stop)}\b", upper)
+        if not match:
+            continue
+        if match.start() > 0:
+            cut = min(cut, match.start())
+        elif upper == stop or " " in stop:
+            return ""
+    return cleaned[:cut].strip(" ,.:;-")
+
+
 def _official_unstructured_result(item: IntakeFile, pages, texts, latency_ms: float) -> dict:
     values = {}
     for text in texts:
         for name, value in unstructured_fields(text).items():
-            values.setdefault(name, value)
+            trimmed = _trim_label_bleed(value)
+            if trimmed:
+                values.setdefault(name, trimmed)
     fields = {name: {
         "value": value,
         "state": "ACCEPT_WITH_FLAG",
@@ -403,6 +445,7 @@ def _official_unstructured_result(item: IntakeFile, pages, texts, latency_ms: fl
 def _process_official_item(item: IntakeFile, tier: str, mode: str,
                            *, form: str | None = None,
                            require_detection: bool = False,
+                           unstructured_fallback: bool = False,
                            progress: Callable[[dict], None] | None = None) -> dict | None:
     started = time.perf_counter()
     stage_latency = new_stage_latency()
@@ -432,6 +475,19 @@ def _process_official_item(item: IntakeFile, tier: str, mode: str,
             selection_tier = "C" if form == "ub04" else "auto"
         selection = select_claim_pages(texts, selection_tier)
         if selection.status != "deterministic" or not selection.claim_pages:
+            # A page with no claim-form markers is not a claim page that failed
+            # selection - it is a different kind of document. Read it with the
+            # label-driven extractor rather than discarding the OCR text and
+            # reporting nothing. A page that DOES carry claim markers keeps the
+            # old behaviour, so an unreadable claim scan is never relabelled.
+            markers = max((_score(text, CMS_MARKERS) for text in texts), default=0)
+            markers = max(markers,
+                          *(_score(text, UB_MARKERS) for text in texts or [""]))
+            if unstructured_fallback and markers < CLAIM_MARKER_MIN:
+                fallback = _official_unstructured_result(
+                    item, pages, texts, (time.perf_counter() - started) * 1000)
+                if fallback["fields"][0]["fields"]:
+                    return fallback
             if require_detection:
                 return None
             result = _failed_result(
@@ -767,7 +823,7 @@ def process_item(item: IntakeFile, mode: str = service.DEFAULT_MODE,
         # unstructured. Route by content instead of by parent folder name.
         official = _process_official_item(
             item, "auto", mode, form="auto", require_detection=True,
-            progress=progress)
+            unstructured_fallback=True, progress=progress)
         if official is not None:
             return finish(official)
     processor = page_processor or _default_page_processor
