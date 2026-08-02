@@ -1271,14 +1271,18 @@ def test_results_actions_are_truthful_when_provider_is_disabled(monkeypatch):
 
     app.run(timeout=30)
 
+    # The shipped config disables the live path, so the panel states the
+    # outstanding requirements instead of offering a consent toggle that could
+    # not lead to a call. No enabled-looking paid control may be present.
     multimodal = next(button for button in app.button
-                      if button.label == "Run one eligible synthetic field")
+                      if button.label == "Enablement requirements not satisfied")
     assert multimodal.disabled is True
     provider_message = next(message.value for message in app.info
-                            if "AI calls disabled" in message.value)
-    assert provider_message == "AI calls disabled. No data will leave this machine."
-    assert next(toggle for toggle in app.toggle
-                if toggle.label == "Enable paid multimodal AI calls").value is False
+                            if "External AI disabled" in message.value)
+    assert "local OCR, retry, validation and human review remain available" in provider_message
+    assert "No external call was attempted" in provider_message
+    assert not any(toggle.label == "Enable paid multimodal AI calls"
+                   for toggle in app.toggle)
     assert any(widget.label == "Filter fields" and widget.value.startswith("All fields")
                for widget in app.selectbox)
     assert not any(button.label == "Retry unresolved fields" for button in app.button)
@@ -1707,9 +1711,11 @@ def test_permission_panel_renders_the_mode_model_end_to_end(
 
     # No TypeError: this whole path is what the reported traceback walked.
     assert not app.exception
-    app.get("toggle")[0].set_value(True).run(timeout=60)
-    assert not app.exception
 
+    # The environment flags and credential are deliberately unset above, so the
+    # panel is in its blocked state. The mode's model selection must still be
+    # named there: an operator comparing modes has to see what each would send,
+    # and this is the assertion that proves mode -> model routing reaches the UI.
     panel = " ".join(block.value for block in app.markdown)
     assert f"`{model_id}`" in panel
     assert f"`{alias}`" in panel

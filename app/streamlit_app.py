@@ -582,14 +582,62 @@ def _render_multimodal_permission(st, state: dict, document: dict, source) -> No
     calls_used = sum(int(row.get("external_calls_made") or 0)
                      for row in receipts.values())
     key_base = document["safe_source_id"]
+
+    # The enablement checklist is computed BEFORE the toggle is drawn, because
+    # whether the toggle may be offered at all depends on it. Showing an
+    # enabled-looking paid-AI control that cannot execute is the specific defect
+    # this replaces: it invited consent for an action configuration forbids.
+    first = candidates[0] if candidates else None
+    probe_request = _multimodal_request(source, document, first, synthetic=True)
+    blockers = multimodal_permission.enablement_blockers(
+        governor=governor, config=config, synthetic_attested=True,
+        request=probe_request, candidates=len(candidates))
+    # `synthetic_input` is attested by the operator further down, so it is not a
+    # configuration blocker; excluding it keeps the gate about what the operator
+    # cannot fix from this screen.
+    hard = [row for row in multimodal_permission.unmet(blockers)
+            if row.key != "synthetic_input"]
+
+    if hard:
+        st.info(
+            "**External AI disabled** - local OCR, retry, validation and human "
+            "review remain available.  \n"
+            "No external call was attempted and no data left this machine."
+        )
+        st.button(
+            "Enablement requirements not satisfied", disabled=True,
+            key=f"cr_multimodal_run_{key_base}")
+        # The mode's model selection is shown even while blocked. An operator
+        # comparing Economy/Balanced/Accuracy needs to see what each mode WOULD
+        # send; hiding it made the modes look interchangeable.
+        blocked_resolved = governor.resolved
+        st.markdown(
+            f"**Operating mode:** "
+            f"{service.MODE_LABELS.get(blocked_resolved.mode, blocked_resolved.mode.title())} · "
+            f"**Model alias:** `{blocked_resolved.alias or '—'}` → "
+            f"**Would send:** `{blocked_resolved.model_id or 'not configured'}`  \n"
+            f"**Image input supported:** "
+            f"{'yes' if blocked_resolved.supports_images else 'no'} · "
+            f"**Allowlisted:** {'yes' if blocked_resolved.allowlisted else 'no'} · "
+            f"**Eligible fields:** {len(candidates)}"
+        )
+        st.markdown("**Outstanding enablement requirements**")
+        st.dataframe(
+            [{"Requirement": row.label, "Status": "Not satisfied",
+              "Detail": row.detail} for row in hard],
+            hide_index=True, width="stretch")
+        _render_multimodal_receipt(st, receipts, calls_used)
+        return
+
     enabled = st.toggle(
         "Enable paid multimodal AI calls", value=False,
         key=f"cr_multimodal_enabled_{key_base}")
 
     if not enabled:
         st.button(
-            "Run one eligible synthetic field", disabled=True,
-            key=f"cr_multimodal_run_{key_base}")
+            f"Run {len(candidates)} eligible field(s) with "
+            f"{service.MODE_LABELS.get(governor.resolved.mode, governor.resolved.mode.title())} AI",
+            disabled=True, key=f"cr_multimodal_run_{key_base}")
         st.info("AI calls disabled. No data will leave this machine.")
         _render_multimodal_receipt(st, receipts, calls_used)
         return
@@ -630,43 +678,78 @@ def _render_multimodal_permission(st, state: dict, document: dict, source) -> No
     status = multimodal_permission.permission_status(
         enabled=enabled, confirmed=confirmed,
         synthetic_attested=synthetic_attested, request=request,
-        governor=governor, calls_used=calls_used)
-    if calls_used >= multimodal_permission.UI_MAX_CALLS:
-        st.error("Paid-call limit reached")
-    elif not status.can_run:
+        governor=governor, calls_used=0)
+    if not status.can_run:
         st.caption(f"Blocked: {status.reason}")
 
+    mode_label = service.MODE_LABELS.get(
+        governor.resolved.mode, governor.resolved.mode.title())
     run = st.button(
-        "Run one eligible synthetic field", type="primary",
-        disabled=not status.can_run,
+        f"Run {len(candidates)} eligible field(s) with {mode_label} AI",
+        type="primary", disabled=not status.can_run,
         key=f"cr_multimodal_run_{key_base}")
-    if run and request is not None:
-        fingerprint = status.policy.fingerprint if status.policy else request.request_id
-        if session.get("active_fingerprint") or fingerprint in receipts:
-            st.info("This request already has a session receipt. No call was repeated.")
+    if run and candidates:
+        if session.get("active_run"):
+            st.info("A run is already in progress. No call was repeated.")
         else:
-            session["active_fingerprint"] = fingerprint
+            session["active_run"] = True
+            # Mutated in place across fields so each escalation validates against
+            # the values earlier escalations in this same run already accepted.
+            live_document = {"doc": document}
+            progress_bar = st.progress(0.0, text="Starting escalation")
+
+            def build_request(row):
+                return _multimodal_request(
+                    source, live_document["doc"], row, synthetic=synthetic_attested)
+
+            def build_context(row):
+                page_row = next(page for page in live_document["doc"]["fields"]
+                                if page["page"] == row["page"])
+                return {name: field.get("value")
+                        for name, field in page_row["fields"].items()}
+
+            def apply_result(row, value, receipt):
+                live_document["doc"] = workspace.apply_multimodal_candidate(
+                    live_document["doc"], page=row["page"],
+                    field_name=row["field_name"], value=value, receipt=receipt)
+
+            def report(event):
+                progress_bar.progress(
+                    event["index"] / max(1, event["total"]),
+                    text=f"Escalating {event['field_name']} "
+                         f"({event['index']}/{event['total']})")
+
             try:
-                page_row = next(row for row in document["fields"]
-                                if row["page"] == candidate["page"])
-                context = {name: field.get("value")
-                           for name, field in page_row["fields"].items()}
-                receipt, accepted_value = multimodal_permission.run_one_candidate(
-                    request, enabled=enabled, confirmed=confirmed,
+                summary = multimodal_permission.run_eligible_fields(
+                    candidates, enabled=enabled, confirmed=confirmed,
                     synthetic_attested=synthetic_attested, governor=governor,
-                    config=config, calls_used=calls_used, context=context)
-                receipts[fingerprint] = receipt
-                if receipt.get("called_provider"):
-                    updated = workspace.apply_multimodal_candidate(
-                        document, page=candidate["page"],
-                        field_name=candidate["field_name"], value=accepted_value,
-                        receipt=receipt)
-                    _replace_multimodal_document(state, updated)
+                    config=config, request_builder=build_request,
+                    context_builder=build_context, apply_result=apply_result,
+                    receipts=receipts, progress=report)
+                session["last_run_summary"] = summary
+                _replace_multimodal_document(state, live_document["doc"])
             finally:
-                session["active_fingerprint"] = None
+                session["active_run"] = False
             st.rerun()
 
+    _render_run_summary(st, session.get("last_run_summary"))
     _render_multimodal_receipt(st, receipts, calls_used)
+
+
+def _render_run_summary(st, summary: dict | None) -> None:
+    if not summary:
+        return
+    st.markdown("#### Escalation run summary")
+    st.dataframe([{
+        "Fields attempted": summary.get("attempted", 0),
+        "Accepted": summary.get("accepted", 0),
+        "Rejected by validation": summary.get("rejected", 0),
+        "Blocked": summary.get("blocked", 0),
+        "External calls": summary.get("external_calls", 0),
+        "Measured cost": _fmt_usd(summary.get("measured_cost_usd") or 0),
+    }], hide_index=True, width="stretch")
+    if summary.get("stopped_reason"):
+        st.caption(f"Run stopped early: {summary['stopped_reason']}")
 
 
 def _render_multimodal_receipt(st, receipts: dict, calls_used: int) -> None:
@@ -2115,9 +2198,17 @@ def _render_workspace_intake(st, state: dict, running: bool) -> None:
     )
     state["workflow"] = workflow
     st.session_state.setdefault("cr_operating_mode", state["operating_mode"])
+    # The mode is NOT inert when the provider is off: it sets the local accept,
+    # retry, and flag thresholds the governor actually applies. Labelling it a
+    # "preview" would be false. The label names which rung is unavailable
+    # instead, so the control reads as partially, not wholly, disabled.
+    ai_available = workspace._provider_policy_snapshot().get("provider_enabled")
     mode = st.selectbox(
         "Operating mode", list(service.MODE_LABELS),
-        format_func=service.MODE_LABELS.get,
+        format_func=(
+            service.MODE_LABELS.get if ai_available
+            else lambda key: f"{service.MODE_LABELS[key]} - local policy active, "
+                             "AI rung unavailable"),
         disabled=running or bool(state.get("batch_results")),
         help="This selection changes runtime governor thresholds; it never enables a provider.",
         key="cr_operating_mode",
@@ -2130,7 +2221,8 @@ def _render_workspace_intake(st, state: dict, running: bool) -> None:
     }
     selected_policy = workspace.mode_policy(mode)
     st.caption(f"{mode_help[mode]} Runtime accept threshold: "
-               f"{selected_policy['accept_threshold']:.2f}. External calls enabled: No.")
+               f"{selected_policy['accept_threshold']:.2f}. External calls enabled: "
+               f"{'Yes (governed)' if ai_available else 'No'}.")
     if state.get("batch_results"):
         st.caption("Reset the session to change workflow or operating mode after processing.")
     st.session_state.setdefault("cr_input_source", state["input_source"])

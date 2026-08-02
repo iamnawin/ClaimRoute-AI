@@ -279,6 +279,26 @@ class LiveCallGovernor:
         spec = self._providers.get(self.provider_name) or {}
         return spec.get("api_key_env") or DEFAULT_KEY_ENV
 
+    # Read-only views of the same environment state authorize() gates on. They
+    # exist so a UI can list every unmet enablement requirement at once instead
+    # of reimplementing the checks and drifting from the gate. Reporting only:
+    # nothing here grants permission, and authorize() re-reads all of it.
+
+    @property
+    def adapter_enabled(self) -> bool:
+        if self._adapter_enabled_override is not None:
+            return bool(self._adapter_enabled_override)
+        return self._flag(MULTIMODAL_ENABLED_ENV)
+
+    @property
+    def live_test_enabled(self) -> bool:
+        return self._flag(self._live.get("live_test_env", LIVE_TEST_ENV))
+
+    @property
+    def credential_available(self) -> bool:
+        """True when the key variable is set. The value is never returned."""
+        return bool((self._getenv(self.key_env) or "").strip())
+
     @property
     def resolved(self):
         """The full model selection for this session's operating mode.

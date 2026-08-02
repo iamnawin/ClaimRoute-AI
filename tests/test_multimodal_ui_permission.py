@@ -243,29 +243,45 @@ def _workspace_ui_state():
     return state
 
 
-def test_streamlit_toggle_defaults_off_and_warning_appears_only_when_on(monkeypatch):
+def test_no_enabled_looking_control_when_configuration_forbids_execution(monkeypatch):
+    """The repository ships the live path disabled, so the UI must not offer consent.
+
+    This runs against the REAL configs/multimodal_providers.yaml. Offering an
+    enabled-looking paid-AI toggle there invited an operator to attest to
+    synthetic data and confirm billing for a call that configuration refuses.
+    The panel must state the blockers instead, and expose no toggle at all.
+    """
     monkeypatch.setenv("CLAIMROUTE_APP_MODE", "local_workspace")
     app = AppTest.from_file("app/streamlit_app.py", default_timeout=30)
     app.session_state[streamlit_app.WORKSPACE_STATE_KEY] = _workspace_ui_state()
     app.session_state["cr_workspace_tabs"] = "Results"
     app.run(timeout=30)
 
-    toggle = next(row for row in app.toggle
-                  if row.label == "Enable paid multimodal AI calls")
+    assert not [row for row in app.toggle
+                if row.label == "Enable paid multimodal AI calls"]
     action = next(row for row in app.button
-                  if row.label == "Run one eligible synthetic field")
-    assert toggle.value is False
+                  if row.label == "Enablement requirements not satisfied")
     assert action.disabled is True
-    assert any("AI calls disabled. No data will leave this machine." in row.value
-               for row in app.info)
+    assert any("External AI disabled" in row.value for row in app.info)
+    # The consent checkboxes must not be reachable while execution is impossible.
+    assert not [row for row in app.checkbox
+                if row.label.startswith("I understand that this may make")]
 
-    toggle.set_value(True).run(timeout=30)
-    assert any("Paid multimodal AI calls enabled" in row.value for row in app.warning)
-    confirmation = next(row for row in app.checkbox
-                        if row.label == "I understand that this may make a paid external API call.")
-    assert confirmation.value is False
-    assert next(row for row in app.button
-                if row.label == "Run one eligible synthetic field").disabled is True
+
+def test_operating_modes_are_labelled_local_only_when_provider_disabled(monkeypatch):
+    """Modes stay selectable, because they drive real local thresholds."""
+    monkeypatch.setenv("CLAIMROUTE_APP_MODE", "local_workspace")
+    app = AppTest.from_file("app/streamlit_app.py", default_timeout=30)
+    app.session_state[streamlit_app.WORKSPACE_STATE_KEY] = _workspace_ui_state()
+    app.run(timeout=30)
+
+    selector = next(row for row in app.selectbox if row.label == "Operating mode")
+    assert all("local policy active, AI rung unavailable" in str(option)
+               for option in selector.options)
+    # Every mode is still offered. The label narrows what is unavailable to the
+    # AI rung rather than implying the whole control is inert, because the mode
+    # sets the local accept/retry/flag thresholds the governor actually applies.
+    assert len(selector.options) == len(service.MODE_LABELS)
 
 
 def test_streamlit_rerun_preserves_receipt_and_keeps_paid_action_disabled(monkeypatch):
@@ -286,8 +302,9 @@ def test_streamlit_rerun_preserves_receipt_and_keeps_paid_action_disabled(monkey
     app.run(timeout=30)
     app.run(timeout=30)
 
-    assert any(row.value == "Paid-call limit reached" for row in app.error)
+    # Enablement is unsatisfied under the shipped config, so the action stays
+    # disabled and the prior receipt survives the rerun unchanged.
     assert next(row for row in app.button
-                if row.label == "Run one eligible synthetic field").disabled is True
+                if row.label == "Enablement requirements not satisfied").disabled is True
     assert state["multimodal"]["receipts"]["safe-fingerprint"][
         "external_calls_made"] == 1

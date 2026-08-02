@@ -21,12 +21,104 @@ from engine.validators import validate_field
 
 UI_MAX_CALLS = 1
 
+# The document-level run is bounded by the governor's own per-document call
+# limit, not by a second number invented here. UI_MAX_CALLS stays the cap for
+# the single-field action so the two paths cannot drift apart.
+
 
 @dataclass(frozen=True)
 class PermissionStatus:
     can_run: bool
     reason: str
     policy: Optional[LiveCallOutcome] = None
+
+
+@dataclass(frozen=True)
+class Blocker:
+    """One named reason the paid path cannot run, safe to render verbatim.
+
+    Separate from PermissionStatus because the UI has to show every unmet
+    requirement at once. A single "blocked" string tells an operator to fix one
+    thing, discover the next, and repeat; the enablement checklist is finite and
+    is better shown whole.
+    """
+
+    key: str
+    label: str
+    satisfied: bool
+    detail: str = ""
+
+
+def enablement_blockers(*, governor: LiveCallGovernor, config: dict,
+                        synthetic_attested: bool,
+                        request: MultimodalRequest | None,
+                        candidates: int) -> list[Blocker]:
+    """Every enablement requirement and whether it is currently met.
+
+    Reports configuration, environment, credential, provenance, model, and
+    budget state as independent rows. Nothing here authorises anything: the
+    governor re-checks all of it before any transport.
+    """
+    live = (config.get("live_provider") or {})
+    resolved = governor.resolved
+    live_env = live.get("live_test_env", "CLAIMROUTE_LIVE_PROVIDER_TEST")
+    rows = [
+        Blocker(
+            "provider_configuration",
+            "Provider configuration enabled",
+            bool(config.get("enabled", False) and live.get("enabled", False)),
+            "configs/multimodal_providers.yaml must set both enabled: true and "
+            "live_provider.enabled: true",
+        ),
+        Blocker(
+            "environment_flag",
+            "Environment flags set",
+            governor.adapter_enabled and governor.live_test_enabled,
+            f"CLAIMROUTE_MULTIMODAL_ENABLED and {live_env} must both be true",
+        ),
+        Blocker(
+            "credential",
+            "Provider credential present",
+            governor.credential_available,
+            f"{governor.key_env} is read from the environment and never displayed",
+        ),
+        Blocker(
+            "synthetic_input",
+            "Input attested synthetic",
+            bool(synthetic_attested),
+            "the live path is synthetic-data-only; organiser and official "
+            "documents are refused by data policy",
+        ),
+        Blocker(
+            "crop_available",
+            "Field crop available",
+            request is not None,
+            "a bounded field crop must be provable; full pages are never sent",
+        ),
+        Blocker(
+            "model_available",
+            "Model usable for this mode",
+            bool(resolved.model_id) and not resolved.blocked_reason,
+            resolved.blocked_reason or f"{resolved.mode} selects {resolved.model_id}",
+        ),
+        Blocker(
+            "budget",
+            "Budget remaining",
+            governor.session_remaining_usd > 0,
+            f"session budget remaining {governor.session_remaining_usd:.6f} USD",
+        ),
+        Blocker(
+            "eligible_fields",
+            "Eligible unresolved fields",
+            candidates > 0,
+            f"{candidates} field(s) eligible under the selected operating mode",
+        ),
+    ]
+    return rows
+
+
+def unmet(blockers: list[Blocker]) -> list[Blocker]:
+    return [row for row in blockers if not row.satisfied]
 
 
 def permission_status(*, enabled: bool, confirmed: bool,
@@ -146,6 +238,90 @@ def run_one_candidate(
         "external_calls_made": int(bool(result.called_provider)),
     }
     return receipt, candidate if accepted else None
+
+
+def run_eligible_fields(
+        candidates: list[dict], *, enabled: bool, confirmed: bool,
+        synthetic_attested: bool, governor: LiveCallGovernor, config: dict,
+        request_builder: Callable, context_builder: Callable,
+        apply_result: Callable, receipts: dict,
+        progress: Callable[[dict], None] | None = None,
+        runner: Callable = run_one_candidate) -> dict:
+    """Escalate every eligible unresolved field under one document confirmation.
+
+    Sequential by construction: ``allow_parallel_paid_calls`` is false, and the
+    governor refuses a second call while one is in flight. Each field is a
+    separate authorization, so the per-field, per-page, per-document, batch, and
+    spend limits all still apply mid-run and stop the loop the moment one binds.
+
+    A field whose candidate fails grounding or healthcare validation keeps its
+    unresolved state; ``apply_result`` decides that, not this loop. The paid call
+    still happened and is still counted and reported.
+    """
+    summary = {
+        "attempted": 0, "accepted": 0, "rejected": 0, "blocked": 0,
+        "external_calls": 0, "measured_cost_usd": 0.0, "stopped_reason": "",
+    }
+    # UI_MAX_CALLS caps the SINGLE-FIELD action at one call. It is deliberately
+    # not applied per field here: this run is bounded by the governor's own
+    # per-document, per-page, and batch limits, which is the authority that also
+    # stops the loop below. Passing it would cap the document run at one field.
+    per_field_calls_used = 0
+    for index, candidate in enumerate(candidates, 1):
+        fingerprint_seen = None
+        request = request_builder(candidate)
+        # A fingerprint already in `receipts` is a field this session paid for.
+        # Re-sending it would be a duplicate charge for a result already held.
+        status = permission_status(
+            enabled=enabled, confirmed=confirmed,
+            synthetic_attested=synthetic_attested, request=request,
+            governor=governor, calls_used=per_field_calls_used)
+        if status.policy is not None:
+            fingerprint_seen = status.policy.fingerprint
+        if fingerprint_seen and fingerprint_seen in receipts:
+            summary["blocked"] += 1
+            continue
+        if not status.can_run:
+            summary["blocked"] += 1
+            # Count- and budget-bound refusals end the run: every later field
+            # would fail the same way, and retrying each one only produces a
+            # longer list of identical refusals.
+            if status.policy is not None and _is_exhausted(status.policy):
+                summary["stopped_reason"] = status.reason
+                break
+            continue
+
+        if progress:
+            progress({"index": index, "total": len(candidates),
+                      "field_name": candidate.get("field_name", "")})
+        receipt, accepted_value = runner(
+            request, enabled=enabled, confirmed=confirmed,
+            synthetic_attested=synthetic_attested, governor=governor,
+            config=config, calls_used=per_field_calls_used,
+            context=context_builder(candidate))
+        key = receipt.get("fingerprint") or f"{candidate.get('field_name')}-{index}"
+        receipts[key] = receipt
+        summary["attempted"] += 1
+        summary["external_calls"] += int(receipt.get("external_calls_made") or 0)
+        summary["measured_cost_usd"] += float(receipt.get("measured_cost_usd") or 0)
+        if receipt.get("called_provider"):
+            apply_result(candidate, accepted_value, receipt)
+            if receipt.get("final_field_outcome") == "ACCEPTED":
+                summary["accepted"] += 1
+            else:
+                summary["rejected"] += 1
+        else:
+            summary["blocked"] += 1
+    summary["measured_cost_usd"] = round(summary["measured_cost_usd"], 9)
+    return summary
+
+
+def _is_exhausted(outcome: LiveCallOutcome) -> bool:
+    """True when a refusal means no further field can succeed either."""
+    return outcome.decision.value in {
+        "BLOCKED_SESSION_BUDGET", "BLOCKED_DOCUMENT_BUDGET",
+        "BLOCKED_DOCUMENT_CALL_LIMIT", "BLOCKED_BATCH_CALL_LIMIT",
+    }
 
 
 def _blocked_receipt(request: MultimodalRequest | None, governor: LiveCallGovernor,
