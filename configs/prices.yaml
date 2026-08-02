@@ -1,6 +1,7 @@
-# Verified against official provider pricing pages on 2026-07-30.
+# Verified against official provider pricing pages on 2026-08-02.
 # Per 1M tokens (input / output), USD.
 vision_models:
+  qwen-3.7-flash:    { input: 0.03, output: 0.13 }
   gpt-5-nano:        { input: 0.05, output: 0.40 }
   gemini-2.5-flash-lite: { input: 0.10, output: 0.40, note: "retires Oct 2026; successor 3.1 flash-lite 0.25/1.50 — use successor in forward projections" }
   gemini-3.1-flash-lite: { input: 0.25, output: 1.50 }

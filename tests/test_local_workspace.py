@@ -186,7 +186,7 @@ def test_unresolved_fields_are_partial_and_routed_to_review_without_sending():
         "multimodal_eligible": True,
         "provider_enabled": False,
         "provider_name": "openrouter",
-        "configured_model": "openai/gpt-5-nano",
+        "configured_model": "qwen/qwen3.7-flash",
         "credential_available": bool(os.environ.get("OPENROUTER_API_KEY")),
         "external_call_attempted": False,
         "external_call_count": 0,
