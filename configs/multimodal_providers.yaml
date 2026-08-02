@@ -59,13 +59,13 @@ providers:
     # OpenRouter is an aggregator, so the model id is namespaced and explicit.
     # There is no default in code: a guessed id on an aggregator is how you get
     # billed for something nobody chose.
-    model: openai/gpt-5-nano
+    model: qwen/qwen3.7-flash
     endpoint: https://openrouter.ai/api/v1/chat/completions
     # Fixed by the adapter. A spec cannot point this at another variable and
     # quietly borrow a different provider's key.
     api_key_env: OPENROUTER_API_KEY
     max_output_tokens: 200
-    price_row: gpt-5-nano
+    price_row: qwen-3.7-flash
 
 # --------------------------------------------------------------------- live path
 #
@@ -96,12 +96,12 @@ live_provider:
   # declaration that is CHECKED, not decoration: a model without it is refused,
   # so a text-only id cannot be pointed at an image request.
   model_allowlist:
-    - id: openai/gpt-5-nano
+    - id: qwen/qwen3.7-flash
       vision: true
-      # configs/prices.yaml row, verified 2026-07-30. Used only to cross-check
+      # configs/prices.yaml row, verified 2026-08-02. Used only to cross-check
       # the cost OpenRouter itself reports; the provider's figure is the one of
       # record.
-      price_row: gpt-5-nano
+      price_row: qwen-3.7-flash
 
   # Initial smoke-test limits. NOT production calibration.
   limits:
