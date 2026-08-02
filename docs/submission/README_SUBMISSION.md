@@ -47,7 +47,7 @@ claimed to exist unless it was confirmed on disk.
 | Artifact | Owner | Status | Last validated | Blocking issue |
 |---|---|---|---|---|
 | `01_Executive_Summary.pdf` | TBD | `NOT_STARTED` | never | No source document exists yet. Content is available in `final_submission_package.md`. |
-| `02_Architecture.pdf` | TBD | `NOT_STARTED` | never | `docs/ClaimRoute_AI_Solution_Architecture.docx` exists and is tracked, but has not been reviewed or exported to PDF. |
+| `02_Architecture.pdf` | Naveen | `VALIDATED_FINAL` | 2026-08-02 | Generated reproducibly from frozen evidence plus the separately labelled synthetic OpenRouter smoke receipt; 10 pages visually reviewed. |
 | `03_Demo.mp4` | Naveen | `RECORDING_REQUIRED` | never | No recording exists. `docs/demo_script.md` holds the script. See the vision-cache caveat below. |
 | `05_Benchmark.xlsx` | TBD | `BLOCKED` | never | Precision and recall are required by the organiser and are **not computed** anywhere in frozen evidence. See `EVIDENCE_REGISTER.md`. |
 | Source-code upload | TBD | `IN_PROGRESS` | never | Final branch not chosen; `SOURCE_UPLOAD_CHECKLIST.md` gates it. |

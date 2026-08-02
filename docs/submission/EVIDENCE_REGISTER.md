@@ -20,8 +20,9 @@ If this register and `claims_register.md` disagree on how a value may be describ
 
 ## Labels
 
-`MEASURED`, `PROJECTED`, `ASSUMED`, `SYNTHETIC`, `OFFICIAL`, `OFFLINE_ORACLE`, plus the
-control value `PENDING_EVIDENCE_REVIEW` for anything not yet traced to a file on disk.
+`MEASURED`, `PROJECTED`, `ASSUMED`, `SYNTHETIC`, `OFFICIAL`, `OFFLINE_ORACLE`,
+`LIVE_PROVIDER`, `CROP_LEVEL`, `ONE_CALL_SMOKE_TEST`, plus the control value
+`PENDING_EVIDENCE_REVIEW` for anything not yet traced to a file on disk.
 
 ## Frozen synthetic benchmark
 
@@ -100,6 +101,19 @@ Never combine these with synthetic figures.
 | External provider calls | 0 | `MEASURED` `OFFICIAL` | `official_sample_summary.json` | Yes | Yes | TBD | |
 | Combined official result | withheld | `PENDING_EVIDENCE_REVIEW` | `official_sample_summary.json` | Yes | **No** | TBD | Harness set `combined_result: null` because a linkage abstained. **Do not compute a combined number by hand.** |
 | Tier A field accuracy | 0.0 | `MEASURED` `OFFICIAL` | `official_sample_summary.json` | Yes | Handle with care | TBD | Real measured zero on official Tier A. Must not be hidden, and must not be presented as overall accuracy. See claims register. |
+
+## Live provider integration smoke test
+
+Source: `eval/results/openrouter_qwen37_flash_smoke.json`. Synthetic crop only; separate
+from the frozen benchmark and official organiser evidence.
+
+| Metric | Value | Label | Source | Frozen | Approved | Owner | Notes |
+|---|---:|---|---|---|---|---|---|
+| External provider calls | 1 | `MEASURED` `LIVE_PROVIDER` `SYNTHETIC` `CROP_LEVEL` `ONE_CALL_SMOKE_TEST` | `openrouter_qwen37_flash_smoke.json` | No | Yes | Naveen | Integration evidence only; not a performance benchmark. |
+| Input tokens | 276 | `MEASURED` `LIVE_PROVIDER` | `openrouter_qwen37_flash_smoke.json` | No | Yes | Naveen | Provider receipt. |
+| Output tokens | 77 | `MEASURED` `LIVE_PROVIDER` | `openrouter_qwen37_flash_smoke.json` | No | Yes | Naveen | Provider receipt; reasoning tokens are reported separately in the receipt. |
+| Provider-reported cost | 0.00001829 USD | `MEASURED` `LIVE_PROVIDER` | `openrouter_qwen37_flash_smoke.json` | No | Yes | Naveen | One request using `qwen/qwen3.7-flash`; no model substitution. |
+| End-to-end latency | 3856.93 ms | `MEASURED` `LIVE_PROVIDER` | `openrouter_qwen37_flash_smoke.json` | No | Yes | Naveen | One-call latency; not a reliability or SLA claim. |
 
 ## Prohibited
 

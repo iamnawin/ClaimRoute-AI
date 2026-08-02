@@ -276,6 +276,10 @@ class Evidence:
         header = lines[0].split(",")
         return [dict(zip(header, line.split(","))) for line in lines[1:]]
 
+    def live_openrouter_smoke(self) -> dict:
+        """PHI-safe receipt for the single synthetic crop-level provider smoke test."""
+        return _load_json(RESULTS / "openrouter_qwen37_flash_smoke.json")
+
     # -- official (non-synthetic) evidence -------------------------------------
 
     def official_ub04_holdout(self) -> dict:
