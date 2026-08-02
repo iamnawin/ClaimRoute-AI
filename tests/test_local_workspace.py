@@ -149,7 +149,7 @@ def test_summary_tolerates_legacy_none_unresolved_value():
     assert isinstance(summary["unresolved_fields"], int)
 
 
-def test_unresolved_fields_are_partial_and_explicitly_pending_not_sent():
+def test_unresolved_fields_are_partial_and_routed_to_review_without_sending():
     item = inspect_content("synthetic.png", _image_bytes())
     result = workspace.process_item(
         item, page_processor=lambda *args: _unresolved_receipt())
@@ -158,26 +158,24 @@ def test_unresolved_fields_are_partial_and_explicitly_pending_not_sent():
     assert result["unresolved_fields"] == 1
     assert result["escalation_summary"] == {
         "fields_escalated": 0,
-        "pending_multimodal": 1,
+        "pending_multimodal": 0,
         "multimodal_attempted": 0,
         "multimodal_failed": 0,
-        "pending_human_review": 0,
+        "pending_human_review": 1,
         "external_provider_calls": 0,
     }
-    assert result["warnings"] == [
-        "1 field(s) pending escalation; external providers are disabled and no data was sent."
-    ]
+    assert result["warnings"] == ["1 field(s) require human review."]
     assert result["resolution_summary"] == {
         "accepted_without_retry": 0,
         "accepted_after_local_retry": 0,
         "accepted_with_flag": 0,
         "inapplicable": 0,
         "pending_local_retry": 0,
-        "pending_multimodal": 1,
+        "pending_multimodal": 0,
         "multimodal_attempted": 0,
         "multimodal_eligible": 1,
         "paid_calls_avoided": 1,
-        "pending_human_review": 0,
+        "pending_human_review": 1,
         "external_provider_calls": 0,
     }
 
@@ -193,7 +191,7 @@ def test_unresolved_fields_are_partial_and_explicitly_pending_not_sent():
         "external_call_attempted": False,
         "external_call_count": 0,
         "reason_not_attempted": "disabled by policy",
-        "final_workflow_state": "PENDING_MULTIMODAL_PROVIDER_DISABLED",
+        "final_workflow_state": "HUMAN_REVIEW_REQUIRED",
         "no_data_sent": True,
     }
 
@@ -216,11 +214,11 @@ def test_provider_state_distinguishes_disabled_missing_key_and_missing_model():
     }, env={"SYNTHETIC_TEST_KEY": "not-rendered"})
 
     assert disabled["reason_not_attempted"] == "disabled by policy"
-    assert disabled["final_workflow_state"] == "PENDING_MULTIMODAL_PROVIDER_DISABLED"
+    assert disabled["final_workflow_state"] == "HUMAN_REVIEW_REQUIRED"
     assert missing_key["credential_available"] is False
-    assert missing_key["final_workflow_state"] == "PENDING_MULTIMODAL_CREDENTIAL_MISSING"
+    assert missing_key["final_workflow_state"] == "HUMAN_REVIEW_REQUIRED"
     assert no_model["configured_model"] == ""
-    assert no_model["final_workflow_state"] == "PENDING_MULTIMODAL_MODEL_NOT_CONFIGURED"
+    assert no_model["final_workflow_state"] == "HUMAN_REVIEW_REQUIRED"
     assert all(state["external_call_attempted"] is False
                and state["external_call_count"] == 0
                for state in (disabled, missing_key, no_model))
@@ -279,7 +277,7 @@ def test_complete_batch_summary_is_numeric_without_double_counting():
     assert summary["retry_resolved"] == 0
     assert summary["unresolved_fields"] == 3
     assert summary["inapplicable"] == 1
-    assert summary["pending_multimodal"] == 1
+    assert summary["pending_multimodal"] == 0
     assert summary["multimodal_attempted"] == 1
     assert summary["multimodal_failed"] == 1
     assert summary["human_review_required"] == 2
@@ -765,7 +763,10 @@ def test_reset_session_is_the_only_full_clear_action(monkeypatch):
     app.session_state[streamlit_app.WORKSPACE_STATE_KEY] = _workspace_ui_state(item, batch)
     app.run(timeout=30)
 
-    app.sidebar.button[0].click().run(timeout=30)
+    next(widget for widget in app.sidebar.checkbox
+         if widget.label == "Confirm reset").set_value(True).run(timeout=30)
+    next(button for button in app.sidebar.button
+         if button.label == "Reset session").click().run(timeout=30)
 
     state = app.session_state[streamlit_app.WORKSPACE_STATE_KEY]
     assert state["inventory"] == []
@@ -830,7 +831,7 @@ def test_provider_and_batch_render_rows_are_complete_and_secret_free():
         "configured_model": "synthetic/model", "credential_available": True,
         "external_call_attempted": False, "external_call_count": 0,
         "reason_not_attempted": "disabled by policy",
-        "final_workflow_state": "PENDING_MULTIMODAL_PROVIDER_DISABLED",
+        "final_workflow_state": "HUMAN_REVIEW_REQUIRED",
         "no_data_sent": True,
     }]})
     summary_rows = streamlit_app._batch_summary_rows({
@@ -987,8 +988,13 @@ def test_cost_dashboard_reconciles_components_counters_and_exports():
     assert dashboard["components"]["total_automated"]["value_usd"] == 0.0006
     assert dashboard["components"]["projected_total_automated"]["value_usd"] == 0.001
     assert dashboard["unit_costs"]["cost_per_page"]["value_usd"] == 0.0006
-    assert dashboard["unit_costs"]["cost_per_correctly_resolved_field"][
-        "value_usd"] is None
+    assert dashboard["unit_costs"]["measured_cost_per_validated_field"][
+        "value_usd"] == pytest.approx(0.0006)
+    assert dashboard["human_review_estimate"] == {
+        "field_count": 0,
+        "assumed_cost_per_field_usd": 0.03,
+        "total": {"basis": "ASSUMED", "value_usd": 0.0},
+    }
     assert dashboard["counters"]["input_tokens"] == 100
     assert dashboard["counters"]["output_tokens"] == 10
     assert all(row["basis"] == "PROJECTED" for row in dashboard["mode_comparison"])
@@ -1043,6 +1049,359 @@ def test_retry_document_replaces_result_and_preserves_prior_attempt_in_memory():
     assert document["retry_count"] == 1
     assert document["_prior_results"][0]["processing_status"] == "FAILED"
     assert document["retry_history"][0]["external_calls"] == 0
+    assert document["retry_history"][0] == {
+        **document["retry_history"][0],
+        "unresolved_before": 0,
+        "fields_attempted": 1,
+        "fields_resolved": 0,
+        "unresolved_after": 0,
+        "retry_latency_ms": 10.0,
+        "total_latency_ms": 10.0,
+        "improved": False,
+    }
+
+
+def test_retry_job_receipt_persists_and_same_generation_cannot_run_twice(monkeypatch):
+    monkeypatch.setenv("CLAIMROUTE_APP_MODE", "local_workspace")
+    item = inspect_content("synthetic.png", _image_bytes())
+    batch = workspace.run_batch(
+        [item], processor=lambda item, mode: workspace.process_item(
+            item, page_processor=lambda *args: _unresolved_receipt()))
+    state = _workspace_ui_state(item, batch)
+    fingerprint = streamlit_app._retry_fingerprint(batch["documents"][0])
+    calls = []
+
+    assert streamlit_app._queue_retry_job(state, fingerprint)
+    retried = streamlit_app._run_retry_job(
+        state, fingerprint, item,
+        runner=lambda batch, item, mode: calls.append("run") or workspace.retry_document(
+            batch, item, mode=mode, processor=lambda item, mode: workspace.process_item(
+                item, page_processor=lambda *args: _receipt())))
+
+    assert retried is state["batch_results"]
+    assert calls == ["run"]
+    assert len(state["retry_receipts"]) == 1
+    assert state["retry_receipts"][0]["unresolved_before"] == 1
+    assert state["retry_receipts"][0]["unresolved_after"] == 0
+    assert state["retry_receipts"][0]["improved"] is True
+    assert not streamlit_app._queue_retry_job(state, fingerprint)
+
+    app = AppTest.from_file("app/streamlit_app.py", default_timeout=30)
+    app.session_state[streamlit_app.WORKSPACE_STATE_KEY] = state
+    for tab in ["Results", "Accuracy", "Results"]:
+        app.session_state["cr_workspace_tabs"] = tab
+        app.run(timeout=30)
+    assert any("Local retry receipt" in item.value for item in app.markdown)
+
+
+def test_human_friendly_field_filters_preserve_internal_states():
+    rows = [
+        {"State": "ACCEPT"}, {"State": "ACCEPT_WITH_FLAG"},
+        {"State": "ESCALATE"}, {"State": "INAPPLICABLE"},
+    ]
+
+    options = streamlit_app._field_filter_options(rows)
+
+    assert list(options) == [
+        "All fields (4)", "Accepted (1)", "Flagged (1)",
+        "Needs review (1)", "Inapplicable (1)",
+    ]
+    assert options["Needs review (1)"] == {"ESCALATE", "RETRY", "HUMAN_REVIEW"}
+
+
+@pytest.mark.parametrize(("status", "label"), [
+    ("COMPLETED", "Completed"),
+    ("COMPLETED_WITH_REVIEW", "Completed with review"),
+    ("COMPLETED_WITH_ERRORS", "Completed with errors"),
+    ("PROCESSING", "Processing"),
+    ("CANCELLED", "Cancelled"),
+])
+def test_batch_status_labels_are_complete(status, label):
+    assert streamlit_app._batch_status_label(status) == label
+
+
+def test_accuracy_cards_use_two_complete_four_metric_rows():
+    summary = {
+        "applicable_fields": 27, "fields_produced": 22,
+        "validated_fields": 13, "unresolved_fields": 14,
+        "critical_fields_resolved": 6, "critical_fields": 14,
+        "primary_resolved": 8, "retry_resolved": 5,
+        "multimodal_attempted": 0, "multimodal_failed": 0,
+        "primary_ocr_resolution_rate": .2963, "retry_resolution_rate": .2632,
+        "multimodal_resolution_rate": None, "human_review_rate": .5185,
+    }
+
+    rows = streamlit_app._coverage_metric_rows(summary)
+
+    assert [label for label, _ in rows[0]] == [
+        "Extraction coverage", "Validated coverage",
+        "Critical fields resolved", "Human-review rate",
+    ]
+    assert [label for label, _ in rows[1]] == [
+        "Primary OCR resolved", "Retry resolved",
+        "Multimodal resolved", "Remaining unresolved",
+    ]
+    assert rows[0][2][1] == "6 / 14"
+    assert [value for _, value in rows[1]] == [8, 5, 0, 14]
+
+
+def test_resolution_journey_counts_reconcile_and_explains_local_resolution():
+    summary = {
+        "applicable_fields": 27,
+        "primary_resolved": 8,
+        "retry_resolved": 5,
+        "multimodal_attempted": 0,
+        "multimodal_failed": 0,
+        "human_review_completed": 0,
+        "unresolved_fields": 14,
+    }
+
+    journey = streamlit_app._resolution_journey(summary)[0]
+
+    assert journey["Applicable"] == sum(
+        value for key, value in journey.items() if key != "Applicable")
+    assert streamlit_app._resolution_interpretation(summary) == (
+        "Local processing resolved 13 of 27 applicable fields. "
+        "14 remain for multimodal escalation or human review."
+    )
+
+
+def test_unresolved_display_is_business_friendly_and_hides_audit_fields():
+    item = inspect_content("synthetic.png", _image_bytes())
+    batch = workspace.run_batch(
+        [item], processor=lambda item, mode: workspace.process_item(
+            item, page_processor=lambda *args: _unresolved_receipt()))
+
+    display, advanced = streamlit_app._unresolved_display_rows(batch)
+
+    assert list(display[0]) == [
+        "Field", "Criticality", "Failure reason", "Route", "Action"]
+    assert display[0]["Action"] == "Needs review"
+    assert display[0]["Route"] == "Multimodal or human review"
+    assert "safe_source_id" not in display[0]
+    assert advanced[0]["safe_source_id"] == item.safe_source_id
+    assert advanced[0]["internal_state"] == "ESCALATE"
+
+
+def test_accuracy_layout_uses_progress_and_compact_components_not_giant_charts():
+    source = inspect.getsource(streamlit_app._render_accuracy_dashboard)
+
+    assert "st.progress(extraction" in source
+    assert "st.progress(validated" in source
+    assert "st.bar_chart(funnel" not in source
+    assert "y=[\"Extraction coverage\", \"Validated coverage\"]" not in source
+    assert "confidence_distribution" in source
+
+
+def test_single_document_accuracy_uses_two_compact_progress_bars(monkeypatch):
+    monkeypatch.setenv("CLAIMROUTE_APP_MODE", "local_workspace")
+    item = inspect_content("synthetic.png", _image_bytes())
+    batch = workspace.run_batch(
+        [item], processor=lambda item, mode: workspace.process_item(
+            item, page_processor=lambda *args: _receipt()))
+    app = AppTest.from_file("app/streamlit_app.py", default_timeout=30)
+    app.session_state[streamlit_app.WORKSPACE_STATE_KEY] = _workspace_ui_state(item, batch)
+    app.session_state["cr_workspace_tabs"] = "Accuracy"
+
+    app.run(timeout=30)
+
+    progress_text = [row.text for row in app.get("progress")]
+    assert "Extraction coverage: 100.00%" in progress_text
+    assert "Validated coverage: 100.00%" in progress_text
+    assert not app.get("bar_chart")
+
+
+def test_multiple_document_accuracy_uses_compact_comparison_table(monkeypatch):
+    monkeypatch.setenv("CLAIMROUTE_APP_MODE", "local_workspace")
+    items = [
+        inspect_content("synthetic.png", _image_bytes("PNG")),
+        inspect_content("synthetic.jpg", _image_bytes("JPEG")),
+    ]
+    batch = workspace.run_batch(
+        items, processor=lambda item, mode: workspace.process_item(
+            item, page_processor=lambda *args: _receipt()))
+    state = _workspace_ui_state(None, batch)
+    state["inventory"] = items
+    state["selected_document_ids"] = [item.safe_source_id for item in items]
+    app = AppTest.from_file("app/streamlit_app.py", default_timeout=30)
+    app.session_state[streamlit_app.WORKSPACE_STATE_KEY] = state
+    app.session_state["cr_workspace_tabs"] = "Accuracy"
+
+    app.run(timeout=30)
+
+    coverage = next(row.value for row in app.dataframe
+                    if "Extraction coverage" in row.value.columns)
+    assert list(coverage.columns) == [
+        "Document", "Type", "Applicable",
+        "Extraction coverage", "Validated coverage",
+    ]
+    assert len(coverage) == 2
+    assert not any(row.text.startswith("Extraction coverage:")
+                   for row in app.get("progress"))
+
+
+def test_review_action_requires_valid_value_and_reason():
+    assert not streamlit_app._review_action_valid("EDIT_VALUE", "", "reason")
+    assert not streamlit_app._review_action_valid("EDIT_VALUE", "value", "")
+    assert streamlit_app._review_action_valid("EDIT_VALUE", "value", "reason")
+    assert streamlit_app._review_action_valid("MARK_NOT_APPLICABLE", "", "reason")
+
+
+def test_results_actions_are_truthful_when_provider_is_disabled(monkeypatch):
+    monkeypatch.setenv("CLAIMROUTE_APP_MODE", "local_workspace")
+    item = inspect_content("synthetic.png", _image_bytes())
+    batch = workspace.run_batch(
+        [item], processor=lambda item, mode: workspace.process_item(
+            item, page_processor=lambda *args: _unresolved_receipt()))
+    app = AppTest.from_file("app/streamlit_app.py", default_timeout=30)
+    app.session_state[streamlit_app.WORKSPACE_STATE_KEY] = _workspace_ui_state(item, batch)
+    app.session_state["cr_workspace_tabs"] = "Results"
+
+    app.run(timeout=30)
+
+    multimodal = next(button for button in app.button
+                      if button.label == "Multimodal unavailable")
+    assert multimodal.disabled is True
+    provider_message = next(message.value for message in app.info
+                            if "Multimodal escalation unavailable" in message.value)
+    assert "Provider disabled by policy." in provider_message
+    assert "1 eligible field(s) were not sent." in provider_message
+    assert "External calls: 0." in provider_message
+    assert "No data left this machine." in provider_message
+    assert any(widget.label == "Filter fields" and widget.value.startswith("All fields")
+               for widget in app.selectbox)
+    assert not any(button.label == "Retry unresolved fields" for button in app.button)
+    assert any(button.label == "Retry document locally" for button in app.button)
+
+
+def test_retry_button_invokes_local_callback_and_persists_receipt(monkeypatch):
+    monkeypatch.setenv("CLAIMROUTE_APP_MODE", "local_workspace")
+    item = inspect_content("synthetic.png", _image_bytes())
+    batch = workspace.run_batch(
+        [item], processor=lambda item, mode: workspace.process_item(
+            item, page_processor=lambda *args: _unresolved_receipt()))
+    calls = []
+    retry_document = workspace.retry_document
+
+    def retry(batch, item, *, mode=None):
+        calls.append(item.safe_source_id)
+        return retry_document(
+            batch, item, mode=mode,
+            processor=lambda item, mode: workspace.process_item(
+                item, page_processor=lambda *args: _receipt()))
+
+    monkeypatch.setattr(workspace, "retry_document", retry)
+    app = AppTest.from_file("app/streamlit_app.py", default_timeout=30)
+    app.session_state[streamlit_app.WORKSPACE_STATE_KEY] = _workspace_ui_state(item, batch)
+    app.session_state["cr_workspace_tabs"] = "Results"
+    app.run(timeout=30)
+
+    next(button for button in app.button
+         if button.label == "Retry document locally").click().run(timeout=30)
+
+    assert calls == [item.safe_source_id]
+    assert any("Local retry receipt" in row.value for row in app.markdown)
+    state = app.session_state[streamlit_app.WORKSPACE_STATE_KEY]
+    assert state["retry_receipts"][-1]["external_calls"] == 0
+
+    app.session_state["cr_workspace_tabs"] = "Accuracy"
+    app.run(timeout=30)
+    app.session_state["cr_workspace_tabs"] = "Results"
+    app.run(timeout=30)
+    assert any("Local retry receipt" in row.value for row in app.markdown)
+
+
+def test_no_improvement_retry_receipt_is_explicit(monkeypatch):
+    monkeypatch.setenv("CLAIMROUTE_APP_MODE", "local_workspace")
+    item = inspect_content("synthetic.png", _image_bytes())
+    batch = workspace.run_batch(
+        [item], processor=lambda item, mode: workspace.process_item(
+            item, page_processor=lambda *args: _unresolved_receipt()))
+    state = _workspace_ui_state(item, batch)
+    state["retry_receipts"].append({
+        "safe_source_id": item.safe_source_id,
+        "unresolved_before": 1,
+        "fields_attempted": 1,
+        "fields_resolved": 0,
+        "unresolved_after": 1,
+        "retry_latency_ms": 10.0,
+        "total_latency_ms": 20.0,
+        "external_calls": 0,
+        "improved": False,
+    })
+    app = AppTest.from_file("app/streamlit_app.py", default_timeout=30)
+    app.session_state[streamlit_app.WORKSPACE_STATE_KEY] = state
+    app.session_state["cr_workspace_tabs"] = "Results"
+
+    app.run(timeout=30)
+
+    assert any("No additional fields were resolved." in row.value
+               for row in app.info)
+
+
+def test_processing_reprocess_and_failed_retry_actions_require_valid_state(monkeypatch):
+    monkeypatch.setenv("CLAIMROUTE_APP_MODE", "local_workspace")
+    item = inspect_content("synthetic.png", _image_bytes())
+    batch = workspace.run_batch(
+        [item], processor=lambda item, mode: workspace.process_item(
+            item, page_processor=lambda *args: _receipt()))
+    app = AppTest.from_file("app/streamlit_app.py", default_timeout=30)
+    app.session_state[streamlit_app.WORKSPACE_STATE_KEY] = _workspace_ui_state(item, batch)
+
+    app.run(timeout=30)
+
+    assert next(button for button in app.button
+                if button.label == "Reprocess selected files").disabled is True
+    assert next(button for button in app.button
+                if button.label == "Retry failed batch items").disabled is True
+    assert next(button for button in app.sidebar.button
+                if button.label == "Reset session").disabled is True
+
+
+def test_cost_tab_shows_projection_warning_and_assumed_review_formula(monkeypatch):
+    monkeypatch.setenv("CLAIMROUTE_APP_MODE", "local_workspace")
+    item = inspect_content("synthetic.png", _image_bytes())
+    batch = workspace.run_batch(
+        [item], processor=lambda item, mode: workspace.process_item(
+            item, page_processor=lambda *args: _unresolved_receipt()))
+    app = AppTest.from_file("app/streamlit_app.py", default_timeout=30)
+    app.session_state[streamlit_app.WORKSPACE_STATE_KEY] = _workspace_ui_state(item, batch)
+    app.session_state["cr_workspace_tabs"] = "Cost"
+
+    app.run(timeout=30)
+
+    assert any("Current-run projections are based on this processed document or batch"
+               in message.value for message in app.warning)
+    assert any("fields x $0.030000" in caption.value and "ASSUMED" in caption.value
+               for caption in app.caption)
+    assert any(metric.label == "Measured cost per validated field"
+               for metric in app.metric)
+
+
+def test_optional_blank_cms1500_field_is_inapplicable_before_retry():
+    page = PageResult("safe", "p1", "cms1500", quality_score=.9)
+    field = FieldResult("safe", "p1", "admission_date", None,
+                        FieldState.RETRY, 0.0)
+    field.attempts = [Attempt("primary_ocr", "stub", None, 0.0)]
+    page.fields = {"admission_date": field}
+    page.decisions = {"admission_date": [("RETRY", "blank")]}
+
+    workspace._mark_optional_blank_cms1500_fields(page)
+
+    assert page.decisions["admission_date"] == [
+        ("INAPPLICABLE", "optional field is blank")]
+    assert page.fields["admission_date"].stamps[0].verdict == Verdict.INAPPLICABLE
+
+
+def test_local_workspace_admission_date_crop_targets_value_cells():
+    source_bbox = (10.0, 20.0, 280.0, 48.0)
+
+    corrected = workspace._cms1500_value_region_bbox(
+        "admission_date", source_bbox)
+
+    assert corrected == pytest.approx((10.0, 35.4, 212.5, 48.0))
+    assert corrected[1] > source_bbox[1]
+    assert corrected[2] < source_bbox[2]
 
 
 def test_human_review_correction_revalidates_updates_output_and_audit():

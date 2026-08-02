@@ -46,6 +46,15 @@ RESOLVED_FIELD_STATES = {
     "INAPPLICABLE", "ACCEPT", "ACCEPT_WITH_FLAG", "ACCEPT_WITH_OVERRIDE",
 }
 
+# Local-workspace correction overlay. The frozen official template preserves
+# the full Box 14 band; review and retry need only its lower date value cells.
+_CMS1500_VALUE_REGION_RULES = {
+    "admission_date": {
+        "fractions": (0.0, 0.55, 0.75, 1.0),
+        "blank_policy": "optional",
+    },
+}
+
 
 class ProcessingStage(str, Enum):
     QUEUED = "QUEUED"
@@ -152,6 +161,55 @@ def _mark_inactive_cms1500_service_lines(page) -> None:
         page.decisions[name] = [("INAPPLICABLE", "service line is not active")]
 
 
+def _cms1500_value_region_bbox(field_name: str, bbox) -> tuple | None:
+    rule = _CMS1500_VALUE_REGION_RULES.get(field_name)
+    if not rule or not bbox:
+        return tuple(bbox) if bbox else None
+    x0, y0, x1, y1 = bbox
+    width, height = x1 - x0, y1 - y0
+    fx0, fy0, fx1, fy1 = rule["fractions"]
+    return (x0 + fx0 * width, y0 + fy0 * height,
+            x0 + fx1 * width, y0 + fy1 * height)
+
+
+def _prepare_cms1500_value_regions(page) -> None:
+    """Discard candidates read from labels and retry only the value cells."""
+    for name, rule in _CMS1500_VALUE_REGION_RULES.items():
+        field = page.fields.get(name)
+        if field is None or not field.bbox:
+            continue
+        field.bbox = _cms1500_value_region_bbox(name, field.bbox)
+        field.value = None
+        field.confidence = 0.0
+        field.stamps = []
+        for attempt in field.attempts:
+            attempt.value = None
+            attempt.confidence = 0.0
+        field.set_state(FieldState.RETRY)
+        page.decisions[name] = [("RETRY", "value-cell crop requires local retry")]
+
+
+def _mark_optional_blank_cms1500_fields(page) -> None:
+    """Keep optional blank value cells out of retry and human review."""
+    for name, field in page.fields.items():
+        if _CMS1500_VALUE_REGION_RULES.get(name, {}).get(
+                "blank_policy") != "optional":
+            continue
+        if str(field.value or "").strip():
+            continue
+        field.value = None
+        field.confidence = 0.0
+        field.stamps = [ValidationStamp(
+            "template_blank_policy", Verdict.INAPPLICABLE,
+            "optional CMS-1500 value region is blank",
+        )]
+        for attempt in field.attempts:
+            attempt.value = None
+            attempt.confidence = 0.0
+        field.set_state(FieldState.ACCEPT)
+        page.decisions[name] = [("INAPPLICABLE", "optional field is blank")]
+
+
 def _local_cost(latency_ms: float) -> float:
     prices = yaml.safe_load((service.ROOT / "configs" / "prices.yaml").read_text(
         encoding="utf-8"))
@@ -188,16 +246,13 @@ def _provider_policy_snapshot(config: dict | None = None,
     credential_available = bool(key_env and str(values.get(key_env) or "").strip())
 
     if not enabled:
-        state, reason = "PENDING_MULTIMODAL_PROVIDER_DISABLED", "disabled by policy"
+        reason = "disabled by policy"
     elif not model:
-        state, reason = ("PENDING_MULTIMODAL_MODEL_NOT_CONFIGURED",
-                         "model not configured")
+        reason = "model not configured"
     elif not credential_available:
-        state, reason = ("PENDING_MULTIMODAL_CREDENTIAL_MISSING",
-                         "credential missing")
+        reason = "credential missing"
     else:
-        state, reason = ("HUMAN_REVIEW_REQUIRED",
-                         "external calls are not executed by the local workspace")
+        reason = "external calls are not executed by the local workspace"
     return {
         "provider_enabled": enabled,
         "provider_name": provider_name,
@@ -206,7 +261,7 @@ def _provider_policy_snapshot(config: dict | None = None,
         "external_call_attempted": False,
         "external_call_count": 0,
         "reason_not_attempted": reason,
-        "final_workflow_state": state,
+        "final_workflow_state": "HUMAN_REVIEW_REQUIRED",
         "no_data_sent": True,
     }
 
@@ -402,6 +457,7 @@ def _process_official_item(item: IntakeFile, tier: str, mode: str,
         )
         if form == "cms1500":
             _mark_inactive_cms1500_service_lines(page_result)
+            _prepare_cms1500_value_regions(page_result)
             retry_fields = sum(field.state == FieldState.RETRY
                                for field in page_result.fields.values())
             _stage(progress, ProcessingStage.LOCAL_RETRY, "Running local OCR retry",
@@ -410,6 +466,7 @@ def _process_official_item(item: IntakeFile, tier: str, mode: str,
                    retry_fields=retry_fields)
             retry_cms1500_page(
                 page_result, pages[page_index], mode, stage_latency=stage_latency)
+            _mark_optional_blank_cms1500_fields(page_result)
             _stage(progress, ProcessingStage.VALIDATING_RETRY,
                    "Revalidating retry candidates",
                    current_page=page_index + 1, total_pages=len(pages),
@@ -546,9 +603,6 @@ def _unify_receipts(item: IntakeFile, receipts: list[dict]) -> dict:
             accepted_with_flag += int(field["decision"] == "ACCEPT_WITH_FLAG")
             inapplicable += int(field["decision"] == "INAPPLICABLE")
             pending_local_retry += int(field["decision"] == "RETRY")
-            pending_multimodal += int(
-                field["decision"] == "ESCALATE" and not field["escalated"])
-            pending_human_review += int(field["decision"] == "HUMAN_REVIEW")
             multimodal_eligible += int(
                 _multimodal_eligible(field["field_name"], routing_policy))
             unresolved += int(field["decision"] not in {
@@ -561,6 +615,8 @@ def _unify_receipts(item: IntakeFile, receipts: list[dict]) -> dict:
                     page_number, field, provider_policy, routing_policy)
                 provider_escalations.append(provider_state)
                 external_provider_calls += provider_state["external_call_count"]
+                pending_human_review += int(
+                    provider_state["final_workflow_state"] == "HUMAN_REVIEW_REQUIRED")
                 multimodal_failed += int(
                     provider_state["final_workflow_state"] == "MULTIMODAL_FAILED")
             if field.get("final_value") not in (None, ""):
@@ -786,9 +842,11 @@ def cost_dashboard_metrics(results: list[dict], evaluation: dict | None = None) 
                          for row in processed)
     projected_total = sum(float((row.get("projected_cost") or {}).get("usd") or 0)
                           for row in processed)
-    correct = int((evaluation or {}).get("correct_fields") or 0)
+    validated = sum(int((row.get("coverage") or coverage_metrics(row)).get(
+        "validated_fields") or 0) for row in processed)
     review_fields = sum(int((row.get("human_review_summary") or {}).get("required") or 0)
                         for row in processed)
+    review_cost_per_field = _human_review_cost_per_field()
     projected_per_page = _ratio(projected_total, pages)
     calibration = service.load_calibration_summary()
     return {
@@ -813,11 +871,14 @@ def cost_dashboard_metrics(results: list[dict], evaluation: dict | None = None) 
         "unit_costs": {
             "cost_per_page": _cost(_ratio(measured_total, pages), "MEASURED"),
             "cost_per_document": _cost(_ratio(measured_total, len(processed)), "MEASURED"),
-            "cost_per_correctly_resolved_field": _cost(
-                _ratio(measured_total, correct), "MEASURED"),
+            "measured_cost_per_validated_field": _cost(
+                _ratio(measured_total, validated), "MEASURED"),
         },
-        "human_review_estimate": _cost(
-            review_fields * _human_review_cost_per_field(), "ASSUMED"),
+        "human_review_estimate": {
+            "field_count": review_fields,
+            "assumed_cost_per_field_usd": review_cost_per_field,
+            "total": _cost(review_fields * review_cost_per_field, "ASSUMED"),
+        },
         "enterprise_projection": {
             "one_million_pages": _cost(
                 projected_per_page * 1_000_000 if projected_per_page is not None else None,
@@ -1054,9 +1115,9 @@ def _refresh_result(result: dict) -> None:
         "Human review correction saved" if result.get("review_audit")
         else result["processing_status"])
     result["coverage"] = coverage_metrics(result)
-    pending_multimodal = sum(
-        field.get("state") == "ESCALATE" for field in all_fields)
-    pending_human = sum(field.get("state") == "HUMAN_REVIEW" for field in all_fields)
+    pending_multimodal = 0
+    pending_human = sum(field.get("state") not in RESOLVED_FIELD_STATES
+                        for field in all_fields)
     result.setdefault("escalation_summary", {})["pending_multimodal"] = pending_multimodal
     result["escalation_summary"]["pending_human_review"] = pending_human
     result.setdefault("resolution_summary", {})["pending_multimodal"] = pending_multimodal
@@ -1169,13 +1230,26 @@ def retry_document(batch: dict, item: IntakeFile, *, mode: str | None = None,
     prior.pop("_prior_results", None)
     replacement["_prior_results"] = [*old.get("_prior_results", []), prior]
     replacement["retry_count"] = int(old.get("retry_count") or 0) + 1
+    unresolved_before = int(old.get("unresolved_fields") or 0)
+    unresolved_after = int(replacement.get("unresolved_fields") or 0)
+    retry_latency = float((replacement.get("latency") or {}).get("milliseconds") or 0)
+    total_latency = float((old.get("latency") or {}).get("milliseconds") or 0) + retry_latency
+    fields_attempted = sum(len(page.get("fields") or {})
+                           for page in replacement.get("fields") or [])
     replacement["retry_history"] = [*old.get("retry_history", []), {
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "from_status": old["processing_status"],
         "to_status": replacement["processing_status"],
+        "unresolved_before": unresolved_before,
+        "fields_attempted": fields_attempted,
+        "fields_resolved": max(0, unresolved_before - unresolved_after),
+        "unresolved_after": unresolved_after,
+        "retry_latency_ms": round(retry_latency, 3),
+        "total_latency_ms": round(total_latency, 3),
         "external_calls": int(
             (replacement.get("escalation_summary") or {}).get(
                 "external_provider_calls") or 0),
+        "improved": unresolved_after < unresolved_before,
     }]
     updated["documents"] = [replacement if row is old or (
         row["safe_source_id"] == item.safe_source_id) else row

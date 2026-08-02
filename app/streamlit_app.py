@@ -133,6 +133,116 @@ def _status_label(value: str | None) -> str:
     return str(value or "Unknown").replace("_", " ").title()
 
 
+def _batch_status_label(value: str | None) -> str:
+    return {
+        "COMPLETED": "Completed",
+        "COMPLETED_WITH_REVIEW": "Completed with review",
+        "COMPLETED_WITH_ERRORS": "Completed with errors",
+        "PROCESSING": "Processing",
+        "CANCELLED": "Cancelled",
+    }.get(str(value or ""), _status_label(value))
+
+
+def _field_filter_options(rows: list[dict]) -> dict[str, set[str] | None]:
+    groups = {
+        "Accepted": {"ACCEPT", "ACCEPT_WITH_OVERRIDE"},
+        "Flagged": {"ACCEPT_WITH_FLAG"},
+        "Needs review": {"ESCALATE", "RETRY", "HUMAN_REVIEW"},
+        "Inapplicable": {"INAPPLICABLE"},
+    }
+    options = {f"All fields ({len(rows)})": None}
+    for label, states in groups.items():
+        count = sum(row.get("State") in states for row in rows)
+        options[f"{label} ({count})"] = states
+    return options
+
+
+def _coverage_metric_rows(summary: dict) -> list[list[tuple[str, object]]]:
+    applicable = int(summary.get("applicable_fields") or 0)
+    return [[
+        ("Extraction coverage", _fmt_pct_or_unavailable(
+            _ratio_for_display(summary.get("fields_produced"), applicable))),
+        ("Validated coverage", _fmt_pct_or_unavailable(
+            _ratio_for_display(summary.get("validated_fields"), applicable))),
+        ("Critical fields resolved",
+         f"{int(summary.get('critical_fields_resolved') or 0)} / "
+         f"{int(summary.get('critical_fields') or 0)}"),
+        ("Human-review rate", _fmt_pct_or_unavailable(
+            summary.get("human_review_rate"))),
+    ], [
+        ("Primary OCR resolved", int(summary.get("primary_resolved") or 0)),
+        ("Retry resolved", int(summary.get("retry_resolved") or 0)),
+        ("Multimodal resolved", max(
+            0, int(summary.get("multimodal_attempted") or 0)
+            - int(summary.get("multimodal_failed") or 0))),
+        ("Remaining unresolved", int(summary.get("unresolved_fields") or 0)),
+    ]]
+
+
+def _ratio_for_display(numerator, denominator):
+    return float(numerator or 0) / denominator if denominator else None
+
+
+def _review_action_valid(action: str, value: str, reason: str) -> bool:
+    return bool(reason.strip() and (action != "EDIT_VALUE" or value.strip()))
+
+
+def _resolution_journey(summary: dict) -> list[dict]:
+    return [{
+        "Applicable": int(summary.get("applicable_fields") or 0),
+        "Primary resolved": int(summary.get("primary_resolved") or 0),
+        "Retry resolved": int(summary.get("retry_resolved") or 0),
+        "Multimodal resolved": max(
+            0, int(summary.get("multimodal_attempted") or 0)
+            - int(summary.get("multimodal_failed") or 0)),
+        "Human corrected": int(summary.get("human_review_completed") or 0),
+        "Remaining unresolved": int(summary.get("unresolved_fields") or 0),
+    }]
+
+
+def _resolution_interpretation(summary: dict) -> str:
+    journey = _resolution_journey(summary)[0]
+    local = journey["Primary resolved"] + journey["Retry resolved"]
+    applicable = journey["Applicable"]
+    unresolved = journey["Remaining unresolved"]
+    return (
+        f"Local processing resolved {local} of {applicable} applicable fields. "
+        f"{unresolved} remain for multimodal escalation or human review."
+    )
+
+
+def _unresolved_display_rows(batch: dict) -> tuple[list[dict], list[dict]]:
+    documents = {row.get("safe_source_id"): row
+                 for row in batch.get("documents", [])}
+    display, advanced = [], []
+    for item in (batch.get("summary") or {}).get("unresolved_items") or []:
+        document = documents.get(item.get("safe_source_id"), {})
+        evidence = next((row for row in document.get("_review_evidence", [])
+                         if row.get("page") == item.get("page")
+                         and row.get("field_name") == item.get("field_name")), {})
+        state = str(item.get("state") or "")
+        route = {
+            "ESCALATE": "Multimodal or human review",
+            "RETRY": "Local retry",
+            "HUMAN_REVIEW": "Human review",
+        }.get(state, "Review")
+        display.append({
+            "Field": str(item.get("field_name") or "").replace("_", " ").title(),
+            "Criticality": str(item.get("criticality") or "med").title(),
+            "Failure reason": evidence.get("reason") or "Field was not resolved",
+            "Route": route,
+            "Action": "Needs review",
+        })
+        advanced.append({
+            "safe_source_id": item.get("safe_source_id"),
+            "document": item.get("document"),
+            "page": item.get("page"),
+            "field_name": item.get("field_name"),
+            "internal_state": state,
+        })
+    return display, advanced
+
+
 def _provider_rows(result: dict) -> list[dict]:
     """Render-safe field escalation rows; credentials are booleans only."""
     return [{
@@ -204,6 +314,8 @@ def _new_workspace_state(session_state) -> dict:
             "error": session_state.get("workspace_job_error"),
             "stage": session_state.get("workspace_stage"),
             "selection_signature": (),
+            "active_retry_job": None,
+            "completed_retry_jobs": [],
         },
         "retry_receipts": [],
         "review_queue": [],
@@ -322,6 +434,41 @@ def _run_workspace_job(state, fingerprint: str, runner):
         processing["running"] = False
         processing["pending_job"] = None
         processing["active_job"] = None
+
+
+def _retry_fingerprint(document: dict) -> str:
+    return f"{document['safe_source_id']}:{int(document.get('retry_count') or 0)}"
+
+
+def _queue_retry_job(state: dict, fingerprint: str) -> bool:
+    processing = state["processing_state"]
+    if (processing.get("active_retry_job")
+            or fingerprint in processing.get("completed_retry_jobs", [])):
+        return False
+    processing["active_retry_job"] = fingerprint
+    return True
+
+
+def _run_retry_job(state: dict, fingerprint: str, source, *, runner=None):
+    processing = state["processing_state"]
+    if processing.get("active_retry_job") != fingerprint:
+        return None
+    runner = runner or workspace.retry_document
+    try:
+        retried = runner(
+            state["batch_results"], source, mode=state["operating_mode"])
+        _store_workspace_batch(state, retried)
+        document = next(row for row in retried["documents"]
+                        if row["safe_source_id"] == source.safe_source_id)
+        receipt = document["retry_history"][-1]
+        state["retry_receipts"].append({
+            "safe_source_id": source.safe_source_id,
+            **receipt,
+        })
+        processing.setdefault("completed_retry_jobs", []).append(fingerprint)
+        return retried
+    finally:
+        processing["active_retry_job"] = None
 
 
 def _style(st) -> None:
@@ -786,45 +933,29 @@ def _render_accuracy_dashboard(st, batch: dict) -> None:
             return
         st.info("Coverage estimate — no ground truth provided")
         st.caption("Extraction coverage = fields produced / applicable fields. Validated coverage = validated resolved fields / applicable fields. INAPPLICABLE fields are excluded from both denominators.")
-        cards = [
-            ("Applicable fields", summary.get("applicable_fields", 0)),
-            ("Fields produced", summary.get("fields_produced", 0)),
-            ("Validated fields", summary.get("validated_fields", 0)),
-            ("Unresolved fields", summary.get("unresolved_fields", 0)),
-            ("Inapplicable fields", summary.get("inapplicable", 0)),
-            ("Extraction coverage", _fmt_pct_or_unavailable(
-                (summary.get("fields_produced") / summary.get("applicable_fields"))
-                if summary.get("applicable_fields") else None)),
-            ("Validated coverage", _fmt_pct_or_unavailable(
-                (summary.get("validated_fields") / summary.get("applicable_fields"))
-                if summary.get("applicable_fields") else None)),
-            ("Critical fields resolved",
-             f"{summary.get('critical_fields_resolved', 0)}/{summary.get('critical_fields', 0)}"),
-        ]
-        for column, (label, value) in zip(st.columns(8), cards):
-            column.metric(label, value)
-        rates = [
-            ("Primary OCR resolution", summary.get("primary_ocr_resolution_rate")),
-            ("Retry resolution", summary.get("retry_resolution_rate")),
-            ("Multimodal resolution", summary.get("multimodal_resolution_rate")),
-            ("Human-review rate", summary.get("human_review_rate")),
-        ]
-        for column, (label, value) in zip(st.columns(4), rates):
-            column.metric(label, _fmt_pct_or_unavailable(value))
-        st.markdown("#### Resolution funnel")
-        funnel = [
-            {"Stage": "Applicable", "Fields": int(summary.get("applicable_fields") or 0)},
-            {"Stage": "Primary resolved", "Fields": int(summary.get("primary_resolved") or 0)},
-            {"Stage": "Retry resolved", "Fields": int(summary.get("retry_resolved") or 0)},
-            {"Stage": "Multimodal resolved", "Fields": max(
-                0, int(summary.get("multimodal_attempted") or 0)
-                - int(summary.get("multimodal_failed") or 0))},
-            {"Stage": "Human reviewed", "Fields": int(
-                summary.get("human_review_completed") or 0)},
-            {"Stage": "Unresolved", "Fields": int(summary.get("unresolved_fields") or 0)},
-        ]
-        st.dataframe(funnel, hide_index=True, width="stretch")
-        st.bar_chart(funnel, x="Stage", y="Fields")
+        for metric_row in _coverage_metric_rows(summary):
+            for column, (label, value) in zip(st.columns(4), metric_row):
+                column.metric(label, value)
+        with st.expander("Coverage counts"):
+            st.dataframe([{
+                "Applicable fields": int(summary.get("applicable_fields") or 0),
+                "Fields produced": int(summary.get("fields_produced") or 0),
+                "Validated fields": int(summary.get("validated_fields") or 0),
+                "Inapplicable fields": int(summary.get("inapplicable") or 0),
+            }], hide_index=True, width="stretch")
+        st.markdown("#### Resolution journey")
+        st.dataframe(_resolution_journey(summary), hide_index=True, width="stretch")
+        st.caption(_resolution_interpretation(summary))
+
+        st.markdown("#### Unresolved fields")
+        unresolved, advanced = _unresolved_display_rows(batch)
+        if unresolved:
+            st.dataframe(unresolved, hide_index=True, width="stretch")
+            with st.expander("Advanced unresolved-field details"):
+                st.dataframe(advanced, hide_index=True, width="stretch")
+        else:
+            st.info("No unresolved applicable fields.")
+
         coverage_rows = [{
             "Document": row["document"],
             "Type": row["document_type"],
@@ -832,15 +963,29 @@ def _render_accuracy_dashboard(st, batch: dict) -> None:
             "Extraction coverage": row["extraction_coverage"],
             "Validated coverage": row["validated_coverage"],
         } for row in summary.get("coverage_by_document", [])]
-        st.markdown("#### Coverage by document")
-        st.dataframe(coverage_rows, hide_index=True, width="stretch")
-        if coverage_rows:
-            st.bar_chart(coverage_rows, x="Document",
-                         y=["Extraction coverage", "Validated coverage"])
+        st.markdown("#### Coverage")
+        if len(coverage_rows) == 1:
+            row = coverage_rows[0]
+            extraction = float(row.get("Extraction coverage") or 0)
+            validated = float(row.get("Validated coverage") or 0)
+            st.progress(extraction, text=f"Extraction coverage: {_fmt_pct(extraction)}")
+            st.progress(validated, text=f"Validated coverage: {_fmt_pct(validated)}")
+        elif coverage_rows:
+            st.dataframe(coverage_rows, hide_index=True, width="stretch")
+        else:
+            st.info("Coverage unavailable â€” document schema not established")
+
         st.markdown("#### Confidence distribution")
-        st.bar_chart([{"Band": band.title(), "Fields": count}
-                      for band, count in (summary.get("confidence_distribution") or {}).items()],
-                     x="Band", y="Fields")
+        confidence = summary.get("confidence_distribution") or {}
+        for column, band in zip(st.columns(3), ("high", "medium", "low")):
+            column.metric(band.title(), int(confidence.get(band) or 0))
+        confidence_total = sum(int(confidence.get(band) or 0)
+                               for band in ("high", "medium", "low"))
+        if confidence_total and int(confidence.get("high") or 0) * 2 < confidence_total:
+            st.caption(
+                "Fewer than half of applicable fields are high confidence; review the "
+                "unresolved and flagged fields before using this result."
+            )
     else:
         display = _evaluation_display(evaluation)
         if display["message"]:
@@ -859,8 +1004,8 @@ def _render_accuracy_dashboard(st, batch: dict) -> None:
                 ("Precision", _fmt_pct_or_unavailable(evaluation.get("precision"))),
                 ("Recall", _fmt_pct_or_unavailable(evaluation.get("recall"))),
             ]
-            for start in range(0, len(cards), 5):
-                for column, (label, value) in zip(st.columns(5), cards[start:start + 5]):
+            for start in range(0, len(cards), 4):
+                for column, (label, value) in zip(st.columns(4), cards[start:start + 4]):
                     column.metric(label, value)
         st.dataframe([{
             "Unmatched documents": int(evaluation.get("unmatched_documents") or 0),
@@ -876,12 +1021,15 @@ def _render_accuracy_dashboard(st, batch: dict) -> None:
             st.markdown("#### Accuracy by field")
             st.dataframe(evaluation["accuracy_by_field"], hide_index=True, width="stretch")
             st.bar_chart(evaluation["accuracy_by_field"], x="field_name", y="accuracy")
-    st.markdown("#### Unresolved fields")
-    unresolved = summary.get("unresolved_items") or []
-    if unresolved:
-        st.dataframe(unresolved, hide_index=True, width="stretch")
-    else:
-        st.info("No unresolved applicable fields.")
+    if evaluation is not None:
+        st.markdown("#### Unresolved fields")
+        unresolved, advanced = _unresolved_display_rows(batch)
+        if unresolved:
+            st.dataframe(unresolved, hide_index=True, width="stretch")
+            with st.expander("Advanced unresolved-field details"):
+                st.dataframe(advanced, hide_index=True, width="stretch")
+        else:
+            st.info("No unresolved applicable fields.")
 
 
 def _render_cost_dashboard(st, batch: dict) -> None:
@@ -909,7 +1057,9 @@ def _render_cost_dashboard(st, batch: dict) -> None:
     } for key, cost in components.items()]
     for column, (key, cost) in zip(st.columns(5), list(components.items())[:5]):
         column.metric(component_labels[key], _fmt_cost(cost), help=cost["basis"])
-    st.dataframe(component_rows, hide_index=True, width="stretch")
+    st.markdown("#### Current-run measured cost")
+    st.dataframe([row for row in component_rows if row["Basis"] == "MEASURED"],
+                 hide_index=True, width="stretch")
     st.markdown("#### Measured automated cost breakdown")
     donut_rows = _measured_cost_donut_rows(components)
     measured_total = components["total_automated"]
@@ -953,18 +1103,35 @@ def _render_cost_dashboard(st, batch: dict) -> None:
         st.info("No measured automated cost is available to plot for this batch.")
     if int(dashboard["counters"].get("external_calls") or 0) == 0:
         st.caption("Multimodal cost is $0.000000 because external providers were disabled and no data was sent.")
-    st.caption("Measured spend and projected API cost remain separate; the human-review estimate is excluded from automated cost.")
-    unit_rows = [{"Metric": name.replace("_", " ").title(),
+    st.markdown("#### Current-run projected API cost")
+    st.dataframe([row for row in component_rows if row["Basis"] in {
+        "PROJECTED", "OFFLINE_ORACLE"}], hide_index=True, width="stretch")
+    st.caption("Measured spend and projected API cost remain separate. Human review is excluded from automated cost.")
+    unit_labels = {
+        "cost_per_page": "Measured cost per page",
+        "cost_per_document": "Measured cost per document",
+        "measured_cost_per_validated_field": "Measured cost per validated field",
+    }
+    unit_rows = [{"Metric": unit_labels[name],
                   "Cost": _fmt_cost(cost), "Basis": cost["basis"]}
                  for name, cost in dashboard["unit_costs"].items()]
     st.markdown("#### Unit economics")
     for column, (name, cost) in zip(st.columns(3), dashboard["unit_costs"].items()):
-        column.metric(name.replace("_", " ").title(), _fmt_cost(cost),
+        column.metric(unit_labels[name], _fmt_cost(cost),
                       help=cost["basis"])
     st.dataframe(unit_rows, hide_index=True, width="stretch")
     human = dashboard["human_review_estimate"]
-    st.metric("Human-review estimate", _fmt_cost(human), help=human["basis"])
-    st.markdown("#### Enterprise-scale projection")
+    st.markdown("#### Assumed human-review estimate")
+    st.metric(
+        "Human-review estimate",
+        _fmt_cost(human["total"]),
+        help="ASSUMED",
+    )
+    st.caption(
+        f"{human['field_count']} fields x {_fmt_usd(human['assumed_cost_per_field_usd'])} "
+        f"= {_fmt_cost(human['total'])} - ASSUMED")
+    st.warning("Current-run projections are based on this processed document or batch and are not the frozen benchmark average.")
+    st.markdown("#### Current-run extrapolation")
     projection_rows = [{
         "Scale": name.replace("_", " ").title(),
         "Projected cost": _fmt_cost(cost),
@@ -977,7 +1144,8 @@ def _render_cost_dashboard(st, batch: dict) -> None:
     st.dataframe([{"Metric": key.replace("_", " ").title(), "Value": value}
                   for key, value in dashboard["counters"].items()],
                  hide_index=True, width="stretch")
-    st.markdown("#### Economy versus Balanced versus Accuracy")
+    st.markdown("#### Frozen benchmark projection")
+    st.markdown("##### Economy versus Balanced versus Accuracy")
     st.dataframe(dashboard["mode_comparison"], hide_index=True, width="stretch")
     st.caption("Mode comparison is PROJECTED from recorded replay calibration; it is not current-batch measured accuracy or spend.")
 
@@ -1033,12 +1201,14 @@ def _render_review_queue(st, selected: dict, source, state: dict) -> None:
             review.get("retry_candidate") or review.get("primary_candidate") or ""),
             key=f"review_value_{selected['safe_source_id']}")
         reason = st.text_input("Correction reason", key=f"review_reason_{selected['safe_source_id']}")
+        action = action_labels[action_label]
         if st.button("Save and next", type="primary",
-                     key=f"review_save_{selected['safe_source_id']}"):
+                     key=f"review_save_{selected['safe_source_id']}",
+                     disabled=not _review_action_valid(action, value, reason)):
             try:
                 corrected = workspace.apply_human_review(
                     selected, page=review["page"], field_name=review["field_name"],
-                    action=action_labels[action_label], value=value, reason=reason)
+                    action=action, value=value, reason=reason)
             except ValueError as exc:
                 st.error(str(exc))
             else:
@@ -1085,6 +1255,15 @@ def _render_local_document(st, result, items, state: dict | None = None):
         state["selected_result_id"] = selected_id
     source = next((item for item in items
                    if item.safe_source_id == selected["safe_source_id"]), None)
+    for column, (label, value) in zip(st.columns(4), [
+        ("Pages", int(selected.get("page_count") or 0)),
+        ("Status", _status_label(selected.get("processing_status"))),
+        ("Unresolved", int(selected.get("unresolved_fields") or 0)),
+        ("Latency", f"{float((selected.get('latency') or {}).get('milliseconds') or 0) / 1000:.2f} s"),
+    ]):
+        column.metric(label, value)
+    for warning in selected.get("warnings", []):
+        st.warning(warning)
     left, right = st.columns([1, 1.4])
     with left:
         if source and source.role == FileRole.CLAIM_DOCUMENT:
@@ -1093,14 +1272,6 @@ def _render_local_document(st, result, items, state: dict | None = None):
                          caption="First decoded page", width="stretch")
             except IntakeError:
                 st.warning("Preview is unavailable; processing metadata remains visible.")
-        st.metric("Pages", selected["page_count"])
-        st.metric("Current/final stage", _status_label(selected.get(
-            "processing_stage", selected["processing_status"])))
-        st.metric("Unresolved fields", selected["unresolved_fields"]
-                  if selected["unresolved_fields"] is not None else "Unknown")
-        st.metric("Latency", f"{selected['latency']['milliseconds'] / 1000:.2f} s")
-        for warning in selected["warnings"]:
-            st.warning(warning)
     with right:
         field_rows = []
         for page in selected["fields"]:
@@ -1112,47 +1283,78 @@ def _render_local_document(st, result, items, state: dict | None = None):
                     "Provenance": ", ".join(
                         entry.get("engine", "") for entry in field.get("provenance", [])),
                 })
-        states = sorted({row["State"] for row in field_rows if row.get("State")})
-        selected_states = st.multiselect(
-            "Filter fields by state", states, default=states,
-            key=f"cr_field_states_{selected['safe_source_id']}")
-        visible_rows = [row for row in field_rows if row.get("State") in selected_states]
+        filters = _field_filter_options(field_rows)
+        selected_filter = st.selectbox(
+            "Filter fields", list(filters),
+            key=f"cr_field_filter_{selected['safe_source_id']}")
+        selected_states = filters[selected_filter]
+        visible_rows = (field_rows if selected_states is None else [
+            row for row in field_rows if row.get("State") in selected_states])
         st.dataframe(visible_rows, hide_index=True, width="stretch")
+    latency = selected.get("latency") or {}
+    stages = latency.get("stages_ms") or {}
+    with st.expander("Latency details"):
+        st.dataframe([{
+            "Primary OCR latency": f"{float(stages.get('primary_ocr') or 0) / 1000:.2f} s",
+            "Retry OCR latency": f"{float(stages.get('retry_ocr') or 0) / 1000:.2f} s",
+            "Total latency": f"{float(latency.get('milliseconds') or 0) / 1000:.2f} s",
+            "Retry fields": int((selected.get("retry_summary") or {}).get(
+                "fields_retried") or 0),
+        }], hide_index=True, width="stretch")
     retryable = selected["processing_status"] in {
         "FAILED", "FAILED_EXTRACTION", "PARTIAL", "CANCELLED"}
     if retryable and source:
-        label = ("Retry unresolved fields" if selected["processing_status"] == "PARTIAL"
-                 else "Resume document" if selected["processing_status"] == "CANCELLED"
-                 else "Retry document")
+        label = "Retry document locally"
         st.caption("Prototype retry re-runs this local document and preserves the prior result "
                    "in session memory. It never triggers an external provider call.")
-        if st.button(label, key=f"retry_{selected['safe_source_id']}"):
+        fingerprint = _retry_fingerprint(selected)
+        if st.button(label, key=f"retry_{selected['safe_source_id']}") and (
+                state is None or _queue_retry_job(state, fingerprint)):
             with st.status("Retrying document locally", expanded=True):
-                retried = workspace.retry_document(
-                    result, source, mode=result.get("operating_mode"))
+                retried = (_run_retry_job(state, fingerprint, source)
+                           if state is not None else workspace.retry_document(
+                               result, source, mode=result.get("operating_mode")))
             if state is not None:
-                _store_workspace_batch(state, retried)
-                state["retry_receipts"].append({
-                    "safe_source_id": selected["safe_source_id"],
-                    "processing_status": next(
-                        row["processing_status"] for row in retried["documents"]
-                        if row["safe_source_id"] == selected["safe_source_id"]),
-                    "external_calls": 0,
-                })
                 _refresh_workspace_batch(state)
             else:
                 st.session_state["workspace_batch"] = retried
             st.rerun()
-    pending_multimodal = int(
-        (selected.get("escalation_summary") or {}).get("pending_multimodal") or 0)
-    if pending_multimodal:
-        provider = selected.get("provider_state") or workspace._provider_policy_snapshot()
+    receipts = [row for row in (state or {}).get("retry_receipts", [])
+                if row["safe_source_id"] == selected["safe_source_id"]]
+    if receipts:
+        receipt = receipts[-1]
+        st.markdown("#### Local retry receipt")
+        st.dataframe([{
+            "Unresolved before": receipt["unresolved_before"],
+            "Fields attempted": receipt["fields_attempted"],
+            "Fields resolved": receipt["fields_resolved"],
+            "Unresolved after": receipt["unresolved_after"],
+            "Retry latency": f"{receipt['retry_latency_ms'] / 1000:.2f} s",
+            "Total latency": f"{receipt['total_latency_ms'] / 1000:.2f} s",
+            "External calls": receipt["external_calls"],
+            "Improved": _yes_no(receipt["improved"]),
+        }], hide_index=True, width="stretch")
+        if not receipt["improved"]:
+            st.info("No additional fields were resolved.")
+    routed_for_review = [
+        row for row in selected.get("provider_escalations", [])
+        if row.get("multimodal_eligible")
+        and row.get("final_workflow_state") == "HUMAN_REVIEW_REQUIRED"
+    ]
+    if routed_for_review:
+        eligible_multimodal = len(routed_for_review)
         st.button(
-            "Run eligible multimodal fields",
+            "Multimodal unavailable",
             disabled=True,
-            help=("Disabled for this implementation session. Provider policy and explicit "
-                  "run permission must be verified separately. No data has been sent."),
+            help="Provider disabled by policy. No data was sent.",
             key=f"multimodal_{selected['safe_source_id']}",
+        )
+        st.info(
+            "Multimodal escalation unavailable\n\n"
+            "Provider disabled by policy.\n\n"
+            f"{eligible_multimodal} eligible field(s) were not sent.\n\n"
+            f"Routed to human review: {eligible_multimodal}.\n\n"
+            "External calls: 0. No data left this machine."
         )
     evidence_tabs = st.tabs(["Validations", "Retries & governor", "Cost & latency"])
     with evidence_tabs[0]:
@@ -1283,14 +1485,18 @@ def _workspace_sidebar(st, state: dict) -> None:
     batch = state.get("batch_results")
     if batch:
         st.sidebar.divider()
-        st.sidebar.metric("Batch status", _status_label(batch.get("processing_status")))
+        st.sidebar.markdown(
+            f"**Batch status:** {_batch_status_label(batch.get('processing_status'))}")
         st.sidebar.metric("Documents", len(batch.get("documents", [])))
         st.sidebar.metric("External calls", int(
             (batch.get("summary") or {}).get("external_calls") or 0))
     st.sidebar.divider()
+    confirm_reset = st.sidebar.checkbox(
+        "Confirm reset", key="cr_confirm_reset",
+        help="Required because reset clears all current session data.")
     st.sidebar.button(
         "Reset session", on_click=_reset_workspace_session,
-        args=(st.session_state,), width="stretch",
+        args=(st.session_state,), width="stretch", disabled=not confirm_reset,
         help="Clears uploads, inventory, results, corrections, and dashboard values.")
 
 
@@ -1441,9 +1647,17 @@ def _render_workspace_processing(st, state: dict, running: bool) -> None:
     queue_slot = st.empty()
     progress_bar = st.progress(0)
     fingerprint = workspace._job_id(selected, f"{mode}:{workflow}")
+    existing_batch = state.get("batch_results")
+    confirm_reprocess = False
+    if existing_batch:
+        confirm_reprocess = st.checkbox(
+            "Confirm reprocessing selected files",
+            help="Reprocessing replaces the current batch receipt for these selections.",
+            key="cr_confirm_reprocess")
     clicked = st.button(
-        "Processing selected files..." if running else "Process selected files",
-        type="primary", disabled=running,
+        "Processing selected files..." if running else (
+            "Reprocess selected files" if existing_batch else "Process selected files"),
+        type="primary", disabled=running or (bool(existing_batch) and not confirm_reprocess),
     )
     if clicked and _queue_workspace_job(state, fingerprint):
         st.rerun()
@@ -1531,10 +1745,7 @@ def _render_workspace_processing(st, state: dict, running: bool) -> None:
                                   if row["safe_source_id"] == source_id)
                     state["retry_receipts"].append({
                         "safe_source_id": source_id,
-                        "processing_status": result["processing_status"],
-                        "external_calls": int(
-                            (result.get("escalation_summary") or {}).get(
-                                "external_provider_calls") or 0),
+                        **result["retry_history"][-1],
                     })
             _store_workspace_batch(state, retried)
             _refresh_workspace_batch(state)
