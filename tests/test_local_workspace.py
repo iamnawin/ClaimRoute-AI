@@ -149,7 +149,13 @@ def test_summary_tolerates_legacy_none_unresolved_value():
     assert isinstance(summary["unresolved_fields"], int)
 
 
-def test_unresolved_fields_are_partial_and_routed_to_review_without_sending():
+def test_unresolved_fields_are_partial_and_routed_to_review_without_sending(
+        monkeypatch):
+    # Asserts the SHIPPED default, so the runtime flags must be cleared: an
+    # operator with them exported (they enable the panel for inspection) would
+    # otherwise flip this test's subject without changing any code.
+    monkeypatch.delenv("CLAIMROUTE_MULTIMODAL_ENABLED", raising=False)
+    monkeypatch.delenv("CLAIMROUTE_LIVE_PROVIDER_TEST", raising=False)
     item = inspect_content("synthetic.png", _image_bytes())
     result = workspace.process_item(
         item, page_processor=lambda *args: _unresolved_receipt())

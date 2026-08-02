@@ -7,7 +7,12 @@ def _assert_no_ui_exception(app: AppTest) -> None:
     assert not app.exception, [item.value for item in app.exception]
 
 
-def test_frozen_benchmark_ui_clean_and_ugly_workflows():
+def test_frozen_benchmark_ui_clean_and_ugly_workflows(monkeypatch):
+    # This exercises the public_synthetic layout, whose sidebar carries the mode
+    # and example selectors. The local_workspace layout has neither, so an
+    # exported CLAIMROUTE_APP_MODE would silently point this test at a different
+    # UI and fail on a missing control that was never supposed to be there.
+    monkeypatch.delenv("CLAIMROUTE_APP_MODE", raising=False)
     app = AppTest.from_file("app/streamlit_app.py", default_timeout=180)
     app.run(timeout=180)
     _assert_no_ui_exception(app)

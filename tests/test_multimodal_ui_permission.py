@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import io
 
+import pytest
 from PIL import Image
 from streamlit.testing.v1 import AppTest
 
@@ -271,6 +272,11 @@ def test_no_enabled_looking_control_when_configuration_forbids_execution(monkeyp
 def test_operating_modes_are_labelled_local_only_when_provider_disabled(monkeypatch):
     """Modes stay selectable, because they drive real local thresholds."""
     monkeypatch.setenv("CLAIMROUTE_APP_MODE", "local_workspace")
+    # Case A of the enablement contract: no runtime flags, so the AI rung is
+    # unavailable. Cleared explicitly because an exported flag would otherwise
+    # silently change what this test is measuring.
+    monkeypatch.delenv("CLAIMROUTE_MULTIMODAL_ENABLED", raising=False)
+    monkeypatch.delenv("CLAIMROUTE_LIVE_PROVIDER_TEST", raising=False)
     app = AppTest.from_file("app/streamlit_app.py", default_timeout=30)
     app.session_state[streamlit_app.WORKSPACE_STATE_KEY] = _workspace_ui_state()
     app.run(timeout=30)
@@ -282,6 +288,71 @@ def test_operating_modes_are_labelled_local_only_when_provider_disabled(monkeypa
     # AI rung rather than implying the whole control is inert, because the mode
     # sets the local accept/retry/flag thresholds the governor actually applies.
     assert len(selector.options) == len(service.MODE_LABELS)
+
+
+def test_runtime_flags_make_the_rung_available_without_permitting_a_call(monkeypatch):
+    """Case B: flags set, no credential.
+
+    The panel must stop claiming policy forbids the rung, because it no longer
+    does, and must name the credential as the specific remaining blocker. The
+    two states are asserted separately so "available for inspection" can never
+    be confused with "permitted to spend": external calls stay at zero here.
+    """
+    monkeypatch.setenv("CLAIMROUTE_APP_MODE", "local_workspace")
+    monkeypatch.setenv("CLAIMROUTE_MULTIMODAL_ENABLED", "true")
+    monkeypatch.setenv("CLAIMROUTE_LIVE_PROVIDER_TEST", "true")
+    monkeypatch.delenv("OPENROUTER_API_KEY", raising=False)
+
+    state = workspace._provider_policy_snapshot()
+
+    assert state["provider_enabled"] is True
+    assert state["reason_not_attempted"] != "disabled by policy"
+    assert state["credential_available"] is False
+    assert state["external_call_attempted"] is False
+    assert state["external_call_count"] == 0
+
+
+def test_runtime_flags_never_override_the_shipped_config_for_execution(monkeypatch):
+    """Flags enable inspection only. The governor still refuses the call.
+
+    This is the load-bearing separation: if enabling the panel also enabled
+    spending, an operator debugging the UI would start billing by accident.
+    """
+    monkeypatch.setenv("CLAIMROUTE_MULTIMODAL_ENABLED", "true")
+    monkeypatch.setenv("CLAIMROUTE_LIVE_PROVIDER_TEST", "true")
+    monkeypatch.delenv("OPENROUTER_API_KEY", raising=False)
+
+    from engine.escalation.client import load_config
+
+    config = load_config()
+    # Shipped config is still false, so the live path stays shut regardless of
+    # what the environment says.
+    assert config["enabled"] is False
+    assert config["live_provider"]["enabled"] is False
+
+
+@pytest.mark.parametrize("value", ["", "false", "0", "no", "maybe", "TRUE-ish"])
+def test_only_recognised_truth_values_enable_the_panel(monkeypatch, value):
+    """A malformed flag is not an enable. Anything unrecognised means off."""
+    monkeypatch.setenv("CLAIMROUTE_MULTIMODAL_ENABLED", value)
+    monkeypatch.setenv("CLAIMROUTE_LIVE_PROVIDER_TEST", value)
+
+    assert workspace._provider_policy_snapshot()["provider_enabled"] is False
+
+
+def test_one_flag_alone_does_not_enable_the_panel(monkeypatch):
+    """Both flags are required; either alone leaves the rung unavailable."""
+    for present, absent in (("CLAIMROUTE_MULTIMODAL_ENABLED",
+                             "CLAIMROUTE_LIVE_PROVIDER_TEST"),
+                            ("CLAIMROUTE_LIVE_PROVIDER_TEST",
+                             "CLAIMROUTE_MULTIMODAL_ENABLED")):
+        monkeypatch.setenv(present, "true")
+        monkeypatch.delenv(absent, raising=False)
+
+        state = workspace._provider_policy_snapshot()
+
+        assert state["provider_enabled"] is False, f"{present} alone enabled it"
+        assert state["reason_not_attempted"] == "disabled by policy"
 
 
 def test_streamlit_rerun_preserves_receipt_and_keeps_paid_action_disabled(monkeypatch):
